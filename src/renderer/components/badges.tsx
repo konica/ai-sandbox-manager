@@ -1,25 +1,26 @@
 import type { SbxStatus, Tier } from '@shared/types'
+import { useT } from '../i18n'
 
-const TIER_META: Record<Tier | 'custom', { label: string; cls: string }> = {
-  open: { label: 'Open', cls: 'tier-open' },
-  balanced: { label: 'Balanced', cls: 'tier-balanced' },
-  locked: { label: 'Locked Down', cls: 'tier-locked' },
-  custom: { label: 'Custom', cls: 'badge-stopped' }
+const TIER_CLASS: Record<Tier | 'custom', string> = {
+  open: 'tier-open',
+  balanced: 'tier-balanced',
+  locked: 'tier-locked',
+  custom: 'badge-stopped'
 }
 
-const STATUS_META: Record<SbxStatus, { label: string; cls: string }> = {
-  running: { label: 'Running', cls: 'badge-running' },
-  stopped: { label: 'Stopped', cls: 'badge-stopped' },
-  error: { label: 'Error', cls: 'badge-error' },
-  unknown: { label: 'Unknown', cls: 'badge-stopped' }
+const STATUS_CLASS: Record<SbxStatus, string> = {
+  running: 'badge-running',
+  stopped: 'badge-stopped',
+  error: 'badge-error',
+  unknown: 'badge-stopped'
 }
 
 export function TierBadge({ tier }: { tier: Tier | 'custom' }): JSX.Element {
-  const m = TIER_META[tier]
-  return <span className={`badge ${m.cls}`}>{m.label}</span>
+  const t = useT()
+  return <span className={`badge ${TIER_CLASS[tier]}`}>{t(`tier.${tier}`)}</span>
 }
 
 export function StatusBadge({ status }: { status: SbxStatus }): JSX.Element {
-  const m = STATUS_META[status]
-  return <span className={`badge ${m.cls}`}>{m.label}</span>
+  const t = useT()
+  return <span className={`badge ${STATUS_CLASS[status]}`}>{t(`status.${status}`)}</span>
 }

@@ -1,26 +1,26 @@
 import type { InstanceView } from '@shared/types'
 import { TierBadge, StatusBadge } from '../components/badges'
+import { useT } from '../i18n'
 
 export function Instances({ instances }: { instances: InstanceView[] }): JSX.Element {
+  const t = useT()
   return (
     <section className="screen active">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="section-title" style={{ marginBottom: 0 }}>Instances</h2>
+        <h2 className="section-title" style={{ marginBottom: 0 }}>{t('instances.title')}</h2>
       </div>
-      <p className="section-desc">
-        Runtime instances created from sandbox definitions. Each instance runs as an isolated Docker Sandbox.
-      </p>
+      <p className="section-desc">{t('instances.subtitle')}</p>
 
       {instances.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 'var(--space-10)' }}>
-          <p className="section-desc" style={{ marginBottom: 0 }}>No sandboxes yet. Create a definition and launch an instance to get started.</p>
+          <p className="section-desc" style={{ marginBottom: 0 }}>{t('instances.empty')}</p>
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <table className="table">
             <thead>
               <tr>
-                <th>Instance Name</th><th>Status</th><th>Definition</th><th>Workspace</th><th>Agent</th><th>Network</th><th>Ports</th>
+                <th>{t('instances.colName')}</th><th>{t('instances.colStatus')}</th><th>{t('instances.colDefinition')}</th><th>{t('instances.colWorkspace')}</th><th>{t('instances.colAgent')}</th><th>{t('instances.colNetwork')}</th><th>{t('instances.colPorts')}</th>
               </tr>
             </thead>
             <tbody>

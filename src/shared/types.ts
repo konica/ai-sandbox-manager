@@ -61,12 +61,13 @@ export interface InstanceView extends SbxInstance {
   tier: Tier | 'custom'
 }
 
+// Structured prerequisite result. The main process reports the id, pass/fail,
+// and raw values only; the renderer composes translated labels/details.
 export interface PrereqCheck {
   id: 'docker' | 'sbx' | 'auth' | 'disk' | 'keychain'
-  label: string
   ok: boolean
-  detail: string
-  remediation?: string
+  value?: string // docker/sbx version text
+  freeGiB?: string // formatted free disk, e.g. "41.4"
 }
 
 export interface PrereqResult {

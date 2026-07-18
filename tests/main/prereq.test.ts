@@ -16,11 +16,11 @@ describe('checkPrereqs', () => {
     expect(r.checks.map((c) => c.id)).toEqual(['docker', 'sbx', 'auth', 'disk', 'keychain'])
   })
 
-  it('reports the sbx version in the detail when present', async () => {
+  it('reports the sbx version as a raw value when present', async () => {
     const r = await checkPrereqs(allGood)
     const sbx = r.checks.find((c) => c.id === 'sbx')
     expect(sbx?.ok).toBe(true)
-    expect(sbx?.detail).toContain('v0.35.0')
+    expect(sbx?.value).toContain('v0.35.0')
   })
 
   it('marks sbx absent when the version probe returns null', async () => {
@@ -33,7 +33,6 @@ describe('checkPrereqs', () => {
     const r = await checkPrereqs({ ...allGood, sbxAuthed: async () => false })
     expect(r.ok).toBe(false)
     expect(r.checks.find((c) => c.id === 'auth')?.ok).toBe(false)
-    expect(r.checks.find((c) => c.id === 'auth')?.remediation).toContain('sbx login')
   })
 
   it('does not run the auth probe when sbx is absent', async () => {

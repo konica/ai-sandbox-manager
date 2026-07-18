@@ -6,17 +6,17 @@ import type { PrereqResult } from '@shared/types'
 const failing: PrereqResult = {
   ok: false,
   checks: [
-    { id: 'docker', label: 'Docker', ok: true, detail: 'ok' },
-    { id: 'auth', label: 'sbx authentication', ok: false, detail: 'Not logged in', remediation: 'Run `sbx login`' }
+    { id: 'docker', ok: true, value: 'Docker version 24' },
+    { id: 'auth', ok: false }
   ]
 }
 
 describe('Prereq screen', () => {
-  it('renders each check with its label and remediation for failures', () => {
+  it('renders translated labels and remediation for failures', () => {
     render(<Prereq result={failing} onRecheck={() => {}} />)
-    expect(screen.getByText('Docker')).toBeInTheDocument()
-    expect(screen.getByText('sbx authentication')).toBeInTheDocument()
-    expect(screen.getByText(/Run `sbx login`/)).toBeInTheDocument()
+    expect(screen.getByText('Docker Engine')).toBeInTheDocument()
+    expect(screen.getByText('Sandboxes Authentication')).toBeInTheDocument()
+    expect(screen.getByText(/sbx login/)).toBeInTheDocument()
   })
 
   it('invokes onRecheck when the retry button is clicked', () => {

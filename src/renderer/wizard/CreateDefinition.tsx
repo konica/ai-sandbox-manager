@@ -2,12 +2,12 @@ import { useReducer, useState } from 'react'
 import type { CredentialKind, Tier } from '@shared/types'
 import { api } from '../ipc/client'
 import { draftReducer, initialDraft, canAdvance, toSpec, parsePort, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
+import { useT } from '../i18n'
 
-const STEP_LABELS = ['Workspace', 'Base Image', 'Network', 'Ports', 'Credentials', 'Review']
-const TIERS: { value: Tier; label: string; desc: string }[] = [
-  { value: 'open', label: 'Open', desc: 'Broad egress. Fewest restrictions.' },
-  { value: 'balanced', label: 'Balanced', desc: 'Common developer domains allowed.' },
-  { value: 'locked', label: 'Locked Down', desc: 'Deny by default; add only what you need.' }
+const TIERS: { value: Tier; descKey: string }[] = [
+  { value: 'open', descKey: 'wizard.tierOpenDesc' },
+  { value: 'balanced', descKey: 'wizard.tierBalancedDesc' },
+  { value: 'locked', descKey: 'wizard.tierLockedDesc' }
 ]
 const KINDS: CredentialKind[] = ['git', 'api-key', 'claude-auth']
 
@@ -28,6 +28,7 @@ export function CreateDefinition({
   createId?: () => string
   now?: () => string
 }): JSX.Element {
+  const t = useT()
   const [draft, dispatch] = useReducer(draftReducer, initialDraft)
   const [domainInput, setDomainInput] = useState('')
   const [portInput, setPortInput] = useState('')
@@ -44,12 +45,13 @@ export function CreateDefinition({
   }
 
   const row = { display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' } as const
+  const stepKeys = ['workspace', 'baseImage', 'network', 'ports', 'credentials', 'review']
 
   return (
     <section className="screen active">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="section-title" style={{ marginBottom: 0 }}>Create Sandbox</h2>
-        <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+        <h2 className="section-title" style={{ marginBottom: 0 }}>{t('common.createSandbox')}</h2>
+        <button className="btn btn-ghost" onClick={onCancel}>{t('common.cancel')}</button>
       </div>
 
       <div className="card">
@@ -60,7 +62,7 @@ export function CreateDefinition({
             return (
               <div key={n} className={`wizard-step ${cls}`}>
                 <span className="wizard-step-num">{n}</span>
-                {STEP_LABELS[idx]}
+                {t(`wizard.steps.${stepKeys[idx]}`)}
               </div>
             )
           })}
@@ -69,31 +71,31 @@ export function CreateDefinition({
         <div className="wizard-body">
           {draft.step === 1 && (
             <>
-              <label htmlFor="def-name">Sandbox name</label>
-              <input id="def-name" aria-label="Name" className="input input-mono" value={draft.name} placeholder={basename(draft.workspace) || 'my-sandbox'} onChange={(e) => dispatch({ type: 'setField', field: 'name', value: e.target.value })} />
-              <p className="section-desc" style={{ marginTop: 'var(--space-1)', marginBottom: 0, fontSize: 11 }}>Leave blank to use the working directory's folder name.</p>
-              <label htmlFor="def-desc" style={{ marginTop: 'var(--space-3)' }}>Description (optional)</label>
-              <textarea id="def-desc" aria-label="Description" className="input" style={{ minHeight: 70, resize: 'vertical' }} value={draft.description} placeholder="Describe what this sandbox is for…" onChange={(e) => dispatch({ type: 'setField', field: 'description', value: e.target.value })} />
+              <label htmlFor="def-name">{t('wizard.nameLabel')}</label>
+              <input id="def-name" aria-label="Name" className="input input-mono" value={draft.name} placeholder={basename(draft.workspace) || t('wizard.namePlaceholder')} onChange={(e) => dispatch({ type: 'setField', field: 'name', value: e.target.value })} />
+              <p className="section-desc" style={{ marginTop: 'var(--space-1)', marginBottom: 0, fontSize: 11 }}>{t('wizard.nameHint')}</p>
+              <label htmlFor="def-desc" style={{ marginTop: 'var(--space-3)' }}>{t('wizard.descLabel')}</label>
+              <textarea id="def-desc" aria-label="Description" className="input" style={{ minHeight: 70, resize: 'vertical' }} value={draft.description} placeholder={t('wizard.descPlaceholder')} onChange={(e) => dispatch({ type: 'setField', field: 'description', value: e.target.value })} />
 
-              <label htmlFor="workdir" style={{ marginTop: 'var(--space-4)' }}>Working directory <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <label htmlFor="workdir" style={{ marginTop: 'var(--space-4)' }}>{t('wizard.workdirLabel')} <span style={{ color: 'var(--danger)' }}>*</span></label>
               <div style={row}>
                 <input id="workdir" aria-label="Workspace" className="input input-mono" style={{ flex: 1 }} placeholder="/path/to/project" value={draft.workspace} onChange={(e) => dispatch({ type: 'setField', field: 'workspace', value: e.target.value })} />
-                <button className="btn btn-secondary" onClick={async () => { const p = await api.pickFolder(); if (p) dispatch({ type: 'setField', field: 'workspace', value: p }) }}>Browse…</button>
+                <button className="btn btn-secondary" onClick={async () => { const p = await api.pickFolder(); if (p) dispatch({ type: 'setField', field: 'workspace', value: p }) }}>{t('common.browse')}</button>
               </div>
               <div style={{ display: 'flex', gap: 'var(--space-4)', margin: 'var(--space-3) 0' }}>
-                <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}><input type="radio" name="wsmode" checked={draft.workspaceMode === 'direct'} onChange={() => dispatch({ type: 'setWorkspaceMode', mode: 'direct' })} /> Read-write (direct)</label>
-                <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}><input type="radio" name="wsmode" checked={draft.workspaceMode === 'clone'} onChange={() => dispatch({ type: 'setWorkspaceMode', mode: 'clone' })} /> Read-only (clone)</label>
+                <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}><input type="radio" name="wsmode" checked={draft.workspaceMode === 'direct'} onChange={() => dispatch({ type: 'setWorkspaceMode', mode: 'direct' })} /> {t('wizard.modeDirect')}</label>
+                <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}><input type="radio" name="wsmode" checked={draft.workspaceMode === 'clone'} onChange={() => dispatch({ type: 'setWorkspaceMode', mode: 'clone' })} /> {t('wizard.modeClone')}</label>
               </div>
               {draft.workspaceMode === 'direct' && (
                 <div className="card" style={{ background: 'var(--warning-bg)', borderColor: 'var(--warning)', fontSize: 12, color: 'var(--text-secondary)' }}>
-                  Direct mode exposes files with implicit execution (git hooks, CI config, Makefiles) to edits not visible in a normal diff.
+                  {t('wizard.directWarning')}
                 </div>
               )}
-              <label style={{ marginTop: 'var(--space-3)' }}>Extra folders</label>
+              <label style={{ marginTop: 'var(--space-3)' }}>{t('wizard.extraFolders')}</label>
               <div style={row}>
-                <input aria-label="Extra folder path" className="input input-mono" style={{ flex: 1 }} placeholder="/path/to/extra/folder" value={folderInput} onChange={(e) => setFolderInput(e.target.value)} />
-                <button className="btn btn-secondary" onClick={async () => { const p = await api.pickFolder(); if (p) setFolderInput(p) }}>Browse…</button>
-                <button className="btn btn-secondary btn-sm" onClick={() => { if (folderInput.trim()) { dispatch({ type: 'addExtraFolder', path: folderInput.trim(), mode: 'clone' }); setFolderInput('') } }}>Add Folder</button>
+                <input aria-label="Extra folder path" className="input input-mono" style={{ flex: 1 }} placeholder={t('wizard.extraPlaceholder')} value={folderInput} onChange={(e) => setFolderInput(e.target.value)} />
+                <button className="btn btn-secondary" onClick={async () => { const p = await api.pickFolder(); if (p) setFolderInput(p) }}>{t('common.browse')}</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => { if (folderInput.trim()) { dispatch({ type: 'addExtraFolder', path: folderInput.trim(), mode: 'clone' }); setFolderInput('') } }}>{t('wizard.addFolder')}</button>
               </div>
               <div>{draft.extraFolders.map((f, i) => (<Chip key={i} text={`${f.path} (${f.mode})`} onRemove={() => dispatch({ type: 'removeExtraFolder', index: i })} />))}</div>
             </>
@@ -101,36 +103,36 @@ export function CreateDefinition({
 
           {draft.step === 2 && (
             <>
-              <label htmlFor="base-image-select">Built-in templates</label>
+              <label htmlFor="base-image-select">{t('wizard.builtinTemplates')}</label>
               <select id="base-image-select" className="input" style={{ fontFamily: 'var(--font-mono)' }} value={draft.imageChoice} onChange={(e) => dispatch({ type: 'setImageChoice', value: e.target.value as BuiltinVariant | 'custom' })}>
                 {BUILTIN_VARIANTS.map((v) => (<option key={v.value} value={v.value}>{v.value} — {v.label}</option>))}
-                <option value="custom">Custom registry image…</option>
+                <option value="custom">{t('wizard.customOption')}</option>
               </select>
               {draft.imageChoice === 'custom' && (
                 <>
-                  <label htmlFor="custom-image-url" style={{ marginTop: 'var(--space-3)' }}>Image reference</label>
-                  <input id="custom-image-url" aria-label="Custom image ref" className="input input-mono" placeholder="docker.io/org/image:tag" value={draft.customImageRef} onChange={(e) => dispatch({ type: 'setField', field: 'customImageRef', value: e.target.value })} />
+                  <label htmlFor="custom-image-url" style={{ marginTop: 'var(--space-3)' }}>{t('wizard.imageRefLabel')}</label>
+                  <input id="custom-image-url" aria-label="Custom image ref" className="input input-mono" placeholder={t('wizard.imageRefPlaceholder')} value={draft.customImageRef} onChange={(e) => dispatch({ type: 'setField', field: 'customImageRef', value: e.target.value })} />
                 </>
               )}
-              <p className="section-desc" style={{ marginTop: 'var(--space-3)', marginBottom: 0 }}>Resolves to <span className="code-inline">{resolveBaseImage(draft) || '—'}</span></p>
+              <p className="section-desc" style={{ marginTop: 'var(--space-3)', marginBottom: 0 }}>{t('wizard.resolvesTo')} <span className="code-inline">{resolveBaseImage(draft) || '—'}</span></p>
             </>
           )}
 
           {draft.step === 3 && (
             <>
-              <label>Network policy tier</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-                {TIERS.map((t) => (
-                  <label key={t.value} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-start', padding: 'var(--space-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>
-                    <input type="radio" name="tier" style={{ marginTop: 3 }} checked={draft.tier === t.value} onChange={() => dispatch({ type: 'setTier', tier: t.value })} />
-                    <span><strong style={{ fontSize: 13 }}>{t.label}</strong><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.desc}</div></span>
+              <label>{t('wizard.networkTier')}</label>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                {TIERS.map((tr) => (
+                  <label key={tr.value} style={{ flex: 1, display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start', padding: 'var(--space-3)', border: `1px solid ${draft.tier === tr.value ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>
+                    <input type="radio" name="tier" style={{ marginTop: 3 }} checked={draft.tier === tr.value} onChange={() => dispatch({ type: 'setTier', tier: tr.value })} />
+                    <span><strong style={{ fontSize: 13 }}>{t(`tier.${tr.value}`)}</strong><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t(tr.descKey)}</div></span>
                   </label>
                 ))}
               </div>
-              <label>Allowlist (HTTP/HTTPS domains only)</label>
+              <label>{t('wizard.allowlist')}</label>
               <div style={row}>
-                <input aria-label="Domain" className="input input-mono" placeholder="api.github.com" value={domainInput} onChange={(e) => setDomainInput(e.target.value)} />
-                <button className="btn btn-secondary btn-sm" onClick={() => { if (domainInput.trim()) { dispatch({ type: 'addDomain', host: domainInput.trim() }); setDomainInput('') } }}>Add Domain</button>
+                <input aria-label="Domain" className="input input-mono" placeholder={t('wizard.domainPlaceholder')} value={domainInput} onChange={(e) => setDomainInput(e.target.value)} />
+                <button className="btn btn-secondary btn-sm" onClick={() => { if (domainInput.trim()) { dispatch({ type: 'addDomain', host: domainInput.trim() }); setDomainInput('') } }}>{t('wizard.addDomain')}</button>
               </div>
               <div>{draft.domains.map((h) => (<Chip key={h} text={h} onRemove={() => dispatch({ type: 'removeDomain', host: h })} />))}</div>
             </>
@@ -138,12 +140,12 @@ export function CreateDefinition({
 
           {draft.step === 4 && (
             <>
-              <label>Published ports</label>
-              <p className="section-desc" style={{ marginTop: 0 }}>Forwarded after launch, bound to <span className="code-inline">127.0.0.1</span>.</p>
+              <label>{t('wizard.steps.ports')}</label>
+              <p className="section-desc" style={{ marginTop: 0 }}>{t('wizard.portsHelp')}</p>
               <div style={row}>
-                <input aria-label="Port mapping" className="input input-mono" placeholder="8080:3000" value={portInput} onChange={(e) => setPortInput(e.target.value)} />
-                <input aria-label="Port label" className="input" placeholder="label" value={portLabel} onChange={(e) => setPortLabel(e.target.value)} />
-                <button className="btn btn-secondary btn-sm" onClick={() => { const p = parsePort(portInput); if (p) { dispatch({ type: 'addPort', hostPort: p.hostPort, containerPort: p.containerPort, label: portLabel.trim() }); setPortInput(''); setPortLabel('') } }}>Add Port</button>
+                <input aria-label="Port mapping" className="input input-mono" placeholder={t('wizard.portPlaceholder')} value={portInput} onChange={(e) => setPortInput(e.target.value)} />
+                <input aria-label="Port label" className="input" placeholder={t('wizard.portLabelPlaceholder')} value={portLabel} onChange={(e) => setPortLabel(e.target.value)} />
+                <button className="btn btn-secondary btn-sm" onClick={() => { const p = parsePort(portInput); if (p) { dispatch({ type: 'addPort', hostPort: p.hostPort, containerPort: p.containerPort, label: portLabel.trim() }); setPortInput(''); setPortLabel('') } }}>{t('wizard.addPort')}</button>
               </div>
               <div>{draft.ports.map((p, i) => (<Chip key={i} text={`${p.hostPort}:${p.containerPort}${p.label ? ` ${p.label}` : ''}`} onRemove={() => dispatch({ type: 'removePort', index: i })} />))}</div>
             </>
@@ -151,14 +153,14 @@ export function CreateDefinition({
 
           {draft.step === 5 && (
             <>
-              <label>Credentials</label>
-              <p className="section-desc" style={{ marginTop: 0 }}>Declarations only — values are set securely at launch.</p>
+              <label>{t('wizard.steps.credentials')}</label>
+              <p className="section-desc" style={{ marginTop: 0 }}>{t('wizard.credentialsHelp')}</p>
               <div style={row}>
-                <input aria-label="Credential label" className="input" placeholder="GitHub token" value={credLabel} onChange={(e) => setCredLabel(e.target.value)} />
+                <input aria-label="Credential label" className="input" placeholder={t('wizard.credLabelPlaceholder')} value={credLabel} onChange={(e) => setCredLabel(e.target.value)} />
                 <select aria-label="Credential kind" className="input" style={{ maxWidth: 160 }} value={credKind} onChange={(e) => setCredKind(e.target.value as CredentialKind)}>
                   {KINDS.map((k) => (<option key={k} value={k}>{k}</option>))}
                 </select>
-                <button className="btn btn-secondary btn-sm" onClick={() => { if (credLabel.trim()) { dispatch({ type: 'addCredential', label: credLabel.trim(), kind: credKind }); setCredLabel('') } }}>Add</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => { if (credLabel.trim()) { dispatch({ type: 'addCredential', label: credLabel.trim(), kind: credKind }); setCredLabel('') } }}>{t('wizard.add')}</button>
               </div>
               <div>{draft.credentials.map((c, i) => (<Chip key={i} text={`${c.label} (${c.kind})`} onRemove={() => dispatch({ type: 'removeCredential', index: i })} />))}</div>
             </>
@@ -166,29 +168,29 @@ export function CreateDefinition({
 
           {draft.step === 6 && (
             <>
-              <h3 style={{ fontSize: 15, marginBottom: 'var(--space-3)' }}>Review</h3>
+              <h3 style={{ fontSize: 15, marginBottom: 'var(--space-3)' }}>{t('wizard.review')}</h3>
               <table className="table">
                 <tbody>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>Name</td><td>{effectiveName(draft)}</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>Base image</td><td><span className="code-inline">{resolveBaseImage(draft)}</span></td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>Workspace</td><td><span className="code-inline">{draft.workspace}</span> ({draft.workspaceMode})</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>Extra folders</td><td>{draft.extraFolders.length}</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>Network</td><td>{draft.tier} · {draft.domains.length} domains</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>Ports</td><td>{draft.ports.length}</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>Credentials</td><td>{draft.credentials.length}</td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewName')}</td><td>{effectiveName(draft)}</td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewBase')}</td><td><span className="code-inline">{resolveBaseImage(draft)}</span></td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewWorkspace')}</td><td><span className="code-inline">{draft.workspace}</span> ({draft.workspaceMode})</td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewFolders')}</td><td>{draft.extraFolders.length}</td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewNetwork')}</td><td>{t(`tier.${draft.tier}`)} · {draft.domains.length}</td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewPorts')}</td><td>{draft.ports.length}</td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewCredentials')}</td><td>{draft.credentials.length}</td></tr>
                 </tbody>
               </table>
-              {error && <p style={{ color: 'var(--danger)' }}>Error: {error}</p>}
+              {error && <p style={{ color: 'var(--danger)' }}>{t('wizard.error')}: {error}</p>}
             </>
           )}
         </div>
 
         <div className="wizard-actions">
-          <button className="btn btn-ghost" onClick={() => dispatch({ type: 'back' })} disabled={draft.step === 1}>Back</button>
+          <button className="btn btn-ghost" onClick={() => dispatch({ type: 'back' })} disabled={draft.step === 1}>{t('common.back')}</button>
           {draft.step < TOTAL_STEPS ? (
-            <button className="btn btn-primary" onClick={() => dispatch({ type: 'next' })} disabled={!canAdvance(draft)}>Next</button>
+            <button className="btn btn-primary" onClick={() => dispatch({ type: 'next' })} disabled={!canAdvance(draft)}>{t('common.next')}</button>
           ) : (
-            <button className="btn btn-primary" onClick={() => void submit()}>Create Sandbox</button>
+            <button className="btn btn-primary" onClick={() => void submit()}>{t('common.createSandbox')}</button>
           )}
         </div>
       </div>

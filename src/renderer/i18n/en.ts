@@ -1,0 +1,107 @@
+// English (default) translations. Keys are dot-addressed via t('a.b.c').
+export const en = {
+  titlebar: { toggleTheme: 'Toggle theme', language: 'Language' },
+  nav: {
+    prerequisites: 'Prerequisites',
+    definitions: 'Sandbox Definitions',
+    instances: 'Sandbox Instances',
+    settings: 'Settings'
+  },
+  common: {
+    back: 'Back',
+    next: 'Next',
+    cancel: 'Cancel',
+    browse: 'Browse…',
+    createSandbox: 'Create Sandbox'
+  },
+  prereq: {
+    title: 'System Prerequisites',
+    subtitle: 'Checking your environment for Docker Sandboxes support. Some items may require manual setup.',
+    retry: 'Retry All Checks',
+    continueAnyway: 'Continue Anyway',
+    docker: { label: 'Docker Engine', ok: '{value}', fail: 'Docker not found', fix: 'Install Docker Desktop and ensure it is running.' },
+    sbx: { label: 'Docker Sandboxes CLI (sbx)', ok: 'sbx {value} found', fail: 'sbx not found on PATH', fix: 'Install the Docker Sandboxes CLI (sbx).' },
+    auth: { label: 'Sandboxes Authentication', ok: 'Authenticated', fail: 'Not authenticated', fix: 'Run `sbx login` in your terminal, then re-check.' },
+    disk: { label: 'Disk Space', ok: '{gib} GiB free — sufficient for sandbox images', fail: '{gib} GiB free', fix: 'Free up disk space; sandboxes need room for images.' },
+    keychain: { label: 'OS Keychain', ok: 'Reachable', fail: 'Not reachable — encrypted fallback will be used' }
+  },
+  definitions: {
+    title: 'Sandbox Definitions',
+    subtitle: 'Sandbox definitions are reusable specs that describe an environment. Each definition can launch multiple runtime instances.',
+    empty: 'No definitions yet. Create one to describe a reusable sandbox environment.',
+    colName: 'Name',
+    colBase: 'Base Image',
+    colNetwork: 'Network',
+    colCreated: 'Created'
+  },
+  instances: {
+    title: 'Instances',
+    subtitle: 'Runtime instances created from sandbox definitions. Each instance runs as an isolated Docker Sandbox.',
+    empty: 'No sandboxes yet. Create a definition and launch an instance to get started.',
+    colName: 'Instance Name',
+    colStatus: 'Status',
+    colDefinition: 'Definition',
+    colWorkspace: 'Workspace',
+    colAgent: 'Agent',
+    colNetwork: 'Network',
+    colPorts: 'Ports'
+  },
+  settings: {
+    title: 'Settings',
+    subtitle: 'Application defaults for new sandbox definitions and instances.',
+    defaultTier: 'Default network tier',
+    defaultTierValue: 'Locked Down',
+    credStorage: 'Credential storage',
+    credStorageValue: 'OS keychain, with an encrypted fallback',
+    agent: 'Agent',
+    agentValue: 'Claude Code'
+  },
+  wizard: {
+    stepOf: 'Step {n} of {total}',
+    steps: { workspace: 'Workspace', baseImage: 'Base Image', network: 'Network', ports: 'Ports', credentials: 'Credentials', review: 'Review' },
+    nameLabel: 'Sandbox name',
+    namePlaceholder: 'my-sandbox',
+    nameHint: "Leave blank to use the working directory's folder name.",
+    descLabel: 'Description (optional)',
+    descPlaceholder: 'Describe what this sandbox is for…',
+    workdirLabel: 'Working directory',
+    modeDirect: 'Read-write (direct)',
+    modeClone: 'Read-only (clone)',
+    directWarning: 'Direct mode exposes files with implicit execution (git hooks, CI config, Makefiles) to edits not visible in a normal diff.',
+    extraFolders: 'Extra folders',
+    extraPlaceholder: '/path/to/extra/folder',
+    addFolder: 'Add Folder',
+    builtinTemplates: 'Built-in templates',
+    customOption: 'Custom registry image…',
+    imageRefLabel: 'Image reference',
+    imageRefPlaceholder: 'docker.io/org/image:tag',
+    resolvesTo: 'Resolves to',
+    networkTier: 'Network policy tier',
+    tierOpenDesc: 'Broad egress. Fewest restrictions.',
+    tierBalancedDesc: 'Common developer domains allowed.',
+    tierLockedDesc: 'Deny by default; add only what you need.',
+    allowlist: 'Allowlist (HTTP/HTTPS domains only)',
+    domainPlaceholder: 'api.github.com',
+    addDomain: 'Add Domain',
+    portsHelp: 'Forwarded after launch, bound to 127.0.0.1.',
+    portPlaceholder: '8080:3000',
+    portLabelPlaceholder: 'label',
+    addPort: 'Add Port',
+    credentialsHelp: 'Declarations only — values are set securely at launch.',
+    credLabelPlaceholder: 'GitHub token',
+    add: 'Add',
+    review: 'Review',
+    reviewName: 'Name',
+    reviewBase: 'Base image',
+    reviewWorkspace: 'Workspace',
+    reviewFolders: 'Extra folders',
+    reviewNetwork: 'Network',
+    reviewPorts: 'Ports',
+    reviewCredentials: 'Credentials',
+    error: 'Error'
+  },
+  tier: { open: 'Open', balanced: 'Balanced', locked: 'Locked Down', custom: 'Custom' },
+  status: { running: 'Running', stopped: 'Stopped', error: 'Error', unknown: 'Unknown' }
+}
+
+export type Dict = typeof en

@@ -1,5 +1,6 @@
 import type { Definition } from '@shared/types'
 import { TierBadge } from '../components/badges'
+import { useT } from '../i18n'
 
 function PlusIcon(): JSX.Element {
   return (
@@ -10,26 +11,25 @@ function PlusIcon(): JSX.Element {
 }
 
 export function Definitions({ definitions, onCreate }: { definitions: Definition[]; onCreate: () => void }): JSX.Element {
+  const t = useT()
   return (
     <section className="screen active">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="section-title" style={{ marginBottom: 0 }}>Sandbox Definitions</h2>
-        <button className="btn btn-primary" onClick={onCreate}><PlusIcon /> Create Sandbox</button>
+        <h2 className="section-title" style={{ marginBottom: 0 }}>{t('definitions.title')}</h2>
+        <button className="btn btn-primary" onClick={onCreate}><PlusIcon /> {t('common.createSandbox')}</button>
       </div>
-      <p className="section-desc">
-        Sandbox definitions are reusable specs that describe an environment. Each definition can launch multiple runtime instances.
-      </p>
+      <p className="section-desc">{t('definitions.subtitle')}</p>
 
       {definitions.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 'var(--space-10)' }}>
-          <p className="section-desc" style={{ marginBottom: 0 }}>No definitions yet. Create one to describe a reusable sandbox environment.</p>
+          <p className="section-desc" style={{ marginBottom: 0 }}>{t('definitions.empty')}</p>
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <table className="table">
             <thead>
               <tr>
-                <th>Name</th><th>Base Image</th><th>Network</th><th>Created</th>
+                <th>{t('definitions.colName')}</th><th>{t('definitions.colBase')}</th><th>{t('definitions.colNetwork')}</th><th>{t('definitions.colCreated')}</th>
               </tr>
             </thead>
             <tbody>

@@ -1,0 +1,107 @@
+import type { Dict } from './en'
+
+// German translations. Product names (Docker, sbx, Claude Code) are kept as-is.
+export const de: Dict = {
+  titlebar: { toggleTheme: 'Design umschalten', language: 'Sprache' },
+  nav: {
+    prerequisites: 'Voraussetzungen',
+    definitions: 'Sandbox-Definitionen',
+    instances: 'Sandbox-Instanzen',
+    settings: 'Einstellungen'
+  },
+  common: {
+    back: 'Zurück',
+    next: 'Weiter',
+    cancel: 'Abbrechen',
+    browse: 'Durchsuchen…',
+    createSandbox: 'Sandbox erstellen'
+  },
+  prereq: {
+    title: 'Systemvoraussetzungen',
+    subtitle: 'Überprüfung Ihrer Umgebung auf Docker-Sandboxes-Unterstützung. Einige Punkte erfordern möglicherweise manuelle Einrichtung.',
+    retry: 'Alle Prüfungen wiederholen',
+    continueAnyway: 'Trotzdem fortfahren',
+    docker: { label: 'Docker Engine', ok: '{value}', fail: 'Docker nicht gefunden', fix: 'Installieren Sie Docker Desktop und stellen Sie sicher, dass es läuft.' },
+    sbx: { label: 'Docker Sandboxes CLI (sbx)', ok: 'sbx {value} gefunden', fail: 'sbx nicht im PATH gefunden', fix: 'Installieren Sie die Docker Sandboxes CLI (sbx).' },
+    auth: { label: 'Sandboxes-Authentifizierung', ok: 'Authentifiziert', fail: 'Nicht authentifiziert', fix: 'Führen Sie `sbx login` im Terminal aus und prüfen Sie erneut.' },
+    disk: { label: 'Speicherplatz', ok: '{gib} GiB frei — ausreichend für Sandbox-Images', fail: '{gib} GiB frei', fix: 'Geben Sie Speicherplatz frei; Sandboxes benötigen Platz für Images.' },
+    keychain: { label: 'Betriebssystem-Schlüsselbund', ok: 'Erreichbar', fail: 'Nicht erreichbar — verschlüsselter Fallback wird verwendet' }
+  },
+  definitions: {
+    title: 'Sandbox-Definitionen',
+    subtitle: 'Sandbox-Definitionen sind wiederverwendbare Spezifikationen, die eine Umgebung beschreiben. Aus jeder Definition lassen sich mehrere Laufzeit-Instanzen starten.',
+    empty: 'Noch keine Definitionen. Erstellen Sie eine, um eine wiederverwendbare Sandbox-Umgebung zu beschreiben.',
+    colName: 'Name',
+    colBase: 'Basis-Image',
+    colNetwork: 'Netzwerk',
+    colCreated: 'Erstellt'
+  },
+  instances: {
+    title: 'Instanzen',
+    subtitle: 'Laufzeit-Instanzen, die aus Sandbox-Definitionen erstellt wurden. Jede Instanz läuft als isolierte Docker-Sandbox.',
+    empty: 'Noch keine Sandboxes. Erstellen Sie eine Definition und starten Sie eine Instanz, um zu beginnen.',
+    colName: 'Instanzname',
+    colStatus: 'Status',
+    colDefinition: 'Definition',
+    colWorkspace: 'Arbeitsverzeichnis',
+    colAgent: 'Agent',
+    colNetwork: 'Netzwerk',
+    colPorts: 'Ports'
+  },
+  settings: {
+    title: 'Einstellungen',
+    subtitle: 'Anwendungsstandards für neue Sandbox-Definitionen und -Instanzen.',
+    defaultTier: 'Standard-Netzwerkstufe',
+    defaultTierValue: 'Abgeschottet',
+    credStorage: 'Anmeldedaten-Speicher',
+    credStorageValue: 'Betriebssystem-Schlüsselbund, mit verschlüsseltem Fallback',
+    agent: 'Agent',
+    agentValue: 'Claude Code'
+  },
+  wizard: {
+    stepOf: 'Schritt {n} von {total}',
+    steps: { workspace: 'Arbeitsverzeichnis', baseImage: 'Basis-Image', network: 'Netzwerk', ports: 'Ports', credentials: 'Anmeldedaten', review: 'Überprüfung' },
+    nameLabel: 'Sandbox-Name',
+    namePlaceholder: 'meine-sandbox',
+    nameHint: 'Leer lassen, um den Ordnernamen des Arbeitsverzeichnisses zu verwenden.',
+    descLabel: 'Beschreibung (optional)',
+    descPlaceholder: 'Beschreiben Sie, wofür diese Sandbox gedacht ist…',
+    workdirLabel: 'Arbeitsverzeichnis',
+    modeDirect: 'Lese-/Schreibzugriff (direkt)',
+    modeClone: 'Nur-Lese-Zugriff (Klon)',
+    directWarning: 'Der Direktmodus macht Dateien mit impliziter Ausführung (Git-Hooks, CI-Konfiguration, Makefiles) für Änderungen zugänglich, die in einem normalen Diff nicht sichtbar sind.',
+    extraFolders: 'Zusätzliche Ordner',
+    extraPlaceholder: '/pfad/zum/zusätzlichen/ordner',
+    addFolder: 'Ordner hinzufügen',
+    builtinTemplates: 'Integrierte Vorlagen',
+    customOption: 'Eigenes Registry-Image…',
+    imageRefLabel: 'Image-Referenz',
+    imageRefPlaceholder: 'docker.io/org/image:tag',
+    resolvesTo: 'Ergibt',
+    networkTier: 'Netzwerkrichtlinien-Stufe',
+    tierOpenDesc: 'Breiter Ausgang. Wenigste Einschränkungen.',
+    tierBalancedDesc: 'Gängige Entwickler-Domains erlaubt.',
+    tierLockedDesc: 'Standardmäßig verweigern; nur das Nötige hinzufügen.',
+    allowlist: 'Zulassungsliste (nur HTTP/HTTPS-Domains)',
+    domainPlaceholder: 'api.github.com',
+    addDomain: 'Domain hinzufügen',
+    portsHelp: 'Nach dem Start weitergeleitet, gebunden an 127.0.0.1.',
+    portPlaceholder: '8080:3000',
+    portLabelPlaceholder: 'Bezeichnung',
+    addPort: 'Port hinzufügen',
+    credentialsHelp: 'Nur Deklarationen — Werte werden beim Start sicher gesetzt.',
+    credLabelPlaceholder: 'GitHub-Token',
+    add: 'Hinzufügen',
+    review: 'Überprüfung',
+    reviewName: 'Name',
+    reviewBase: 'Basis-Image',
+    reviewWorkspace: 'Arbeitsverzeichnis',
+    reviewFolders: 'Zusätzliche Ordner',
+    reviewNetwork: 'Netzwerk',
+    reviewPorts: 'Ports',
+    reviewCredentials: 'Anmeldedaten',
+    error: 'Fehler'
+  },
+  tier: { open: 'Offen', balanced: 'Ausgewogen', locked: 'Abgeschottet', custom: 'Benutzerdefiniert' },
+  status: { running: 'Läuft', stopped: 'Gestoppt', error: 'Fehler', unknown: 'Unbekannt' }
+}
