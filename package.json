@@ -5,17 +5,17 @@
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
-    "predev": "npm run use:electron-abi",
+    "predev": "node scripts/ensure-abi.mjs electron",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit",
-    "pretest": "npm run use:node-abi",
+    "pretest": "node scripts/ensure-abi.mjs node",
     "test": "vitest run",
     "test:watch": "vitest",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "use:electron-abi": "electron-rebuild -f -w better-sqlite3",
-    "use:node-abi": "node scripts/use-node-abi.mjs"
+    "use:electron-abi": "node scripts/ensure-abi.mjs electron --force",
+    "use:node-abi": "node scripts/ensure-abi.mjs node --force"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1"
