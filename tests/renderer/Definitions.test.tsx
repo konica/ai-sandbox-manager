@@ -23,7 +23,7 @@ describe('Definitions screen', () => {
   it('invokes onCreate when the create button is clicked', () => {
     const onCreate = vi.fn()
     render(<Definitions definitions={[]} onCreate={onCreate} />)
-    fireEvent.click(screen.getByRole('button', { name: /create definition/i }))
+    fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
     expect(onCreate).toHaveBeenCalledOnce()
   })
 })

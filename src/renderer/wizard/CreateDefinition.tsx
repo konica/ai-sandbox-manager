@@ -3,6 +3,7 @@ import type { CredentialKind, Tier } from '@shared/types'
 import { api } from '../ipc/client'
 import { draftReducer, initialDraft, canAdvance, toSpec, parsePort, resolveBaseImage, TOTAL_STEPS, type BuiltinVariant } from './draft'
 
+const STEP_LABELS = ['Name & Desc', 'Base Image', 'Workspace', 'Network', 'Ports', 'Credentials', 'Review']
 const VARIANTS: BuiltinVariant[] = ['claude-code-docker', 'claude-code', 'claude-code-minimal']
 const TIERS: { value: Tier; label: string; desc: string }[] = [
   { value: 'open', label: 'Open', desc: 'Broad egress. Fewest restrictions.' },
@@ -48,7 +49,7 @@ export function CreateDefinition({
   return (
     <section className="screen active">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="section-title" style={{ marginBottom: 0 }}>Create Definition</h2>
+        <h2 className="section-title" style={{ marginBottom: 0 }}>Create Sandbox</h2>
         <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
       </div>
 
@@ -60,6 +61,7 @@ export function CreateDefinition({
             return (
               <div key={n} className={`wizard-step ${cls}`}>
                 <span className="wizard-step-num">{n}</span>
+                {STEP_LABELS[idx]}
               </div>
             )
           })}
@@ -186,7 +188,7 @@ export function CreateDefinition({
           {draft.step < TOTAL_STEPS ? (
             <button className="btn btn-primary" onClick={() => dispatch({ type: 'next' })} disabled={!canAdvance(draft)}>Next</button>
           ) : (
-            <button className="btn btn-primary" onClick={() => void submit()}>Create Definition</button>
+            <button className="btn btn-primary" onClick={() => void submit()}>Create Sandbox</button>
           )}
         </div>
       </div>

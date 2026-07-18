@@ -14,7 +14,7 @@ export function Definitions({ definitions, onCreate }: { definitions: Definition
     <section className="screen active">
       <div className="flex items-center justify-between mb-4">
         <h2 className="section-title" style={{ marginBottom: 0 }}>Sandbox Definitions</h2>
-        <button className="btn btn-primary" onClick={onCreate}><PlusIcon /> Create Definition</button>
+        <button className="btn btn-primary" onClick={onCreate}><PlusIcon /> Create Sandbox</button>
       </div>
       <p className="section-desc">
         Sandbox definitions are reusable specs that describe an environment. Each definition can launch multiple runtime instances.

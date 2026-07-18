@@ -38,8 +38,8 @@ describe('App navigation', () => {
   it('opens the wizard from the create button and returns on cancel', async () => {
     render(<App />)
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Sandbox Definitions' })).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: /create definition/i }))
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Create Definition' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Create Sandbox' })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Sandbox Definitions' })).toBeInTheDocument())
   })
