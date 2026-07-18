@@ -27,4 +27,12 @@ describe('Instances actions', () => {
     render(<Instances instances={[{ ...inst, workspace: longPath }]} />)
     expect(screen.getByTitle(longPath)).toBeInTheDocument()
   })
+
+  it('renders ports on a single line with the full list in a tooltip', () => {
+    const ports = ['5173/tcp', '8200/tcp', '9000/tcp', '9001/tcp', '9091/tcp', '19530/tcp']
+    render(<Instances instances={[{ ...inst, ports }]} />)
+    const cell = screen.getByTitle(ports.join(', '))
+    expect(cell).toBeInTheDocument()
+    expect(cell).toHaveStyle({ whiteSpace: 'nowrap' })
+  })
 })
