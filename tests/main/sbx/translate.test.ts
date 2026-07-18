@@ -114,7 +114,7 @@ describe('portIntentToPublishSpec', () => {
 describe('shell command builders', () => {
   it('quotes names and builds run/exec commands', () => {
     expect(shellQuote('a b')).toBe("'a b'")
-    expect(agentAttachCommand('my-project')).toBe("sbx run --name 'my-project'")
+    expect(agentAttachCommand('my-project')).toBe("sbx run --name 'my-project' -- --continue")
     expect(hostShellCommand('my-project')).toBe("sbx exec -it 'my-project' bash")
   })
   it('shellCommand leaves safe args unquoted and quotes the rest', () => {

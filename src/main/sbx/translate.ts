@@ -66,8 +66,10 @@ export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`
 }
 
+// Attach reconnects to an existing sandbox and resumes the agent's most recent
+// session (Claude Code `--continue`), passed through `sbx run`'s `--` separator.
 export function agentAttachCommand(name: string): string {
-  return `sbx run --name ${shellQuote(name)}`
+  return `sbx run --name ${shellQuote(name)} -- --continue`
 }
 
 export function hostShellCommand(name: string): string {

@@ -41,7 +41,7 @@ describe('instance lifecycle IPC', () => {
     const h = buildHandlers(d as never)
     await h['instance:attach']('my-project')
     await h['instance:shell']('my-project')
-    expect(d.openTerminal).toHaveBeenNthCalledWith(1, "sbx run --name 'my-project'")
+    expect(d.openTerminal).toHaveBeenNthCalledWith(1, "sbx run --name 'my-project' -- --continue")
     expect(d.openTerminal).toHaveBeenNthCalledWith(2, "sbx exec -it 'my-project' bash")
   })
 
