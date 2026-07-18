@@ -30,7 +30,7 @@ const spec: DefinitionSpec = {
 describe('definition IPC handlers', () => {
   it('def:create persists the spec and returns its id', async () => {
     const store = openStore(':memory:')
-    const h = buildHandlers({ adapter, store, probes })
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {} })
     const res = await h['def:create'](spec)
     expect(res).toEqual({ ok: true, data: { id: 'd1' } })
     expect(store.getDefinitionSpec('d1')).not.toBeNull()
@@ -38,7 +38,7 @@ describe('definition IPC handlers', () => {
 
   it('def:list returns the persisted definitions', async () => {
     const store = openStore(':memory:')
-    const h = buildHandlers({ adapter, store, probes })
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {} })
     await h['def:create'](spec)
     const res = await h['def:list']()
     expect(res.ok).toBe(true)
@@ -47,7 +47,7 @@ describe('definition IPC handlers', () => {
 
   it('def:create wraps failures as {ok:false}', async () => {
     const store = openStore(':memory:')
-    const h = buildHandlers({ adapter, store, probes })
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {} })
     await h['def:create'](spec)
     const dup = await h['def:create'](spec) // duplicate primary key
     expect(dup.ok).toBe(false)

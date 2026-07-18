@@ -23,13 +23,13 @@ const probes: Probes = {
 
 describe('buildHandlers', () => {
   it('prereq:check returns a wrapped ok result', async () => {
-    const h = buildHandlers({ adapter, store: openStore(':memory:'), probes })
+    const h = buildHandlers({ adapter, store: openStore(":memory:"), probes, openTerminal: () => {} })
     const res = await h['prereq:check']()
     expect(res).toEqual({ ok: true, data: expect.objectContaining({ ok: true }) })
   })
 
   it('instances:list returns reconciled views', async () => {
-    const h = buildHandlers({ adapter, store: openStore(':memory:'), probes })
+    const h = buildHandlers({ adapter, store: openStore(":memory:"), probes, openTerminal: () => {} })
     const res = await h['instances:list']()
     expect(res.ok).toBe(true)
     if (res.ok) expect(res.data[0].name).toBe('sbx-a')
@@ -37,7 +37,7 @@ describe('buildHandlers', () => {
 
   it('wraps thrown errors as {ok:false}', async () => {
     const boom: SbxAdapter = { ...adapter, listSandboxes: async () => { throw new Error('kaboom') } }
-    const h = buildHandlers({ adapter: boom, store: openStore(':memory:'), probes })
+    const h = buildHandlers({ adapter: boom, store: openStore(":memory:"), probes, openTerminal: () => {} })
     const res = await h['instances:list']()
     expect(res.ok).toBe(false)
     if (!res.ok) expect(res.error.message).toBe('kaboom')
