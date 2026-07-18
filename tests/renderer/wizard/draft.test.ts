@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest'
-import { initialDraft, draftReducer, resolveBaseImage, parsePort, canAdvance, toSpec } from '../../../src/renderer/wizard/draft'
+import { initialDraft, draftReducer, resolveBaseImage, parsePort, canAdvance, toSpec, basename, effectiveName } from '../../../src/renderer/wizard/draft'
+
+describe('basename / effectiveName', () => {
+  it('takes the last path segment, tolerating trailing slashes', () => {
+    expect(basename('/home/u/my-project')).toBe('my-project')
+    expect(basename('/home/u/my-project/')).toBe('my-project')
+    expect(basename('~/projects/alpha')).toBe('alpha')
+  })
+  it('uses the entered name when present, else the workspace basename', () => {
+    expect(effectiveName({ ...initialDraft, name: 'custom', workspace: '/home/u/proj' })).toBe('custom')
+    expect(effectiveName({ ...initialDraft, name: '', workspace: '/home/u/proj' })).toBe('proj')
+  })
+})
 
 describe('parsePort', () => {
   it('parses host:container', () => { expect(parsePort('8080:3000')).toEqual({ hostPort: 8080, containerPort: 3000 }) })
@@ -20,13 +32,12 @@ describe('resolveBaseImage', () => {
 })
 
 describe('canAdvance', () => {
-  it('blocks step 1 without a name', () => {
-    expect(canAdvance({ ...initialDraft, step: 1, name: '' })).toBe(false)
-    expect(canAdvance({ ...initialDraft, step: 1, name: 'x' })).toBe(true)
+  it('blocks step 1 until a working directory is set (name is optional)', () => {
+    expect(canAdvance({ ...initialDraft, step: 1, workspace: '', name: 'x' })).toBe(false)
+    expect(canAdvance({ ...initialDraft, step: 1, workspace: '/w', name: '' })).toBe(true)
   })
-  it('blocks step 3 without a workspace', () => {
-    expect(canAdvance({ ...initialDraft, step: 3, workspace: '' })).toBe(false)
-    expect(canAdvance({ ...initialDraft, step: 3, workspace: '/w' })).toBe(true)
+  it('allows advancing past later informational steps', () => {
+    expect(canAdvance({ ...initialDraft, step: 3 })).toBe(true)
   })
 })
 
@@ -39,7 +50,7 @@ describe('draftReducer', () => {
     expect(d.step).toBe(1)
   })
   it('does not advance past the last step or before the first', () => {
-    expect(draftReducer({ ...initialDraft, step: 7 }, { type: 'next' }).step).toBe(7)
+    expect(draftReducer({ ...initialDraft, step: 6 }, { type: 'next' }).step).toBe(6)
     expect(draftReducer({ ...initialDraft, step: 1 }, { type: 'back' }).step).toBe(1)
   })
   it('adds and removes domains', () => {

@@ -1,9 +1,9 @@
 import { useReducer, useState } from 'react'
 import type { CredentialKind, Tier } from '@shared/types'
 import { api } from '../ipc/client'
-import { draftReducer, initialDraft, canAdvance, toSpec, parsePort, resolveBaseImage, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
+import { draftReducer, initialDraft, canAdvance, toSpec, parsePort, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
 
-const STEP_LABELS = ['Name & Desc', 'Base Image', 'Workspace', 'Network', 'Ports', 'Credentials', 'Review']
+const STEP_LABELS = ['Name & Workspace', 'Base Image', 'Network', 'Ports', 'Credentials', 'Review']
 const TIERS: { value: Tier; label: string; desc: string }[] = [
   { value: 'open', label: 'Open', desc: 'Broad egress. Fewest restrictions.' },
   { value: 'balanced', label: 'Balanced', desc: 'Common developer domains allowed.' },
@@ -69,33 +69,13 @@ export function CreateDefinition({
         <div className="wizard-body">
           {draft.step === 1 && (
             <>
-              <label htmlFor="def-name">Definition name</label>
-              <input id="def-name" aria-label="Name" className="input input-mono" value={draft.name} placeholder="my-sandbox-definition" onChange={(e) => dispatch({ type: 'setField', field: 'name', value: e.target.value })} />
+              <label htmlFor="def-name">Sandbox name</label>
+              <input id="def-name" aria-label="Name" className="input input-mono" value={draft.name} placeholder={basename(draft.workspace) || 'my-sandbox'} onChange={(e) => dispatch({ type: 'setField', field: 'name', value: e.target.value })} />
+              <p className="section-desc" style={{ marginTop: 'var(--space-1)', marginBottom: 0, fontSize: 11 }}>Leave blank to use the working directory's folder name.</p>
               <label htmlFor="def-desc" style={{ marginTop: 'var(--space-3)' }}>Description (optional)</label>
-              <textarea id="def-desc" aria-label="Description" className="input" style={{ minHeight: 80, resize: 'vertical' }} value={draft.description} placeholder="Describe what this sandbox definition is for…" onChange={(e) => dispatch({ type: 'setField', field: 'description', value: e.target.value })} />
-            </>
-          )}
+              <textarea id="def-desc" aria-label="Description" className="input" style={{ minHeight: 70, resize: 'vertical' }} value={draft.description} placeholder="Describe what this sandbox is for…" onChange={(e) => dispatch({ type: 'setField', field: 'description', value: e.target.value })} />
 
-          {draft.step === 2 && (
-            <>
-              <label htmlFor="base-image-select">Built-in templates</label>
-              <select id="base-image-select" className="input" style={{ fontFamily: 'var(--font-mono)' }} value={draft.imageChoice} onChange={(e) => dispatch({ type: 'setImageChoice', value: e.target.value as BuiltinVariant | 'custom' })}>
-                {BUILTIN_VARIANTS.map((v) => (<option key={v.value} value={v.value}>{v.value} — {v.label}</option>))}
-                <option value="custom">Custom registry image…</option>
-              </select>
-              {draft.imageChoice === 'custom' && (
-                <>
-                  <label htmlFor="custom-image-url" style={{ marginTop: 'var(--space-3)' }}>Image reference</label>
-                  <input id="custom-image-url" aria-label="Custom image ref" className="input input-mono" placeholder="docker.io/org/image:tag" value={draft.customImageRef} onChange={(e) => dispatch({ type: 'setField', field: 'customImageRef', value: e.target.value })} />
-                </>
-              )}
-              <p className="section-desc" style={{ marginTop: 'var(--space-3)', marginBottom: 0 }}>Resolves to <span className="code-inline">{resolveBaseImage(draft) || '—'}</span></p>
-            </>
-          )}
-
-          {draft.step === 3 && (
-            <>
-              <label htmlFor="workdir">Working directory</label>
+              <label htmlFor="workdir" style={{ marginTop: 'var(--space-4)' }}>Working directory <span style={{ color: 'var(--danger)' }}>*</span></label>
               <div style={row}>
                 <input id="workdir" aria-label="Workspace" className="input input-mono" style={{ flex: 1 }} placeholder="/path/to/project" value={draft.workspace} onChange={(e) => dispatch({ type: 'setField', field: 'workspace', value: e.target.value })} />
                 <button className="btn btn-secondary" onClick={async () => { const p = await api.pickFolder(); if (p) dispatch({ type: 'setField', field: 'workspace', value: p }) }}>Browse…</button>
@@ -119,7 +99,24 @@ export function CreateDefinition({
             </>
           )}
 
-          {draft.step === 4 && (
+          {draft.step === 2 && (
+            <>
+              <label htmlFor="base-image-select">Built-in templates</label>
+              <select id="base-image-select" className="input" style={{ fontFamily: 'var(--font-mono)' }} value={draft.imageChoice} onChange={(e) => dispatch({ type: 'setImageChoice', value: e.target.value as BuiltinVariant | 'custom' })}>
+                {BUILTIN_VARIANTS.map((v) => (<option key={v.value} value={v.value}>{v.value} — {v.label}</option>))}
+                <option value="custom">Custom registry image…</option>
+              </select>
+              {draft.imageChoice === 'custom' && (
+                <>
+                  <label htmlFor="custom-image-url" style={{ marginTop: 'var(--space-3)' }}>Image reference</label>
+                  <input id="custom-image-url" aria-label="Custom image ref" className="input input-mono" placeholder="docker.io/org/image:tag" value={draft.customImageRef} onChange={(e) => dispatch({ type: 'setField', field: 'customImageRef', value: e.target.value })} />
+                </>
+              )}
+              <p className="section-desc" style={{ marginTop: 'var(--space-3)', marginBottom: 0 }}>Resolves to <span className="code-inline">{resolveBaseImage(draft) || '—'}</span></p>
+            </>
+          )}
+
+          {draft.step === 3 && (
             <>
               <label>Network policy tier</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
@@ -139,7 +136,7 @@ export function CreateDefinition({
             </>
           )}
 
-          {draft.step === 5 && (
+          {draft.step === 4 && (
             <>
               <label>Published ports</label>
               <p className="section-desc" style={{ marginTop: 0 }}>Forwarded after launch, bound to <span className="code-inline">127.0.0.1</span>.</p>
@@ -152,7 +149,7 @@ export function CreateDefinition({
             </>
           )}
 
-          {draft.step === 6 && (
+          {draft.step === 5 && (
             <>
               <label>Credentials</label>
               <p className="section-desc" style={{ marginTop: 0 }}>Declarations only — values are set securely at launch.</p>
@@ -167,12 +164,12 @@ export function CreateDefinition({
             </>
           )}
 
-          {draft.step === 7 && (
+          {draft.step === 6 && (
             <>
               <h3 style={{ fontSize: 15, marginBottom: 'var(--space-3)' }}>Review</h3>
               <table className="table">
                 <tbody>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>Name</td><td>{draft.name}</td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>Name</td><td>{effectiveName(draft)}</td></tr>
                   <tr><td style={{ color: 'var(--text-muted)' }}>Base image</td><td><span className="code-inline">{resolveBaseImage(draft)}</span></td></tr>
                   <tr><td style={{ color: 'var(--text-muted)' }}>Workspace</td><td><span className="code-inline">{draft.workspace}</span> ({draft.workspaceMode})</td></tr>
                   <tr><td style={{ color: 'var(--text-muted)' }}>Extra folders</td><td>{draft.extraFolders.length}</td></tr>

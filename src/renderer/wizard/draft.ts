@@ -1,6 +1,6 @@
 import type { Tier, MountMode, CredentialKind, DefinitionSpec } from '@shared/types'
 
-export const TOTAL_STEPS = 7
+export const TOTAL_STEPS = 6
 
 export type BuiltinVariant = 'claude-code' | 'claude-code-minimal' | 'opencode' | 'codex' | 'copilot'
 
@@ -98,16 +98,29 @@ export function parsePort(input: string): { hostPort: number; containerPort: num
   return { hostPort: Number(m[1]), containerPort: Number(m[2]) }
 }
 
+// Basename of a path, tolerating trailing slashes and both separators.
+export function basename(p: string): string {
+  const trimmed = p.trim().replace(/[/\\]+$/, '')
+  return trimmed.split(/[/\\]/).pop() ?? ''
+}
+
+// The sandbox name defaults to the working directory's folder name when the
+// user leaves the name blank.
+export function effectiveName(d: Draft): string {
+  return d.name.trim() || basename(d.workspace)
+}
+
 export function canAdvance(d: Draft): boolean {
-  if (d.step === 1) return d.name.trim().length > 0
+  // Step 1 merges name/description/workspace; the working directory is required
+  // (the name is derived from it when blank).
+  if (d.step === 1) return d.workspace.trim().length > 0
   if (d.step === 2) return resolveBaseImage(d).length > 0
-  if (d.step === 3) return d.workspace.trim().length > 0
   return true
 }
 
 export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec {
   return {
-    definition: { id, name: d.name.trim(), description: d.description.trim(), baseImage: resolveBaseImage(d), tier: d.tier, createdAt },
+    definition: { id, name: effectiveName(d), description: d.description.trim(), baseImage: resolveBaseImage(d), tier: d.tier, createdAt },
     mounts: [
       { hostPath: d.workspace.trim(), mode: d.workspaceMode, isPrimary: true },
       ...d.extraFolders.map((f) => ({ hostPath: f.path, mode: f.mode, isPrimary: false }))
