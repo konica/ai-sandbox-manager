@@ -68,6 +68,16 @@ describe('App launch & lifecycle wiring', () => {
     await waitFor(() => expect(instanceRemove).toHaveBeenCalledWith('my-project'))
   })
 
+  it('Stop asks for confirmation before calling instanceStop', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: /sandbox instances/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Stop' }))
+    expect(instanceStop).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Stop' }))
+    await waitFor(() => expect(instanceStop).toHaveBeenCalledWith('my-project'))
+  })
+
   it('Cancel on the remove dialog does not call instanceRemove', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: /sandbox instances/i }))

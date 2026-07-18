@@ -6,9 +6,11 @@ interface Props {
   cancelLabel: string
   onConfirm: () => void
   onCancel: () => void
+  /** Style the confirm button as a destructive (red) action. Defaults to true. */
+  destructive?: boolean
 }
 
-export function ConfirmModal({ open, title, body, confirmLabel, cancelLabel, onConfirm, onCancel }: Props): JSX.Element | null {
+export function ConfirmModal({ open, title, body, confirmLabel, cancelLabel, onConfirm, onCancel, destructive = true }: Props): JSX.Element | null {
   if (!open) return null
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label={title} onClick={onCancel}>
@@ -17,7 +19,7 @@ export function ConfirmModal({ open, title, body, confirmLabel, cancelLabel, onC
         <p className="modal-desc">{body}</p>
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onCancel}>{cancelLabel}</button>
-          <button className="btn btn-destructive" onClick={onConfirm}>{confirmLabel}</button>
+          <button className={`btn ${destructive ? 'btn-destructive' : 'btn-primary'}`} onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </div>
     </div>

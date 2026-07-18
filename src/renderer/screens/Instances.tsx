@@ -69,7 +69,7 @@ export function Instances({ instances, onAttach, onShell, onStop, onRemove }: {
                     <div className="flex" style={{ gap: 'var(--space-2)', whiteSpace: 'nowrap' }}>
                       <button className="btn btn-secondary btn-sm" onClick={() => onAttach?.(i.name)}>{t('instances.attach')}</button>
                       <button className="btn btn-secondary btn-sm" onClick={() => onShell?.(i.name)}>{t('instances.shell')}</button>
-                      <button className="btn btn-secondary btn-sm" onClick={() => onStop?.(i.name)}>{t('instances.stop')}</button>
+                      <button className="btn btn-secondary btn-sm" disabled={i.status !== 'running'} onClick={() => onStop?.(i.name)}>{t('instances.stop')}</button>
                       <button className="btn btn-destructive btn-sm" onClick={() => onRemove?.(i.name)}>{t('instances.remove')}</button>
                     </div>
                   </td>

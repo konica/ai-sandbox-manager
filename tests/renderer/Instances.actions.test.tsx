@@ -28,6 +28,13 @@ describe('Instances actions', () => {
     expect(screen.getByTitle(longPath)).toBeInTheDocument()
   })
 
+  it('disables Stop unless the instance is running', () => {
+    const { rerender } = render(<Instances instances={[{ ...inst, status: 'stopped' }]} onStop={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeDisabled()
+    rerender(<Instances instances={[{ ...inst, status: 'running' }]} onStop={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeEnabled()
+  })
+
   it('renders ports on a single line with the full list in a tooltip', () => {
     const ports = ['5173/tcp', '8200/tcp', '9000/tcp', '9001/tcp', '9091/tcp', '19530/tcp']
     render(<Instances instances={[{ ...inst, ports }]} />)

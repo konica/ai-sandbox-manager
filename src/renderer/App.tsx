@@ -21,7 +21,7 @@ export default function App(): JSX.Element {
   const [wizard, setWizard] = useState(false)
   const [defs, setDefs] = useState<Definition[]>([])
   const [instances, setInstances] = useState<InstanceView[]>([])
-  const [pendingRemove, setPendingRemove] = useState<string | null>(null)
+  const [pending, setPending] = useState<{ kind: 'stop' | 'remove'; name: string } | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
   const t = useT()
@@ -76,11 +76,11 @@ export default function App(): JSX.Element {
   }
   function onAttach(name: string): void { void runAction(api.instanceAttach(name)) }
   function onShell(name: string): void { void runAction(api.instanceShell(name)) }
-  function onStop(name: string): void { void runAction(api.instanceStop(name)) }
-  function onRemoveConfirmed(): void {
-    const name = pendingRemove
-    setPendingRemove(null)
-    if (name) void runAction(api.instanceRemove(name))
+  function onConfirmPending(): void {
+    const p = pending
+    setPending(null)
+    if (!p) return
+    void runAction(p.kind === 'stop' ? api.instanceStop(p.name) : api.instanceRemove(p.name))
   }
 
   if (phase.kind === 'loading') return <p style={{ padding: 'var(--space-6)' }}>Loading…</p>
@@ -112,17 +112,28 @@ export default function App(): JSX.Element {
           : <Definitions definitions={defs} onCreate={() => setWizard(true)} onLaunch={(id) => void onLaunch(id)} launchingId={busyId} />
       )}
       {screen === 'instances' && (
-        <Instances instances={instances} onAttach={onAttach} onShell={onShell} onStop={onStop} onRemove={(name) => setPendingRemove(name)} />
+        <Instances
+          instances={instances}
+          onAttach={onAttach}
+          onShell={onShell}
+          onStop={(name) => setPending({ kind: 'stop', name })}
+          onRemove={(name) => setPending({ kind: 'remove', name })}
+        />
       )}
       {screen === 'settings' && <Settings />}
       <ConfirmModal
-        open={pendingRemove !== null}
-        title={t('instances.removeTitle')}
-        body={t('instances.removeBody', { name: pendingRemove ?? '' })}
-        confirmLabel={t('instances.confirmRemove')}
+        open={pending !== null}
+        title={pending?.kind === 'stop' ? t('instances.stopTitle') : t('instances.removeTitle')}
+        body={
+          pending?.kind === 'stop'
+            ? t('instances.stopBody', { name: pending.name })
+            : t('instances.removeBody', { name: pending?.name ?? '' })
+        }
+        confirmLabel={pending?.kind === 'stop' ? t('instances.confirmStop') : t('instances.confirmRemove')}
         cancelLabel={t('instances.cancel')}
-        onConfirm={onRemoveConfirmed}
-        onCancel={() => setPendingRemove(null)}
+        destructive={pending?.kind !== 'stop'}
+        onConfirm={onConfirmPending}
+        onCancel={() => setPending(null)}
       />
     </AppShell>
   )
