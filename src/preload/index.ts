@@ -5,7 +5,8 @@ const api = {
   prereqCheck: () => ipcRenderer.invoke('prereq:check'),
   instancesList: () => ipcRenderer.invoke('instances:list'),
   defCreate: (spec: DefinitionSpec) => ipcRenderer.invoke('def:create', spec),
-  defList: () => ipcRenderer.invoke('def:list')
+  defList: () => ipcRenderer.invoke('def:list'),
+  pickFolder: () => ipcRenderer.invoke('dialog:pickFolder')
 }
 
 contextBridge.exposeInMainWorld('api', api)

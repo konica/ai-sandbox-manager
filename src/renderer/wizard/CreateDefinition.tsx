@@ -96,7 +96,10 @@ export function CreateDefinition({
           {draft.step === 3 && (
             <>
               <label htmlFor="workdir">Working directory</label>
-              <input id="workdir" aria-label="Workspace" className="input input-mono" placeholder="/path/to/project" value={draft.workspace} onChange={(e) => dispatch({ type: 'setField', field: 'workspace', value: e.target.value })} />
+              <div style={row}>
+                <input id="workdir" aria-label="Workspace" className="input input-mono" style={{ flex: 1 }} placeholder="/path/to/project" value={draft.workspace} onChange={(e) => dispatch({ type: 'setField', field: 'workspace', value: e.target.value })} />
+                <button className="btn btn-secondary" onClick={async () => { const p = await api.pickFolder(); if (p) dispatch({ type: 'setField', field: 'workspace', value: p }) }}>Browse…</button>
+              </div>
               <div style={{ display: 'flex', gap: 'var(--space-4)', margin: 'var(--space-3) 0' }}>
                 <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}><input type="radio" name="wsmode" checked={draft.workspaceMode === 'direct'} onChange={() => dispatch({ type: 'setWorkspaceMode', mode: 'direct' })} /> Read-write (direct)</label>
                 <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}><input type="radio" name="wsmode" checked={draft.workspaceMode === 'clone'} onChange={() => dispatch({ type: 'setWorkspaceMode', mode: 'clone' })} /> Read-only (clone)</label>
@@ -108,7 +111,8 @@ export function CreateDefinition({
               )}
               <label style={{ marginTop: 'var(--space-3)' }}>Extra folders</label>
               <div style={row}>
-                <input aria-label="Extra folder path" className="input input-mono" placeholder="/path/to/extra/folder" value={folderInput} onChange={(e) => setFolderInput(e.target.value)} />
+                <input aria-label="Extra folder path" className="input input-mono" style={{ flex: 1 }} placeholder="/path/to/extra/folder" value={folderInput} onChange={(e) => setFolderInput(e.target.value)} />
+                <button className="btn btn-secondary" onClick={async () => { const p = await api.pickFolder(); if (p) setFolderInput(p) }}>Browse…</button>
                 <button className="btn btn-secondary btn-sm" onClick={() => { if (folderInput.trim()) { dispatch({ type: 'addExtraFolder', path: folderInput.trim(), mode: 'clone' }); setFolderInput('') } }}>Add Folder</button>
               </div>
               <div>{draft.extraFolders.map((f, i) => (<Chip key={i} text={`${f.path} (${f.mode})`} onRemove={() => dispatch({ type: 'removeExtraFolder', index: i })} />))}</div>

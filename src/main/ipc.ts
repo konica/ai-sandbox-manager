@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, dialog, BrowserWindow } from 'electron'
 import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition } from '@shared/types'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
@@ -36,4 +36,10 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instances:list', () => handlers['instances:list']())
   ipcMain.handle('def:create', (_e, spec: DefinitionSpec) => handlers['def:create'](spec))
   ipcMain.handle('def:list', () => handlers['def:list']())
+  ipcMain.handle('dialog:pickFolder', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }
+    const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0]
+  })
 }

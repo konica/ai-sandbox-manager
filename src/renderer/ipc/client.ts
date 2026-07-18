@@ -5,11 +5,13 @@ interface Api {
   instancesList(): Promise<Result<InstanceView[]>>
   defCreate(spec: DefinitionSpec): Promise<Result<{ id: string }>>
   defList(): Promise<Result<Definition[]>>
+  pickFolder(): Promise<string | null>
 }
 
 export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   prereqCheck: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instancesList: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   defCreate: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
-  defList: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } })
+  defList: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  pickFolder: async () => null
 }
