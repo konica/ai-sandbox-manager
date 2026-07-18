@@ -18,7 +18,8 @@ function deps() {
   const store = {
     getDefinitionSpec: vi.fn(() => spec),
     upsertInstanceMeta: vi.fn(),
-    deleteInstanceMeta: vi.fn()
+    deleteInstanceMeta: vi.fn(),
+    listInstanceMeta: vi.fn(() => [])
   }
   const probes = {} as never
   return { adapter, store, probes, openTerminal }

@@ -27,6 +27,15 @@ export function resolveSandboxName(spec: DefinitionSpec): string {
   return toSbxName(spec.definition.name)
 }
 
+/** Pick the first name not already taken: `base`, then `base-2`, `base-3`, … */
+export function uniqueSandboxName(base: string, existing: Iterable<string>): string {
+  const taken = new Set(existing)
+  if (!taken.has(base)) return base
+  let i = 2
+  while (taken.has(`${base}-${i}`)) i++
+  return `${base}-${i}`
+}
+
 export function tierToAllowlist(tier: Tier, extraDomains: string[]): string[] {
   if (tier === 'open') return ['**']
   if (tier === 'locked') return dedup(extraDomains)
@@ -37,12 +46,12 @@ function dedup(xs: string[]): string[] {
   return [...new Set(xs.filter((x) => x.trim().length > 0))]
 }
 
-export function specToCreateArgs(spec: DefinitionSpec): string[] {
+export function specToCreateArgs(spec: DefinitionSpec, name: string = resolveSandboxName(spec)): string[] {
   const primary = spec.mounts.find((m) => m.isPrimary) ?? spec.mounts[0]
   const extras = spec.mounts.filter((m) => m !== primary)
   const args = ['create', AGENT_KEYWORD, primary.hostPath]
   for (const m of extras) args.push(m.mode === 'clone' ? `${m.hostPath}:ro` : m.hostPath)
-  args.push('--name', resolveSandboxName(spec))
+  args.push('--name', name)
   if (spec.definition.baseImage.trim().length > 0) args.push('--template', spec.definition.baseImage)
   if (primary.mode === 'clone') args.push('--clone')
   return args
@@ -79,9 +88,8 @@ export function shellCommand(argv: string[]): string {
  *   create (provision) → apply network tier → publish ports → run (attach agent).
  * Chained with `&&` so a failed step stops the sequence and stays visible.
  */
-export function launchCommand(spec: DefinitionSpec): string {
-  const name = resolveSandboxName(spec)
-  const steps: string[] = [shellCommand(['sbx', ...specToCreateArgs(spec)])]
+export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec)): string {
+  const steps: string[] = [shellCommand(['sbx', ...specToCreateArgs(spec, name)])]
   const resources = tierToAllowlist(spec.definition.tier, spec.domains)
   if (resources.length > 0) {
     steps.push(shellCommand(['sbx', 'policy', 'allow', 'network', '--sandbox', name, resources.join(',')]))

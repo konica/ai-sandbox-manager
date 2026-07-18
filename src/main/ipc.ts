@@ -36,7 +36,7 @@ export function buildHandlers(deps: Deps): {
     'def:create': (spec) => wrap(async () => { deps.store.insertDefinitionSpec(spec); return { id: spec.definition.id } }),
     'def:list': () => wrap(async () => deps.store.listDefinitions()),
     'instance:launch': (definitionId) => wrap(() => launchDefinition(
-      { store: deps.store, openTerminal: deps.openTerminal, log: deps.log }, definitionId
+      { adapter: deps.adapter, store: deps.store, openTerminal: deps.openTerminal, log: deps.log }, definitionId
     )),
     'instance:attach': (name) => wrap(async () => {
       const cmd = agentAttachCommand(name)

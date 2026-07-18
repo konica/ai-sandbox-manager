@@ -3,6 +3,7 @@ import {
   AGENT_KEYWORD,
   toSbxName,
   resolveSandboxName,
+  uniqueSandboxName,
   tierToAllowlist,
   specToCreateArgs,
   portIntentToPublishSpec,
@@ -39,6 +40,17 @@ describe('toSbxName', () => {
 describe('resolveSandboxName', () => {
   it('normalises the definition name', () => {
     expect(resolveSandboxName(spec())).toBe('my-project')
+  })
+})
+
+describe('uniqueSandboxName', () => {
+  it('returns the base name when it is free', () => {
+    expect(uniqueSandboxName('proj', [])).toBe('proj')
+    expect(uniqueSandboxName('proj', ['other'])).toBe('proj')
+  })
+  it('appends the first free numeric suffix when taken', () => {
+    expect(uniqueSandboxName('proj', ['proj'])).toBe('proj-2')
+    expect(uniqueSandboxName('proj', ['proj', 'proj-2', 'proj-3'])).toBe('proj-4')
   })
 })
 
@@ -86,6 +98,11 @@ describe('specToCreateArgs', () => {
     const args = specToCreateArgs(spec({ definition: { ...spec().definition, baseImage: '' } }))
     expect(args).not.toContain('--template')
   })
+  it('honors an explicit name override', () => {
+    const args = specToCreateArgs(spec(), 'my-project-2')
+    expect(args).toContain('my-project-2')
+    expect(args).not.toContain('my-project')
+  })
 })
 
 describe('portIntentToPublishSpec', () => {
@@ -122,5 +139,10 @@ describe('launchCommand', () => {
     const cmd = launchCommand(spec({ ports: [{ hostPort: 3000, containerPort: 8080, label: 'web' }] }))
     expect(cmd).toContain('sbx ports my-project --publish 3000:8080')
     expect(cmd).toMatch(/&& sbx run --name my-project$/)
+  })
+  it('uses an explicit name override throughout the chain', () => {
+    const cmd = launchCommand(spec(), 'my-project-2')
+    expect(cmd).toContain('--name my-project-2')
+    expect(cmd).toMatch(/&& sbx run --name my-project-2$/)
   })
 })
