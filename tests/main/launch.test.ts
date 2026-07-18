@@ -59,6 +59,13 @@ describe('launchDefinition', () => {
     expect(cmd).toContain('--name my-custom-session')
   })
 
+  it('passes the session name to claude via the run step', async () => {
+    const d = deps(() => spec)
+    await launchDefinition(d as never, 'd1', undefined, 'My Session')
+    const cmd = d.openTerminal.mock.calls[0][0] as string
+    expect(cmd).toMatch(/sbx run --name my-project -- --name 'My Session'$/)
+  })
+
   it('also avoids names already recorded in metadata', async () => {
     const d = deps(() => spec, [], ['my-project', 'my-project-2'])
     const res = await launchDefinition(d as never, 'd1')
@@ -74,7 +81,7 @@ describe('launchDefinition', () => {
   it('logs launch milestones when a logger is provided', async () => {
     const d = deps(() => spec)
     await launchDefinition(d as never, 'd1')
-    expect(d.infos.some((l) => /Launching "my-project"/.test(l))).toBe(true)
+    expect(d.infos.some((l) => /Launching sandbox "my-project"/.test(l))).toBe(true)
     expect(d.infos.some((l) => /terminal/i.test(l))).toBe(true)
   })
 })

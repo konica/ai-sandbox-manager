@@ -145,4 +145,11 @@ describe('launchCommand', () => {
     expect(cmd).toContain('--name my-project-2')
     expect(cmd).toMatch(/&& sbx run --name my-project-2$/)
   })
+  it('appends the session name as claude --name after the -- separator', () => {
+    const cmd = launchCommand(spec(), 'my-project', 'Refactor auth')
+    expect(cmd).toMatch(/&& sbx run --name my-project -- --name 'Refactor auth'$/)
+  })
+  it('omits the session args when no session name is given', () => {
+    expect(launchCommand(spec(), 'my-project', '  ')).toMatch(/&& sbx run --name my-project$/)
+  })
 })

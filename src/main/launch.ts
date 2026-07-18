@@ -26,7 +26,8 @@ export interface LaunchDeps {
 export async function launchDefinition(
   deps: LaunchDeps,
   definitionId: string,
-  requestedName?: string
+  requestedName?: string,
+  sessionName?: string
 ): Promise<{ name: string }> {
   const spec = deps.store.getDefinitionSpec(definitionId)
   if (!spec) throw new SbxError('not-found', `Definition ${definitionId} not found`)
@@ -42,8 +43,8 @@ export async function launchDefinition(
   const name = uniqueSandboxName(base, existing)
   if (name !== base) deps.log?.info(`Name "${base}" is already in use; using "${name}" instead.`)
 
-  const command = launchCommand(spec, name)
-  deps.log?.info(`Launching "${name}" from definition ${definitionId} (tier: ${spec.definition.tier}, ports: ${spec.ports.length})`)
+  const command = launchCommand(spec, name, sessionName)
+  deps.log?.info(`Launching sandbox "${name}"${sessionName ? ` (session "${sessionName}")` : ''} from definition ${definitionId} (tier: ${spec.definition.tier}, ports: ${spec.ports.length})`)
   deps.log?.info(`Opening terminal to provision and run: ${command}`)
 
   deps.store.upsertInstanceMeta({

@@ -16,7 +16,7 @@ vi.mock('../../src/renderer/ipc/client', () => ({
     instancesList: () => instancesList(),
     defList: () => defList(),
     defCreate: async () => ({ ok: true, data: { id: 'id1' } }),
-    instanceLaunch: (id: string, name?: string) => instanceLaunch(id, name),
+    instanceLaunch: (id: string, name?: string, session?: string) => instanceLaunch(id, name, session),
     instanceAttach: (n: string) => instanceAttach(n),
     instanceShell: (n: string) => instanceShell(n),
     instanceStop: (n: string) => instanceStop(n),
@@ -43,13 +43,13 @@ beforeEach(() => {
 })
 
 describe('App launch & lifecycle wiring', () => {
-  it('Launch opens a dialog; entering a fresh name calls instanceLaunch with that name', async () => {
+  it('Launch opens a dialog; entering a fresh sandbox name calls instanceLaunch with name + session', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Session name'), { target: { value: 'fresh' } })
+    fireEvent.change(within(dialog).getByLabelText('Sandbox name'), { target: { value: 'fresh' } })
     fireEvent.click(within(dialog).getByRole('button', { name: /launch new/i }))
-    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', 'fresh'))
+    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', 'fresh', 'My Project'))
   })
 
   it('Launch dialog offers Attach & Resume when the name matches an existing sandbox', async () => {
@@ -67,7 +67,7 @@ describe('App launch & lifecycle wiring', () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Session name'), { target: { value: 'fresh' } })
+    fireEvent.change(within(dialog).getByLabelText('Sandbox name'), { target: { value: 'fresh' } })
     fireEvent.click(within(dialog).getByRole('button', { name: /launch new/i }))
     await waitFor(() => expect(screen.getByText(/sbx create failed: boom/)).toBeInTheDocument())
   })

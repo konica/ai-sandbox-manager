@@ -70,11 +70,13 @@ export const de: Dict = {
   },
   launch: {
     title: '„{name}“ starten',
-    subtitle: 'Benennen Sie diese Session oder geben Sie den Namen einer vorhandenen Sandbox ein, um sie erneut zu verbinden und fortzusetzen.',
-    nameLabel: 'Session-Name',
-    newHint: '„{name}“ ist neu — wird erstellt und gestartet.',
-    existsHint: '„{name}“ existiert bereits — Sie können sie erneut verbinden und fortsetzen.',
-    empty: 'Geben Sie einen Session-Namen ein.',
+    subtitle: 'Benennen Sie die Sandbox (den sbx-Container) oder geben Sie den Namen einer vorhandenen Sandbox ein, um sie erneut zu verbinden.',
+    sandboxLabel: 'Sandbox-Name',
+    sessionLabel: 'Session-Name',
+    sessionSub: 'Anzeigename für die Claude-Code-Session (claude --name).',
+    newHint: 'Neue Sandbox „{name}“ — wird erstellt und gestartet.',
+    existsHint: '„{name}“ existiert bereits — die letzte Agent-Session wird fortgesetzt.',
+    empty: 'Geben Sie einen Sandbox-Namen ein.',
     launchNew: 'Neu starten',
     attachResume: 'Verbinden & Fortsetzen',
     cancel: 'Abbrechen'

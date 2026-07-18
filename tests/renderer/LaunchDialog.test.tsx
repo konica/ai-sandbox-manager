@@ -12,30 +12,37 @@ function setup(existingNames: string[]) {
 }
 
 describe('LaunchDialog', () => {
-  it('defaults the name to the derived definition name and offers Launch new when free', () => {
+  it('defaults sandbox to the derived name and session to the definition name; Launch new when free', () => {
     const { onLaunch } = setup(['other'])
-    expect(screen.getByLabelText('Session name')).toHaveValue('my-project')
+    expect(screen.getByLabelText('Sandbox name')).toHaveValue('my-project')
+    expect(screen.getByLabelText('Session name')).toHaveValue('My Project')
     fireEvent.click(screen.getByRole('button', { name: /launch new/i }))
-    expect(onLaunch).toHaveBeenCalledWith('my-project')
+    expect(onLaunch).toHaveBeenCalledWith('my-project', 'My Project')
   })
 
-  it('offers Attach & Resume when the name matches an existing sandbox', () => {
+  it('offers Attach & Resume when the sandbox name matches an existing sandbox', () => {
     const { onAttach, onLaunch } = setup(['my-project'])
     fireEvent.click(screen.getByRole('button', { name: /attach & resume/i }))
     expect(onAttach).toHaveBeenCalledWith('my-project')
     expect(onLaunch).not.toHaveBeenCalled()
   })
 
-  it('lets the user type a new name to create a separate instance', () => {
-    const { onLaunch } = setup(['my-project'])
-    fireEvent.change(screen.getByLabelText('Session name'), { target: { value: 'my-project-2' } })
-    fireEvent.click(screen.getByRole('button', { name: /launch new/i }))
-    expect(onLaunch).toHaveBeenCalledWith('my-project-2')
+  it('disables the session field in attach mode (latest session resumes)', () => {
+    setup(['my-project'])
+    expect(screen.getByLabelText('Session name')).toBeDisabled()
   })
 
-  it('disables the primary action when the name is empty', () => {
+  it('lets the user type a new sandbox name and session name', () => {
+    const { onLaunch } = setup(['my-project'])
+    fireEvent.change(screen.getByLabelText('Sandbox name'), { target: { value: 'my-project-2' } })
+    fireEvent.change(screen.getByLabelText('Session name'), { target: { value: 'Second run' } })
+    fireEvent.click(screen.getByRole('button', { name: /launch new/i }))
+    expect(onLaunch).toHaveBeenCalledWith('my-project-2', 'Second run')
+  })
+
+  it('disables the primary action when the sandbox name is empty', () => {
     setup([])
-    fireEvent.change(screen.getByLabelText('Session name'), { target: { value: '  ' } })
+    fireEvent.change(screen.getByLabelText('Sandbox name'), { target: { value: '  ' } })
     expect(screen.getByRole('button', { name: /launch new/i })).toBeDisabled()
   })
 })

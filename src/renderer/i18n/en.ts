@@ -68,11 +68,13 @@ export const en = {
   },
   launch: {
     title: 'Launch “{name}”',
-    subtitle: 'Name this session, or enter an existing sandbox name to reconnect and resume it.',
-    nameLabel: 'Session name',
-    newHint: '“{name}” is new — it will be created and launched.',
-    existsHint: '“{name}” already exists — you can reconnect and resume it.',
-    empty: 'Enter a session name.',
+    subtitle: 'Name the sandbox (the sbx container), or enter an existing sandbox name to reconnect.',
+    sandboxLabel: 'Sandbox name',
+    sessionLabel: 'Session name',
+    sessionSub: 'Display name for the Claude Code session (claude --name).',
+    newHint: 'New sandbox “{name}” — it will be created and launched.',
+    existsHint: '“{name}” already exists — its latest agent session will resume.',
+    empty: 'Enter a sandbox name.',
     launchNew: 'Launch new',
     attachResume: 'Attach & Resume',
     cancel: 'Cancel'

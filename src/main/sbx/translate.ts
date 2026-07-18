@@ -84,7 +84,7 @@ export function shellCommand(argv: string[]): string {
  *   create (provision) → apply network tier → publish ports → run (attach agent).
  * Chained with `&&` so a failed step stops the sequence and stays visible.
  */
-export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec)): string {
+export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string): string {
   const steps: string[] = [shellCommand(['sbx', ...specToCreateArgs(spec, name)])]
   const resources = tierToAllowlist(spec.definition.tier, spec.domains)
   if (resources.length > 0) {
@@ -93,6 +93,10 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
   for (const p of spec.ports) {
     steps.push(shellCommand(['sbx', 'ports', name, '--publish', portIntentToPublishSpec(p)]))
   }
-  steps.push(shellCommand(['sbx', 'run', '--name', name]))
+  // `sbx run` attaches the agent; args after `--` go to Claude Code. A session
+  // name maps to `claude --name`, its display name for this new conversation.
+  const runArgs = ['sbx', 'run', '--name', name]
+  if (sessionName && sessionName.trim()) runArgs.push('--', '--name', sessionName.trim())
+  steps.push(shellCommand(runArgs))
   return steps.join(' && ')
 }
