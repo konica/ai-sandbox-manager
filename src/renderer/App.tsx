@@ -7,6 +7,8 @@ import { Definitions } from './screens/Definitions'
 import { Settings } from './screens/Settings'
 import { CreateDefinition } from './wizard/CreateDefinition'
 import { AppShell, type NavScreen } from './components/AppShell'
+import { ConfirmModal } from './components/ConfirmModal'
+import { useT } from './i18n'
 
 type Phase =
   | { kind: 'loading' }
@@ -19,6 +21,8 @@ export default function App(): JSX.Element {
   const [wizard, setWizard] = useState(false)
   const [defs, setDefs] = useState<Definition[]>([])
   const [instances, setInstances] = useState<InstanceView[]>([])
+  const [pendingRemove, setPendingRemove] = useState<string | null>(null)
+  const t = useT()
 
   const loadDefs = useCallback(async () => {
     const r = await api.defList()
@@ -47,6 +51,20 @@ export default function App(): JSX.Element {
     else if (s === 'instances') void loadInstances()
   }
 
+  async function onLaunch(definitionId: string): Promise<void> {
+    const r = await api.instanceLaunch(definitionId)
+    if (r.ok) { setScreen('instances'); await loadInstances() }
+  }
+  async function refreshAfter(p: Promise<unknown>): Promise<void> { await p; await loadInstances() }
+  function onAttach(name: string): void { void api.instanceAttach(name) }
+  function onShell(name: string): void { void api.instanceShell(name) }
+  function onStop(name: string): void { void refreshAfter(api.instanceStop(name)) }
+  function onRemoveConfirmed(): void {
+    const name = pendingRemove
+    setPendingRemove(null)
+    if (name) void refreshAfter(api.instanceRemove(name))
+  }
+
   if (phase.kind === 'loading') return <p style={{ padding: 'var(--space-6)' }}>Loading…</p>
   if (phase.kind === 'error') return <p style={{ padding: 'var(--space-6)', color: 'var(--danger)' }}>Error: {phase.message}</p>
 
@@ -58,10 +76,21 @@ export default function App(): JSX.Element {
       {screen === 'definitions' && (
         wizard
           ? <CreateDefinition onDone={() => { setWizard(false); void loadDefs() }} onCancel={() => setWizard(false)} />
-          : <Definitions definitions={defs} onCreate={() => setWizard(true)} />
+          : <Definitions definitions={defs} onCreate={() => setWizard(true)} onLaunch={(id) => void onLaunch(id)} />
       )}
-      {screen === 'instances' && <Instances instances={instances} />}
+      {screen === 'instances' && (
+        <Instances instances={instances} onAttach={onAttach} onShell={onShell} onStop={onStop} onRemove={(name) => setPendingRemove(name)} />
+      )}
       {screen === 'settings' && <Settings />}
+      <ConfirmModal
+        open={pendingRemove !== null}
+        title={t('instances.removeTitle')}
+        body={t('instances.removeBody', { name: pendingRemove ?? '' })}
+        confirmLabel={t('instances.confirmRemove')}
+        cancelLabel={t('instances.cancel')}
+        onConfirm={onRemoveConfirmed}
+        onCancel={() => setPendingRemove(null)}
+      />
     </AppShell>
   )
 }
