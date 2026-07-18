@@ -8,16 +8,16 @@ export type BuiltinVariant = 'claude-code' | 'claude-code-minimal' | 'opencode' 
 // Refs must include the docker.io host — sbx does not auto-resolve it.
 export const TEMPLATE_REPO = 'docker.io/docker/sandbox-templates'
 
-// The base image variant determines which agent runs in the sandbox — the
-// agent passed to `sbx run` must match the extended base variant. This is the
-// single source of truth for the built-in templates the wizard offers.
-export interface VariantInfo { value: BuiltinVariant; label: string; agent: string }
+// Built-in base image templates offered in the wizard. These mirror the
+// variants Docker publishes; only claude-code (or a custom template) is wired
+// to actually launch at MVP — the others are selectable options.
+export interface VariantInfo { value: BuiltinVariant; label: string }
 export const BUILTIN_VARIANTS: VariantInfo[] = [
-  { value: 'claude-code', label: 'Claude Code', agent: 'claude' },
-  { value: 'claude-code-minimal', label: 'Claude Code — minimal toolset (no Node.js, Python, Go, or Java)', agent: 'claude' },
-  { value: 'opencode', label: 'OpenCode', agent: 'opencode' },
-  { value: 'codex', label: 'OpenAI Codex', agent: 'codex' },
-  { value: 'copilot', label: 'GitHub Copilot', agent: 'copilot' }
+  { value: 'claude-code', label: 'Claude Code' },
+  { value: 'claude-code-minimal', label: 'Claude Code — minimal toolset (no Node.js, Python, Go, or Java)' },
+  { value: 'opencode', label: 'OpenCode' },
+  { value: 'codex', label: 'OpenAI Codex' },
+  { value: 'copilot', label: 'GitHub Copilot' }
 ]
 
 export interface Draft {
