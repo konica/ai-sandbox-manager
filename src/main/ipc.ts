@@ -6,8 +6,9 @@ import { checkPrereqs, type Probes } from './prereq'
 import { reconcile } from './reconciler'
 import { launchDefinition } from './launch'
 import { agentAttachCommand, hostShellCommand } from './sbx/translate'
+import type { Logger } from './log'
 
-interface Deps { adapter: SbxAdapter; store: Store; probes: Probes; openTerminal: (command: string) => void }
+interface Deps { adapter: SbxAdapter; store: Store; probes: Probes; openTerminal: (command: string) => void; log?: Logger }
 
 async function wrap<T>(fn: () => Promise<T>): Promise<Result<T>> {
   try {
@@ -35,10 +36,20 @@ export function buildHandlers(deps: Deps): {
     'def:create': (spec) => wrap(async () => { deps.store.insertDefinitionSpec(spec); return { id: spec.definition.id } }),
     'def:list': () => wrap(async () => deps.store.listDefinitions()),
     'instance:launch': (definitionId) => wrap(() => launchDefinition(
-      { adapter: deps.adapter, store: deps.store, openTerminal: deps.openTerminal }, definitionId
+      { adapter: deps.adapter, store: deps.store, openTerminal: deps.openTerminal, log: deps.log }, definitionId
     )),
-    'instance:attach': (name) => wrap(async () => { deps.openTerminal(agentAttachCommand(name)); return null }),
-    'instance:shell': (name) => wrap(async () => { deps.openTerminal(hostShellCommand(name)); return null }),
+    'instance:attach': (name) => wrap(async () => {
+      const cmd = agentAttachCommand(name)
+      deps.log?.info(`Opening agent terminal: ${cmd}`)
+      deps.openTerminal(cmd)
+      return null
+    }),
+    'instance:shell': (name) => wrap(async () => {
+      const cmd = hostShellCommand(name)
+      deps.log?.info(`Opening host shell: ${cmd}`)
+      deps.openTerminal(cmd)
+      return null
+    }),
     'instance:stop': (name) => wrap(async () => { await deps.adapter.stopSandbox(name); return null }),
     'instance:remove': (name) => wrap(async () => {
       await deps.adapter.removeSandbox(name)

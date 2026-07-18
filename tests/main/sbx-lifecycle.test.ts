@@ -52,4 +52,16 @@ describe('adapter lifecycle', () => {
     expect(calls[0]).toEqual(['stop', 'my-project'])
     expect(calls[1]).toEqual(['rm', 'my-project', '--force'])
   })
+
+  it('logs each executed command and errors through the logger', async () => {
+    const cmds: string[][] = []
+    const errors: string[] = []
+    const logger = { info: () => {}, command: (a: string[]) => cmds.push(a), error: (m: string) => errors.push(m) }
+    await createSbxAdapter(recorder().spawn, logger).createSandbox(spec)
+    expect(cmds[0]).toEqual(['create', 'claude', '/p', '--name', 'my-project', '--template', 'img:tag'])
+
+    const failing: SpawnFn = async () => ({ stdout: '', stderr: 'kaboom', code: 1 })
+    await expect(createSbxAdapter(failing, logger).stopSandbox('x')).rejects.toThrow('kaboom')
+    expect(errors.some((e) => /kaboom/.test(e))).toBe(true)
+  })
 })

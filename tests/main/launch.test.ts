@@ -51,4 +51,14 @@ describe('launchDefinition', () => {
     await expect(launchDefinition(d as never, 'nope')).rejects.toThrow(/not found/i)
     expect(d.adapter.createSandbox).not.toHaveBeenCalled()
   })
+
+  it('logs launch milestones when a logger is provided', async () => {
+    const infos: string[] = []
+    const d = deps(() => spec) as Record<string, unknown>
+    d.log = { info: (m: string) => infos.push(m), command: () => {}, error: () => {} }
+    await launchDefinition(d as never, 'd1')
+    expect(infos.some((l) => /Launching "my-project"/.test(l))).toBe(true)
+    expect(infos.some((l) => /network policy/i.test(l))).toBe(true)
+    expect(infos.some((l) => /Launch complete/.test(l))).toBe(true)
+  })
 })

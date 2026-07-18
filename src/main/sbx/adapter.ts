@@ -3,6 +3,7 @@ import type { SbxInstance, DefinitionSpec, PortIntent, Tier } from '@shared/type
 import { SbxError, classifySbxError } from '@shared/errors'
 import { parseSbxLsJson, parseSbxLsText } from './parse'
 import { specToCreateArgs, tierToAllowlist, portIntentToPublishSpec } from './translate'
+import type { Logger } from '../log'
 
 export interface SbxResult { stdout: string; stderr: string; code: number }
 
@@ -18,7 +19,7 @@ export interface SbxAdapter {
   removeSandbox(name: string): Promise<void>
 }
 
-const defaultSpawn: SpawnFn = (cmd, args, opts) =>
+export const defaultSpawn: SpawnFn = (cmd, args, opts) =>
   new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { stdio: ['pipe', 'pipe', 'pipe'] })
     let stdout = ''
@@ -33,10 +34,15 @@ const defaultSpawn: SpawnFn = (cmd, args, opts) =>
     }
   })
 
-export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn): SbxAdapter {
+export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logger): SbxAdapter {
   async function runSbx(args: string[], opts: { stdin?: string } = {}): Promise<SbxResult> {
+    logger?.command(args)
     const res = await spawnFn('sbx', args, opts)
-    if (res.code !== 0) throw new SbxError(classifySbxError(res.code, res.stderr), res.stderr.trim() || `sbx exited ${res.code}`)
+    if (res.code !== 0) {
+      const detail = res.stderr.trim() || `sbx exited ${res.code}`
+      logger?.error(`sbx ${args[0] ?? ''} failed (exit ${res.code}): ${detail}`)
+      throw new SbxError(classifySbxError(res.code, res.stderr), detail)
+    }
     return res
   }
 

@@ -1,10 +1,11 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { openStore } from './store/db'
-import { createSbxAdapter } from './sbx/adapter'
+import { createSbxAdapter, defaultSpawn } from './sbx/adapter'
 import { systemProbes } from './probes'
 import { registerIpc } from './ipc'
 import { openHostTerminal } from './terminal'
+import { createLogger } from './log'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -30,7 +31,11 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   const store = openStore(join(app.getPath('userData'), 'sandbox-manager.db'))
-  registerIpc({ adapter: createSbxAdapter(), store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c) })
+  const logFile = join(app.getPath('userData'), 'sandbox-manager.log')
+  const logger = createLogger({ file: logFile })
+  logger.info(`AI Sandbox Manager started — logging sbx activity to ${logFile}`)
+  const adapter = createSbxAdapter(defaultSpawn, logger)
+  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), log: logger })
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
