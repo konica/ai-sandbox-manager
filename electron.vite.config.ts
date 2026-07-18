@@ -7,7 +7,12 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     resolve: { alias: { '@shared': resolve('src/shared'), '@main': resolve('src/main') } }
   },
-  preload: { plugins: [externalizeDepsPlugin()] },
+  preload: {
+    plugins: [externalizeDepsPlugin()],
+    // Renderer is sandboxed, so the preload must be CommonJS. In this
+    // "type": "module" project a CJS file needs the .cjs extension.
+    build: { rollupOptions: { output: { format: 'cjs', entryFileNames: 'index.cjs' } } }
+  },
   renderer: {
     plugins: [react()],
     resolve: { alias: { '@shared': resolve('src/shared') } },
