@@ -21,4 +21,10 @@ describe('Instances actions', () => {
     expect(onStop).toHaveBeenCalledWith('my-project')
     expect(onRemove).toHaveBeenCalledWith('my-project')
   })
+
+  it('exposes the full workspace path as a tooltip (title)', () => {
+    const longPath = '/Users/ttdinh/Documents/Working/Projects/AISandbox/testaisandbox'
+    render(<Instances instances={[{ ...inst, workspace: longPath }]} />)
+    expect(screen.getByTitle(longPath)).toBeInTheDocument()
+  })
 })
