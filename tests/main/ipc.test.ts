@@ -12,7 +12,7 @@ const adapter: SbxAdapter = {
   listSandboxes: async () => [{ name: 'sbx-a', status: 'running', agent: 'claude', ports: [], workspace: '/w' }]
 }
 const probes: Probes = {
-  hasDocker: async () => true, sbxVersion: async () => 'sbx 1.0', sbxAuthed: async () => true,
+  dockerVersion: async () => 'Docker version 24.0.7', sbxVersion: async () => 'sbx 1.0', sbxAuthed: async () => true,
   freeDiskBytes: async () => 50 * 1024 ** 3, keychainReachable: async () => true
 }
 

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { checkPrereqs, type Probes } from '@main/prereq'
 
 const allGood: Probes = {
-  hasDocker: async () => true,
-  sbxVersion: async () => 'sbx 1.2.3',
+  dockerVersion: async () => 'Docker version 24.0.7',
+  sbxVersion: async () => 'v0.35.0',
   sbxAuthed: async () => true,
   freeDiskBytes: async () => 50 * 1024 ** 3,
   keychainReachable: async () => true
@@ -16,11 +16,30 @@ describe('checkPrereqs', () => {
     expect(r.checks.map((c) => c.id)).toEqual(['docker', 'sbx', 'auth', 'disk', 'keychain'])
   })
 
+  it('reports the sbx version in the detail when present', async () => {
+    const r = await checkPrereqs(allGood)
+    const sbx = r.checks.find((c) => c.id === 'sbx')
+    expect(sbx?.ok).toBe(true)
+    expect(sbx?.detail).toContain('v0.35.0')
+  })
+
+  it('marks sbx absent when the version probe returns null', async () => {
+    const r = await checkPrereqs({ ...allGood, sbxVersion: async () => null })
+    expect(r.ok).toBe(false)
+    expect(r.checks.find((c) => c.id === 'sbx')?.ok).toBe(false)
+  })
+
   it('blocks when sbx is not authenticated', async () => {
     const r = await checkPrereqs({ ...allGood, sbxAuthed: async () => false })
     expect(r.ok).toBe(false)
     expect(r.checks.find((c) => c.id === 'auth')?.ok).toBe(false)
     expect(r.checks.find((c) => c.id === 'auth')?.remediation).toContain('sbx login')
+  })
+
+  it('does not run the auth probe when sbx is absent', async () => {
+    let authRan = false
+    await checkPrereqs({ ...allGood, sbxVersion: async () => null, sbxAuthed: async () => { authRan = true; return true } })
+    expect(authRan).toBe(false)
   })
 
   it('reports low disk without blocking', async () => {
