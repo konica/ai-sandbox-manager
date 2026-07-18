@@ -35,6 +35,22 @@ describe('parseSbxLsJson', () => {
       { name: 'claude-mgm-rag-ingest-console', status: 'stopped', agent: 'claude', ports: [], workspace: '/Users/ttdinh/Projects/mgm-rag-ingest-console' }
     ])
   })
+  it('formats object ports and dedups the IPv4/IPv6 pairs', () => {
+    const json = JSON.stringify({
+      sandboxes: [
+        {
+          name: 'x', agent: 'claude', status: 'running', workspaces: ['/w'],
+          ports: [
+            { host_ip: '::1', host_port: 5173, sandbox_port: 5173, protocol: 'tcp' },
+            { host_ip: '127.0.0.1', host_port: 5173, sandbox_port: 5173, protocol: 'tcp' },
+            { host_ip: '127.0.0.1', host_port: 8080, sandbox_port: 3000, protocol: 'tcp' }
+          ]
+        }
+      ]
+    })
+    const [row] = parseSbxLsJson(json)
+    expect(row.ports).toEqual(['5173/tcp', '8080->3000/tcp'])
+  })
   it('still accepts a bare top-level array', () => {
     const json = JSON.stringify([
       { name: 'my-sandbox', agent: 'claude', status: 'running', ports: ['127.0.0.1:8080->3000/tcp'], workspace: '/home/user/proj' }

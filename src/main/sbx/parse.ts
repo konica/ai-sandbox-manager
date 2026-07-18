@@ -12,6 +12,37 @@ function splitPorts(raw: string): string[] {
   return v.split(',').map((p) => p.trim()).filter(Boolean)
 }
 
+/** Format one port entry (string or `{host_port, sandbox_port, protocol}` object) to `host->sandbox/proto`. */
+function formatPort(p: unknown): string {
+  if (typeof p === 'string') return p.trim()
+  if (p && typeof p === 'object') {
+    const o = p as Record<string, unknown>
+    const host = o.host_port ?? o.hostPort
+    const sand = o.sandbox_port ?? o.sandboxPort ?? o.container_port ?? o.containerPort
+    if (host == null && sand == null) return ''
+    const h = host != null ? String(host) : '?'
+    const s = sand != null ? String(sand) : h
+    const base = h === s ? h : `${h}->${s}`
+    return typeof o.protocol === 'string' && o.protocol ? `${base}/${o.protocol}` : base
+  }
+  return ''
+}
+
+/** Turn the `ports` field into readable strings, deduped (sbx lists one row per host IP family). */
+function normalizePorts(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return splitPorts(String(raw ?? ''))
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const p of raw) {
+    const s = formatPort(p)
+    if (s !== '' && !seen.has(s)) {
+      seen.add(s)
+      out.push(s)
+    }
+  }
+  return out
+}
+
 /** Parse `sbx ls --json` output. Throws if not valid JSON. */
 export function parseSbxLsJson(stdout: string): SbxInstance[] {
   const parsed = JSON.parse(stdout) as unknown
@@ -20,7 +51,7 @@ export function parseSbxLsJson(stdout: string): SbxInstance[] {
     status: toStatus(String(r.status ?? '')),
     agent: String(r.agent ?? ''),
     workspace: pickWorkspace(r),
-    ports: Array.isArray(r.ports) ? (r.ports as unknown[]).map(String) : splitPorts(String(r.ports ?? ''))
+    ports: normalizePorts(r.ports)
   }))
 }
 
