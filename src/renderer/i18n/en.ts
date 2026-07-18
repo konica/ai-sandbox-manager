@@ -68,13 +68,14 @@ export const en = {
   },
   launch: {
     title: 'Launch “{name}”',
-    subtitle: 'Name the sandbox (the sbx container), or enter an existing sandbox name to reconnect.',
-    sandboxLabel: 'Sandbox name',
+    subtitle: 'Name the Claude Code session. The sandbox name is optional — leave it blank to auto-generate a unique one, or pick an existing sandbox to reconnect.',
     sessionLabel: 'Session name',
     sessionSub: 'Display name for the Claude Code session (claude --name).',
+    sandboxLabel: 'Sandbox name (optional)',
+    sandboxPlaceholder: 'Auto — a unique name is generated',
+    autoHint: 'A unique sandbox name will be generated automatically.',
     newHint: 'New sandbox “{name}” — it will be created and launched.',
     existsHint: '“{name}” already exists — its latest agent session will resume.',
-    empty: 'Enter a sandbox name.',
     launchNew: 'Launch new',
     attachResume: 'Attach & Resume',
     cancel: 'Cancel'

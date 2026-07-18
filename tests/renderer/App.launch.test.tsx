@@ -52,11 +52,11 @@ describe('App launch & lifecycle wiring', () => {
     await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', 'fresh', 'My Project'))
   })
 
-  it('Launch dialog offers Attach & Resume when the name matches an existing sandbox', async () => {
+  it('Launch dialog offers Attach & Resume when an existing sandbox name is chosen', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
     const dialog = await screen.findByRole('dialog')
-    // default name derives to "my-project", which matches the running instance
+    fireEvent.change(within(dialog).getByLabelText('Sandbox name'), { target: { value: 'my-project' } })
     fireEvent.click(within(dialog).getByRole('button', { name: /attach & resume/i }))
     await waitFor(() => expect(instanceAttach).toHaveBeenCalledWith('my-project'))
     expect(instanceLaunch).not.toHaveBeenCalled()

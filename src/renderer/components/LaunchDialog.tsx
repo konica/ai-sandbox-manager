@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import type { Definition } from '@shared/types'
-import { toSbxName } from '@shared/names'
 import { useT } from '../i18n'
 
 const labelStyle = { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', margin: 'var(--space-4) 0 var(--space-2)' } as const
 
 /**
  * Launch dialog. Two distinct names:
- *  - Sandbox name → the sbx container (`sbx --name`); typing an existing one switches
- *    the primary action to "Attach & Resume".
- *  - Session name → the Claude Code session display name (`claude --name`), used only
- *    when launching a new sandbox.
+ *  - Session name → the Claude Code session display name (`claude --name`).
+ *  - Sandbox name → the sbx container (`sbx --name`); OPTIONAL. Blank auto-generates
+ *    a unique name (no conflicts); picking an existing one switches to "Attach & Resume".
  */
 export function LaunchDialog({ definition, existingNames, onLaunch, onAttach, onCancel }: {
   definition: Definition
@@ -20,15 +18,13 @@ export function LaunchDialog({ definition, existingNames, onLaunch, onAttach, on
   onCancel: () => void
 }): JSX.Element {
   const t = useT()
-  const [sandboxName, setSandboxName] = useState(() => toSbxName(definition.name))
   const [sessionName, setSessionName] = useState(definition.name)
+  const [sandboxName, setSandboxName] = useState('')
   const trimmed = sandboxName.trim()
-  const exists = existingNames.includes(trimmed)
-  const canSubmit = trimmed.length > 0
+  const exists = trimmed.length > 0 && existingNames.includes(trimmed)
   const listId = 'launch-existing-sandboxes'
 
   function submit(): void {
-    if (!canSubmit) return
     if (exists) onAttach(trimmed)
     else onLaunch(trimmed, sessionName.trim())
   }
@@ -39,24 +35,6 @@ export function LaunchDialog({ definition, existingNames, onLaunch, onAttach, on
         <h3 className="modal-title">{t('launch.title', { name: definition.name })}</h3>
         <p className="modal-desc">{t('launch.subtitle')}</p>
 
-        <label htmlFor="launch-sandbox" style={labelStyle}>{t('launch.sandboxLabel')}</label>
-        <input
-          id="launch-sandbox"
-          aria-label="Sandbox name"
-          className="input input-mono"
-          list={listId}
-          value={sandboxName}
-          autoFocus
-          onChange={(e) => setSandboxName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
-        />
-        <datalist id={listId}>
-          {existingNames.map((n) => <option key={n} value={n} />)}
-        </datalist>
-        <p className="section-desc" style={{ fontSize: 12, marginTop: 'var(--space-2)', marginBottom: 0 }}>
-          {!canSubmit ? t('launch.empty') : exists ? t('launch.existsHint', { name: trimmed }) : t('launch.newHint', { name: trimmed })}
-        </p>
-
         <label htmlFor="launch-session" style={labelStyle}>{t('launch.sessionLabel')}</label>
         <input
           id="launch-session"
@@ -64,14 +42,33 @@ export function LaunchDialog({ definition, existingNames, onLaunch, onAttach, on
           className="input"
           value={sessionName}
           disabled={exists}
+          autoFocus
           onChange={(e) => setSessionName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
         />
         <p className="section-desc" style={{ fontSize: 12, marginTop: 'var(--space-2)', marginBottom: 0 }}>{t('launch.sessionSub')}</p>
 
+        <label htmlFor="launch-sandbox" style={labelStyle}>{t('launch.sandboxLabel')}</label>
+        <input
+          id="launch-sandbox"
+          aria-label="Sandbox name"
+          className="input input-mono"
+          list={listId}
+          value={sandboxName}
+          placeholder={t('launch.sandboxPlaceholder')}
+          onChange={(e) => setSandboxName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
+        />
+        <datalist id={listId}>
+          {existingNames.map((n) => <option key={n} value={n} />)}
+        </datalist>
+        <p className="section-desc" style={{ fontSize: 12, marginTop: 'var(--space-2)', marginBottom: 0 }}>
+          {exists ? t('launch.existsHint', { name: trimmed }) : trimmed ? t('launch.newHint', { name: trimmed }) : t('launch.autoHint')}
+        </p>
+
         <div className="modal-actions" style={{ marginTop: 'var(--space-5)' }}>
           <button className="btn btn-secondary" onClick={onCancel}>{t('launch.cancel')}</button>
-          <button className="btn btn-primary" disabled={!canSubmit} onClick={submit}>
+          <button className="btn btn-primary" onClick={submit}>
             {exists ? t('launch.attachResume') : t('launch.launchNew')}
           </button>
         </div>

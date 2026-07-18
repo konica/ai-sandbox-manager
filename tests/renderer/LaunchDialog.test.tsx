@@ -12,27 +12,31 @@ function setup(existingNames: string[]) {
 }
 
 describe('LaunchDialog', () => {
-  it('defaults sandbox to the derived name and session to the definition name; Launch new when free', () => {
+  it('leaves the sandbox name blank (auto) and defaults session to the definition name', () => {
     const { onLaunch } = setup(['other'])
-    expect(screen.getByLabelText('Sandbox name')).toHaveValue('my-project')
+    expect(screen.getByLabelText('Sandbox name')).toHaveValue('')
     expect(screen.getByLabelText('Session name')).toHaveValue('My Project')
     fireEvent.click(screen.getByRole('button', { name: /launch new/i }))
-    expect(onLaunch).toHaveBeenCalledWith('my-project', 'My Project')
+    // blank sandbox → backend auto-generates; session passed through
+    expect(onLaunch).toHaveBeenCalledWith('', 'My Project')
   })
 
-  it('offers Attach & Resume when the sandbox name matches an existing sandbox', () => {
+  it('offers Attach & Resume when an existing sandbox name is chosen', () => {
     const { onAttach, onLaunch } = setup(['my-project'])
+    fireEvent.change(screen.getByLabelText('Sandbox name'), { target: { value: 'my-project' } })
     fireEvent.click(screen.getByRole('button', { name: /attach & resume/i }))
     expect(onAttach).toHaveBeenCalledWith('my-project')
     expect(onLaunch).not.toHaveBeenCalled()
   })
 
-  it('disables the session field in attach mode (latest session resumes)', () => {
+  it('disables the session field once an existing sandbox is chosen (latest resumes)', () => {
     setup(['my-project'])
+    expect(screen.getByLabelText('Session name')).toBeEnabled()
+    fireEvent.change(screen.getByLabelText('Sandbox name'), { target: { value: 'my-project' } })
     expect(screen.getByLabelText('Session name')).toBeDisabled()
   })
 
-  it('lets the user type a new sandbox name and session name', () => {
+  it('lets the user type a custom sandbox name and session name', () => {
     const { onLaunch } = setup(['my-project'])
     fireEvent.change(screen.getByLabelText('Sandbox name'), { target: { value: 'my-project-2' } })
     fireEvent.change(screen.getByLabelText('Session name'), { target: { value: 'Second run' } })
@@ -40,9 +44,8 @@ describe('LaunchDialog', () => {
     expect(onLaunch).toHaveBeenCalledWith('my-project-2', 'Second run')
   })
 
-  it('disables the primary action when the sandbox name is empty', () => {
+  it('keeps the primary action enabled even with a blank sandbox name', () => {
     setup([])
-    fireEvent.change(screen.getByLabelText('Sandbox name'), { target: { value: '  ' } })
-    expect(screen.getByRole('button', { name: /launch new/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /launch new/i })).toBeEnabled()
   })
 })
