@@ -1,4 +1,7 @@
 import type { DefinitionSpec, PortIntent, Tier } from '@shared/types'
+import { toSbxName } from '@shared/names'
+
+export { toSbxName }
 
 export const AGENT_KEYWORD = 'claude'
 
@@ -13,15 +16,6 @@ export const BALANCED_BASELINE: string[] = [
   '*.githubusercontent.com',
   'api.anthropic.com'
 ]
-
-/** Normalise an arbitrary definition name into a safe sbx sandbox name. */
-export function toSbxName(raw: string): string {
-  const slug = raw
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return slug.length > 0 ? slug : 'sandbox'
-}
 
 export function resolveSandboxName(spec: DefinitionSpec): string {
   return toSbxName(spec.definition.name)

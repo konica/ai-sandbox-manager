@@ -2,6 +2,7 @@ import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import type { Logger } from './log'
 import { resolveSandboxName, uniqueSandboxName, launchCommand } from './sbx/translate'
+import { toSbxName } from '@shared/names'
 import { SbxError } from '@shared/errors'
 
 export interface LaunchDeps {
@@ -22,11 +23,15 @@ export interface LaunchDeps {
  * and any names the app has already recorded, so relaunching a definition does not
  * fail with "sandbox '<name>' already exists".
  */
-export async function launchDefinition(deps: LaunchDeps, definitionId: string): Promise<{ name: string }> {
+export async function launchDefinition(
+  deps: LaunchDeps,
+  definitionId: string,
+  requestedName?: string
+): Promise<{ name: string }> {
   const spec = deps.store.getDefinitionSpec(definitionId)
   if (!spec) throw new SbxError('not-found', `Definition ${definitionId} not found`)
 
-  const base = resolveSandboxName(spec)
+  const base = requestedName && requestedName.trim() ? toSbxName(requestedName) : resolveSandboxName(spec)
   let liveNames: string[] = []
   try {
     liveNames = (await deps.adapter.listSandboxes()).map((i) => i.name)

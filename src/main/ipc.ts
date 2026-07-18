@@ -24,7 +24,7 @@ export function buildHandlers(deps: Deps): {
   'instances:list': () => Promise<Result<InstanceView[]>>
   'def:create': (spec: DefinitionSpec) => Promise<Result<{ id: string }>>
   'def:list': () => Promise<Result<Definition[]>>
-  'instance:launch': (definitionId: string) => Promise<Result<{ name: string }>>
+  'instance:launch': (definitionId: string, name?: string) => Promise<Result<{ name: string }>>
   'instance:attach': (name: string) => Promise<Result<null>>
   'instance:shell': (name: string) => Promise<Result<null>>
   'instance:stop': (name: string) => Promise<Result<null>>
@@ -35,8 +35,8 @@ export function buildHandlers(deps: Deps): {
     'instances:list': () => wrap(() => reconcile(deps.adapter, deps.store)),
     'def:create': (spec) => wrap(async () => { deps.store.insertDefinitionSpec(spec); return { id: spec.definition.id } }),
     'def:list': () => wrap(async () => deps.store.listDefinitions()),
-    'instance:launch': (definitionId) => wrap(() => launchDefinition(
-      { adapter: deps.adapter, store: deps.store, openTerminal: deps.openTerminal, log: deps.log }, definitionId
+    'instance:launch': (definitionId, name) => wrap(() => launchDefinition(
+      { adapter: deps.adapter, store: deps.store, openTerminal: deps.openTerminal, log: deps.log }, definitionId, name
     )),
     'instance:attach': (name) => wrap(async () => {
       const cmd = agentAttachCommand(name)
@@ -65,7 +65,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instances:list', () => handlers['instances:list']())
   ipcMain.handle('def:create', (_e, spec: DefinitionSpec) => handlers['def:create'](spec))
   ipcMain.handle('def:list', () => handlers['def:list']())
-  ipcMain.handle('instance:launch', (_e, id: string) => handlers['instance:launch'](id))
+  ipcMain.handle('instance:launch', (_e, id: string, name?: string) => handlers['instance:launch'](id, name))
   ipcMain.handle('instance:attach', (_e, name: string) => handlers['instance:attach'](name))
   ipcMain.handle('instance:shell', (_e, name: string) => handlers['instance:shell'](name))
   ipcMain.handle('instance:stop', (_e, name: string) => handlers['instance:stop'](name))

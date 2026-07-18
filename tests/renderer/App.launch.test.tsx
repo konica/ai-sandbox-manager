@@ -16,7 +16,7 @@ vi.mock('../../src/renderer/ipc/client', () => ({
     instancesList: () => instancesList(),
     defList: () => defList(),
     defCreate: async () => ({ ok: true, data: { id: 'id1' } }),
-    instanceLaunch: (id: string) => instanceLaunch(id),
+    instanceLaunch: (id: string, name?: string) => instanceLaunch(id, name),
     instanceAttach: (n: string) => instanceAttach(n),
     instanceShell: (n: string) => instanceShell(n),
     instanceStop: (n: string) => instanceStop(n),
@@ -43,17 +43,32 @@ beforeEach(() => {
 })
 
 describe('App launch & lifecycle wiring', () => {
-  it('Launch on a definition calls instanceLaunch', async () => {
+  it('Launch opens a dialog; entering a fresh name calls instanceLaunch with that name', async () => {
     render(<App />)
-    await screen.findByRole('button', { name: 'Launch' })
-    fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Session name'), { target: { value: 'fresh' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: /launch new/i }))
+    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', 'fresh'))
+  })
+
+  it('Launch dialog offers Attach & Resume when the name matches an existing sandbox', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
+    const dialog = await screen.findByRole('dialog')
+    // default name derives to "my-project", which matches the running instance
+    fireEvent.click(within(dialog).getByRole('button', { name: /attach & resume/i }))
+    await waitFor(() => expect(instanceAttach).toHaveBeenCalledWith('my-project'))
+    expect(instanceLaunch).not.toHaveBeenCalled()
   })
 
   it('surfaces the error message when launch fails', async () => {
     instanceLaunch.mockResolvedValue({ ok: false, error: { kind: 'not-found', message: 'sbx create failed: boom' } })
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Session name'), { target: { value: 'fresh' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: /launch new/i }))
     await waitFor(() => expect(screen.getByText(/sbx create failed: boom/)).toBeInTheDocument())
   })
 

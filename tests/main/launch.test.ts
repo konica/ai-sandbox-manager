@@ -51,6 +51,14 @@ describe('launchDefinition', () => {
     expect(d.metas.some((m) => m.sbxName === 'my-project-2')).toBe(true)
   })
 
+  it('uses a requested name (normalised) instead of deriving from the definition', async () => {
+    const d = deps(() => spec)
+    const res = await launchDefinition(d as never, 'd1', 'My Custom Session')
+    expect(res.name).toBe('my-custom-session')
+    const cmd = d.openTerminal.mock.calls[0][0] as string
+    expect(cmd).toContain('--name my-custom-session')
+  })
+
   it('also avoids names already recorded in metadata', async () => {
     const d = deps(() => spec, [], ['my-project', 'my-project-2'])
     const res = await launchDefinition(d as never, 'd1')

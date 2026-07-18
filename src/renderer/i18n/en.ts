@@ -63,6 +63,17 @@ export const en = {
     launched: 'Launched “{name}” — a terminal is opening.',
     actionFailed: 'Action failed: {message}'
   },
+  launch: {
+    title: 'Launch “{name}”',
+    subtitle: 'Name this session, or enter an existing sandbox name to reconnect and resume it.',
+    nameLabel: 'Session name',
+    newHint: '“{name}” is new — it will be created and launched.',
+    existsHint: '“{name}” already exists — you can reconnect and resume it.',
+    empty: 'Enter a session name.',
+    launchNew: 'Launch new',
+    attachResume: 'Attach & Resume',
+    cancel: 'Cancel'
+  },
   settings: {
     title: 'Settings',
     subtitle: 'Application defaults for new sandbox definitions and instances.',

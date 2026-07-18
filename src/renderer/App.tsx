@@ -8,6 +8,7 @@ import { Settings } from './screens/Settings'
 import { CreateDefinition } from './wizard/CreateDefinition'
 import { AppShell, type NavScreen } from './components/AppShell'
 import { ConfirmModal } from './components/ConfirmModal'
+import { LaunchDialog } from './components/LaunchDialog'
 import { useT } from './i18n'
 
 type Phase =
@@ -22,6 +23,7 @@ export default function App(): JSX.Element {
   const [defs, setDefs] = useState<Definition[]>([])
   const [instances, setInstances] = useState<InstanceView[]>([])
   const [pending, setPending] = useState<{ kind: 'stop' | 'remove'; name: string } | null>(null)
+  const [launchFor, setLaunchFor] = useState<Definition | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
   const t = useT()
@@ -53,11 +55,20 @@ export default function App(): JSX.Element {
     else if (s === 'instances') void loadInstances()
   }
 
-  async function onLaunch(definitionId: string): Promise<void> {
+  function openLaunchDialog(definitionId: string): void {
+    const def = defs.find((d) => d.id === definitionId)
+    if (!def) return
     setNotice(null)
-    setBusyId(definitionId)
+    setLaunchFor(def)
+    void loadInstances() // refresh existing sandbox names for the dialog
+  }
+
+  async function submitLaunch(definition: Definition, name: string): Promise<void> {
+    setLaunchFor(null)
+    setNotice(null)
+    setBusyId(definition.id)
     try {
-      const r = await api.instanceLaunch(definitionId)
+      const r = await api.instanceLaunch(definition.id, name)
       if (r.ok) {
         setNotice({ kind: 'info', text: t('instances.launched', { name: r.data.name }) })
         setScreen('instances')
@@ -68,6 +79,12 @@ export default function App(): JSX.Element {
     } finally {
       setBusyId(null)
     }
+  }
+
+  function attachExisting(name: string): void {
+    setLaunchFor(null)
+    setScreen('instances')
+    void runAction(api.instanceAttach(name))
   }
   async function runAction(p: Promise<{ ok: boolean; error?: { message: string } }>): Promise<void> {
     const r = await p
@@ -109,7 +126,7 @@ export default function App(): JSX.Element {
       {screen === 'definitions' && (
         wizard
           ? <CreateDefinition onDone={() => { setWizard(false); void loadDefs() }} onCancel={() => setWizard(false)} />
-          : <Definitions definitions={defs} onCreate={() => setWizard(true)} onLaunch={(id) => void onLaunch(id)} launchingId={busyId} />
+          : <Definitions definitions={defs} onCreate={() => setWizard(true)} onLaunch={openLaunchDialog} launchingId={busyId} />
       )}
       {screen === 'instances' && (
         <Instances
@@ -135,6 +152,15 @@ export default function App(): JSX.Element {
         onConfirm={onConfirmPending}
         onCancel={() => setPending(null)}
       />
+      {launchFor && (
+        <LaunchDialog
+          definition={launchFor}
+          existingNames={instances.map((i) => i.name)}
+          onLaunch={(name) => void submitLaunch(launchFor, name)}
+          onAttach={attachExisting}
+          onCancel={() => setLaunchFor(null)}
+        />
+      )}
     </AppShell>
   )
 }

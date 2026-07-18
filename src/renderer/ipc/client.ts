@@ -6,7 +6,7 @@ interface Api {
   defCreate(spec: DefinitionSpec): Promise<Result<{ id: string }>>
   defList(): Promise<Result<Definition[]>>
   pickFolder(): Promise<string | null>
-  instanceLaunch(definitionId: string): Promise<Result<{ name: string }>>
+  instanceLaunch(definitionId: string, name?: string): Promise<Result<{ name: string }>>
   instanceAttach(name: string): Promise<Result<null>>
   instanceShell(name: string): Promise<Result<null>>
   instanceStop(name: string): Promise<Result<null>>
