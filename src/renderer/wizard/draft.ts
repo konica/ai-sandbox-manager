@@ -2,11 +2,23 @@ import type { Tier, MountMode, CredentialKind, DefinitionSpec } from '@shared/ty
 
 export const TOTAL_STEPS = 7
 
-export type BuiltinVariant = 'claude-code-docker' | 'claude-code' | 'claude-code-minimal' | 'claude-code-minimal-docker'
+export type BuiltinVariant = 'claude-code' | 'claude-code-minimal' | 'opencode' | 'codex' | 'copilot'
 
 // Docker Sandboxes publishes built-in base images under this repository.
 // Refs must include the docker.io host — sbx does not auto-resolve it.
 export const TEMPLATE_REPO = 'docker.io/docker/sandbox-templates'
+
+// The base image variant determines which agent runs in the sandbox — the
+// agent passed to `sbx run` must match the extended base variant. This is the
+// single source of truth for the built-in templates the wizard offers.
+export interface VariantInfo { value: BuiltinVariant; label: string; agent: string }
+export const BUILTIN_VARIANTS: VariantInfo[] = [
+  { value: 'claude-code', label: 'Claude Code', agent: 'claude' },
+  { value: 'claude-code-minimal', label: 'Claude Code — minimal toolset (no Node.js, Python, Go, or Java)', agent: 'claude' },
+  { value: 'opencode', label: 'OpenCode', agent: 'opencode' },
+  { value: 'codex', label: 'OpenAI Codex', agent: 'codex' },
+  { value: 'copilot', label: 'GitHub Copilot', agent: 'copilot' }
+]
 
 export interface Draft {
   step: number
@@ -27,7 +39,7 @@ export const initialDraft: Draft = {
   step: 1,
   name: '',
   description: '',
-  imageChoice: 'claude-code-docker',
+  imageChoice: 'claude-code',
   customImageRef: '',
   workspace: '',
   workspaceMode: 'direct',

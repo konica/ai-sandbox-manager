@@ -1,15 +1,9 @@
 import { useReducer, useState } from 'react'
 import type { CredentialKind, Tier } from '@shared/types'
 import { api } from '../ipc/client'
-import { draftReducer, initialDraft, canAdvance, toSpec, parsePort, resolveBaseImage, TOTAL_STEPS, type BuiltinVariant } from './draft'
+import { draftReducer, initialDraft, canAdvance, toSpec, parsePort, resolveBaseImage, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
 
 const STEP_LABELS = ['Name & Desc', 'Base Image', 'Workspace', 'Network', 'Ports', 'Credentials', 'Review']
-const VARIANTS: { value: BuiltinVariant; label: string }[] = [
-  { value: 'claude-code-docker', label: 'claude-code-docker — Claude Code + Docker Engine (default)' },
-  { value: 'claude-code', label: 'claude-code — Claude Code, standard' },
-  { value: 'claude-code-minimal', label: 'claude-code-minimal — Claude Code, minimal' },
-  { value: 'claude-code-minimal-docker', label: 'claude-code-minimal-docker — minimal + Docker Engine' }
-]
 const TIERS: { value: Tier; label: string; desc: string }[] = [
   { value: 'open', label: 'Open', desc: 'Broad egress. Fewest restrictions.' },
   { value: 'balanced', label: 'Balanced', desc: 'Common developer domains allowed.' },
@@ -86,7 +80,7 @@ export function CreateDefinition({
             <>
               <label htmlFor="base-image-select">Built-in templates</label>
               <select id="base-image-select" className="input" style={{ fontFamily: 'var(--font-mono)' }} value={draft.imageChoice} onChange={(e) => dispatch({ type: 'setImageChoice', value: e.target.value as BuiltinVariant | 'custom' })}>
-                {VARIANTS.map((v) => (<option key={v.value} value={v.value}>{v.label}</option>))}
+                {BUILTIN_VARIANTS.map((v) => (<option key={v.value} value={v.value}>{v.value} — {v.label}</option>))}
                 <option value="custom">Custom registry image…</option>
               </select>
               {draft.imageChoice === 'custom' && (
