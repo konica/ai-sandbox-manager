@@ -3,7 +3,7 @@ import type { CredentialKind, Tier } from '@shared/types'
 import { api } from '../ipc/client'
 import { draftReducer, initialDraft, canAdvance, toSpec, parsePort, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
 
-const STEP_LABELS = ['Name & Workspace', 'Base Image', 'Network', 'Ports', 'Credentials', 'Review']
+const STEP_LABELS = ['Workspace', 'Base Image', 'Network', 'Ports', 'Credentials', 'Review']
 const TIERS: { value: Tier; label: string; desc: string }[] = [
   { value: 'open', label: 'Open', desc: 'Broad egress. Fewest restrictions.' },
   { value: 'balanced', label: 'Balanced', desc: 'Common developer domains allowed.' },
