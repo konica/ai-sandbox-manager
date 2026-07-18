@@ -23,6 +23,8 @@ export function buildHandlers(deps: Deps): {
   'prereq:check': () => Promise<Result<PrereqResult>>
   'instances:list': () => Promise<Result<InstanceView[]>>
   'def:create': (spec: DefinitionSpec) => Promise<Result<{ id: string }>>
+  'def:update': (spec: DefinitionSpec) => Promise<Result<{ id: string }>>
+  'def:getSpec': (id: string) => Promise<Result<DefinitionSpec | null>>
   'def:list': () => Promise<Result<Definition[]>>
   'instance:launch': (definitionId: string, name?: string) => Promise<Result<{ name: string }>>
   'instance:attach': (name: string) => Promise<Result<null>>
@@ -34,6 +36,8 @@ export function buildHandlers(deps: Deps): {
     'prereq:check': () => wrap(() => checkPrereqs(deps.probes)),
     'instances:list': () => wrap(() => reconcile(deps.adapter, deps.store)),
     'def:create': (spec) => wrap(async () => { deps.store.insertDefinitionSpec(spec); return { id: spec.definition.id } }),
+    'def:update': (spec) => wrap(async () => { deps.store.updateDefinitionSpec(spec); return { id: spec.definition.id } }),
+    'def:getSpec': (id) => wrap(async () => deps.store.getDefinitionSpec(id)),
     'def:list': () => wrap(async () => deps.store.listDefinitions()),
     'instance:launch': (definitionId, name) => wrap(() => launchDefinition(
       { adapter: deps.adapter, store: deps.store, openTerminal: deps.openTerminal, log: deps.log }, definitionId, name
@@ -64,6 +68,8 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('prereq:check', () => handlers['prereq:check']())
   ipcMain.handle('instances:list', () => handlers['instances:list']())
   ipcMain.handle('def:create', (_e, spec: DefinitionSpec) => handlers['def:create'](spec))
+  ipcMain.handle('def:update', (_e, spec: DefinitionSpec) => handlers['def:update'](spec))
+  ipcMain.handle('def:getSpec', (_e, id: string) => handlers['def:getSpec'](id))
   ipcMain.handle('def:list', () => handlers['def:list']())
   ipcMain.handle('instance:launch', (_e, id: string, name?: string) => handlers['instance:launch'](id, name))
   ipcMain.handle('instance:attach', (_e, name: string) => handlers['instance:attach'](name))

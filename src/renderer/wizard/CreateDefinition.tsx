@@ -1,7 +1,7 @@
 import { useReducer, useState } from 'react'
-import type { CredentialKind, Tier } from '@shared/types'
+import type { CredentialKind, Tier, DefinitionSpec } from '@shared/types'
 import { api } from '../ipc/client'
-import { draftReducer, initialDraft, canAdvance, toSpec, parsePort, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
+import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, parsePort, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
 import { useT } from '../i18n'
 
 const TIERS: { value: Tier; descKey: string }[] = [
@@ -20,16 +20,19 @@ function Chip({ text, onRemove }: { text: string; onRemove: () => void }): JSX.E
 export function CreateDefinition({
   onDone,
   onCancel,
+  initial,
   createId = () => crypto.randomUUID(),
   now = () => new Date().toISOString()
 }: {
   onDone: () => void
   onCancel: () => void
+  initial?: DefinitionSpec
   createId?: () => string
   now?: () => string
 }): JSX.Element {
   const t = useT()
-  const [draft, dispatch] = useReducer(draftReducer, initialDraft)
+  const isEdit = initial !== undefined
+  const [draft, dispatch] = useReducer(draftReducer, initial ? draftFromSpec(initial) : initialDraft)
   const [domainInput, setDomainInput] = useState('')
   const [portInput, setPortInput] = useState('')
   const [portLabel, setPortLabel] = useState('')
@@ -39,7 +42,10 @@ export function CreateDefinition({
   const [error, setError] = useState<string | null>(null)
 
   async function submit(): Promise<void> {
-    const res = await api.defCreate(toSpec(draft, createId(), now()))
+    const spec = initial
+      ? toSpec(draft, initial.definition.id, initial.definition.createdAt)
+      : toSpec(draft, createId(), now())
+    const res = initial ? await api.defUpdate(spec) : await api.defCreate(spec)
     if (res.ok) onDone()
     else setError(res.error.message)
   }
@@ -50,7 +56,7 @@ export function CreateDefinition({
   return (
     <section className="screen active">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="section-title" style={{ marginBottom: 0 }}>{t('common.createSandbox')}</h2>
+        <h2 className="section-title" style={{ marginBottom: 0 }}>{isEdit ? t('common.editSandbox') : t('common.createSandbox')}</h2>
         <button className="btn btn-ghost" onClick={onCancel}>{t('common.cancel')}</button>
       </div>
 
@@ -190,7 +196,7 @@ export function CreateDefinition({
           {draft.step < TOTAL_STEPS ? (
             <button className="btn btn-primary" onClick={() => dispatch({ type: 'next' })} disabled={!canAdvance(draft)}>{t('common.next')}</button>
           ) : (
-            <button className="btn btn-primary" onClick={() => void submit()}>{t('common.createSandbox')}</button>
+            <button className="btn btn-primary" onClick={() => void submit()}>{isEdit ? t('common.save') : t('common.createSandbox')}</button>
           )}
         </div>
       </div>

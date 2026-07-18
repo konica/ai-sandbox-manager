@@ -33,4 +33,11 @@ describe('Definitions screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
     expect(onLaunch).toHaveBeenCalledWith('d1')
   })
+
+  it('invokes onEdit with the definition id', () => {
+    const onEdit = vi.fn()
+    render(<Definitions definitions={defs} onCreate={() => {}} onEdit={onEdit} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(onEdit).toHaveBeenCalledWith('d1')
+  })
 })

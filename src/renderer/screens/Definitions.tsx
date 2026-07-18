@@ -10,10 +10,11 @@ function PlusIcon(): JSX.Element {
   )
 }
 
-export function Definitions({ definitions, onCreate, onLaunch, launchingId }: {
+export function Definitions({ definitions, onCreate, onLaunch, onEdit, launchingId }: {
   definitions: Definition[]
   onCreate: () => void
   onLaunch?: (definitionId: string) => void
+  onEdit?: (definitionId: string) => void
   launchingId?: string | null
 }): JSX.Element {
   const t = useT()
@@ -47,7 +48,12 @@ export function Definitions({ definitions, onCreate, onLaunch, launchingId }: {
                   <td><span className="code-inline">{d.baseImage}</span></td>
                   <td><TierBadge tier={d.tier} /></td>
                   <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{d.createdAt.slice(0, 10)}</td>
-                  <td><button className="btn btn-primary btn-sm" disabled={launchingId === d.id} onClick={() => onLaunch?.(d.id)}>{launchingId === d.id ? t('definitions.launching') : t('definitions.launch')}</button></td>
+                  <td>
+                    <div className="flex" style={{ gap: 'var(--space-2)', whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-primary btn-sm" disabled={launchingId === d.id} onClick={() => onLaunch?.(d.id)}>{launchingId === d.id ? t('definitions.launching') : t('definitions.launch')}</button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => onEdit?.(d.id)}>{t('definitions.edit')}</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -118,6 +118,27 @@ export function canAdvance(d: Draft): boolean {
   return true
 }
 
+/** Reverse of toSpec: seed the wizard draft from a stored definition for editing. */
+export function draftFromSpec(spec: DefinitionSpec): Draft {
+  const primary = spec.mounts.find((m) => m.isPrimary) ?? spec.mounts[0]
+  const extras = spec.mounts.filter((m) => m !== primary)
+  const knownVariant = BUILTIN_VARIANTS.find((v) => `${TEMPLATE_REPO}:${v.value}` === spec.definition.baseImage)
+  return {
+    step: 1,
+    name: spec.definition.name,
+    description: spec.definition.description,
+    imageChoice: knownVariant ? knownVariant.value : 'custom',
+    customImageRef: knownVariant ? '' : spec.definition.baseImage,
+    workspace: primary?.hostPath ?? '',
+    workspaceMode: primary?.mode ?? 'direct',
+    extraFolders: extras.map((m) => ({ path: m.hostPath, mode: m.mode })),
+    tier: spec.definition.tier,
+    domains: [...spec.domains],
+    ports: spec.ports.map((p) => ({ hostPort: p.hostPort, containerPort: p.containerPort, label: p.label })),
+    credentials: spec.credentials.map((c) => ({ label: c.label, kind: c.kind }))
+  }
+}
+
 export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec {
   return {
     definition: { id, name: effectiveName(d), description: d.description.trim(), baseImage: resolveBaseImage(d), tier: d.tier, createdAt },

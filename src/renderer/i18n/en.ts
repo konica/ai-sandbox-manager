@@ -12,7 +12,9 @@ export const en = {
     next: 'Next',
     cancel: 'Cancel',
     browse: 'Browse…',
-    createSandbox: 'Create Sandbox'
+    createSandbox: 'Create Sandbox',
+    editSandbox: 'Edit Sandbox',
+    save: 'Save Changes'
   },
   prereq: {
     title: 'System Prerequisites',
@@ -35,7 +37,8 @@ export const en = {
     colCreated: 'Created',
     colActions: 'Actions',
     launch: 'Launch',
-    launching: 'Launching…'
+    launching: 'Launching…',
+    edit: 'Edit'
   },
   instances: {
     title: 'Instances',

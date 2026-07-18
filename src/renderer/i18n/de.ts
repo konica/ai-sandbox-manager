@@ -14,7 +14,9 @@ export const de: Dict = {
     next: 'Weiter',
     cancel: 'Abbrechen',
     browse: 'Durchsuchen…',
-    createSandbox: 'Sandbox erstellen'
+    createSandbox: 'Sandbox erstellen',
+    editSandbox: 'Sandbox bearbeiten',
+    save: 'Änderungen speichern'
   },
   prereq: {
     title: 'Systemvoraussetzungen',
@@ -37,7 +39,8 @@ export const de: Dict = {
     colCreated: 'Erstellt',
     colActions: 'Aktionen',
     launch: 'Starten',
-    launching: 'Wird gestartet…'
+    launching: 'Wird gestartet…',
+    edit: 'Bearbeiten'
   },
   instances: {
     title: 'Instanzen',

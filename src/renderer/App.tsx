@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import type { PrereqResult, InstanceView, Definition } from '@shared/types'
+import type { PrereqResult, InstanceView, Definition, DefinitionSpec } from '@shared/types'
 import { api } from './ipc/client'
 import { Prereq } from './screens/Prereq'
 import { Instances } from './screens/Instances'
@@ -19,7 +19,7 @@ type Phase =
 export default function App(): JSX.Element {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
   const [screen, setScreen] = useState<NavScreen>('prereq')
-  const [wizard, setWizard] = useState(false)
+  const [wizard, setWizard] = useState<{ spec?: DefinitionSpec } | null>(null)
   const [defs, setDefs] = useState<Definition[]>([])
   const [instances, setInstances] = useState<InstanceView[]>([])
   const [pending, setPending] = useState<{ kind: 'stop' | 'remove'; name: string } | null>(null)
@@ -49,10 +49,18 @@ export default function App(): JSX.Element {
   useEffect(() => { void runGate() }, [runGate])
 
   function navigate(s: NavScreen): void {
-    setWizard(false)
+    setWizard(null)
     setScreen(s)
     if (s === 'definitions') void loadDefs()
     else if (s === 'instances') void loadInstances()
+  }
+
+  async function openEditor(definitionId: string): Promise<void> {
+    setNotice(null)
+    const r = await api.defGetSpec(definitionId)
+    if (r.ok && r.data) setWizard({ spec: r.data })
+    else if (r.ok) setNotice({ kind: 'error', text: t('instances.actionFailed', { message: 'Definition not found' }) })
+    else setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
   }
 
   function openLaunchDialog(definitionId: string): void {
@@ -125,8 +133,8 @@ export default function App(): JSX.Element {
       )}
       {screen === 'definitions' && (
         wizard
-          ? <CreateDefinition onDone={() => { setWizard(false); void loadDefs() }} onCancel={() => setWizard(false)} />
-          : <Definitions definitions={defs} onCreate={() => setWizard(true)} onLaunch={openLaunchDialog} launchingId={busyId} />
+          ? <CreateDefinition initial={wizard.spec} onDone={() => { setWizard(null); void loadDefs() }} onCancel={() => setWizard(null)} />
+          : <Definitions definitions={defs} onCreate={() => setWizard({})} onLaunch={openLaunchDialog} onEdit={(id) => void openEditor(id)} launchingId={busyId} />
       )}
       {screen === 'instances' && (
         <Instances

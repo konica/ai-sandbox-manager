@@ -1,5 +1,37 @@
 import { describe, it, expect } from 'vitest'
-import { initialDraft, draftReducer, resolveBaseImage, parsePort, canAdvance, toSpec, basename, effectiveName } from '../../../src/renderer/wizard/draft'
+import { initialDraft, draftReducer, resolveBaseImage, parsePort, canAdvance, toSpec, draftFromSpec, basename, effectiveName } from '../../../src/renderer/wizard/draft'
+import type { DefinitionSpec } from '../../../src/shared/types'
+
+const storedSpec: DefinitionSpec = {
+  definition: { id: 'd1', name: 'Proj', description: 'desc', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'balanced', createdAt: 't' },
+  mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }, { hostPath: '/docs', mode: 'clone', isPrimary: false }],
+  domains: ['a.com'],
+  ports: [{ hostPort: 3000, containerPort: 8080, label: 'web' }],
+  credentials: [{ label: 'gh', kind: 'git' }]
+}
+
+describe('draftFromSpec', () => {
+  it('seeds the wizard draft from a stored spec (known image)', () => {
+    const d = draftFromSpec(storedSpec)
+    expect(d).toMatchObject({
+      name: 'Proj', description: 'desc', imageChoice: 'claude-code', customImageRef: '',
+      workspace: '/w', workspaceMode: 'direct', tier: 'balanced', domains: ['a.com']
+    })
+    expect(d.extraFolders).toEqual([{ path: '/docs', mode: 'clone' }])
+    expect(d.ports).toEqual([{ hostPort: 3000, containerPort: 8080, label: 'web' }])
+    expect(d.credentials).toEqual([{ label: 'gh', kind: 'git' }])
+  })
+  it('maps an unknown base image to the custom choice', () => {
+    const d = draftFromSpec({ ...storedSpec, definition: { ...storedSpec.definition, baseImage: 'my/custom:tag' } })
+    expect(d.imageChoice).toBe('custom')
+    expect(d.customImageRef).toBe('my/custom:tag')
+  })
+  it('round-trips through toSpec preserving id and createdAt', () => {
+    const back = toSpec(draftFromSpec(storedSpec), 'd1', 't')
+    expect(back.definition).toMatchObject({ id: 'd1', name: 'Proj', tier: 'balanced', createdAt: 't' })
+    expect(back.domains).toEqual(['a.com'])
+  })
+})
 
 describe('basename / effectiveName', () => {
   it('takes the last path segment, tolerating trailing slashes', () => {

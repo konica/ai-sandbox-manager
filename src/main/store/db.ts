@@ -6,6 +6,7 @@ export interface Store {
   listDefinitions(): Definition[]
   getDefinition(id: string): Definition | null
   insertDefinitionSpec(spec: DefinitionSpec): void
+  updateDefinitionSpec(spec: DefinitionSpec): void
   getDefinitionSpec(id: string): DefinitionSpec | null
   upsertInstanceMeta(m: InstanceMeta): void
   listInstanceMeta(): InstanceMeta[]
@@ -67,6 +68,23 @@ export function openStore(filename: string): Store {
   db.pragma('journal_mode = WAL')
   db.exec(SCHEMA)
 
+  function insertChildren(s: DefinitionSpec): void {
+    const mIns = db.prepare(`INSERT INTO mount_intent (definition_id, host_path, mode, is_primary) VALUES (?, ?, ?, ?)`)
+    for (const m of s.mounts) mIns.run(s.definition.id, m.hostPath, m.mode, m.isPrimary ? 1 : 0)
+    const dIns = db.prepare(`INSERT INTO policy_domain (definition_id, host) VALUES (?, ?)`)
+    for (const host of s.domains) dIns.run(s.definition.id, host)
+    const pIns = db.prepare(`INSERT INTO port_intent (definition_id, host_port, container_port, label) VALUES (?, ?, ?, ?)`)
+    for (const p of s.ports) pIns.run(s.definition.id, p.hostPort, p.containerPort, p.label)
+    const cIns = db.prepare(`INSERT INTO credential_ref (definition_id, label, kind) VALUES (?, ?, ?)`)
+    for (const c of s.credentials) cIns.run(s.definition.id, c.label, c.kind)
+  }
+
+  function deleteChildren(definitionId: string): void {
+    for (const table of ['mount_intent', 'policy_domain', 'port_intent', 'credential_ref']) {
+      db.prepare(`DELETE FROM ${table} WHERE definition_id = ?`).run(definitionId)
+    }
+  }
+
   return {
     insertDefinition(d) {
       db.prepare(
@@ -87,16 +105,20 @@ export function openStore(filename: string): Store {
           `INSERT INTO definition (id, name, description, base_image, tier, created_at)
            VALUES (@id, @name, @description, @baseImage, @tier, @createdAt)`
         ).run(s.definition)
-        const mIns = db.prepare(`INSERT INTO mount_intent (definition_id, host_path, mode, is_primary) VALUES (?, ?, ?, ?)`)
-        for (const m of s.mounts) mIns.run(s.definition.id, m.hostPath, m.mode, m.isPrimary ? 1 : 0)
-        const dIns = db.prepare(`INSERT INTO policy_domain (definition_id, host) VALUES (?, ?)`)
-        for (const host of s.domains) dIns.run(s.definition.id, host)
-        const pIns = db.prepare(`INSERT INTO port_intent (definition_id, host_port, container_port, label) VALUES (?, ?, ?, ?)`)
-        for (const p of s.ports) pIns.run(s.definition.id, p.hostPort, p.containerPort, p.label)
-        const cIns = db.prepare(`INSERT INTO credential_ref (definition_id, label, kind) VALUES (?, ?, ?)`)
-        for (const c of s.credentials) cIns.run(s.definition.id, c.label, c.kind)
+        insertChildren(s)
       })
       insertAll(spec)
+    },
+    updateDefinitionSpec(spec) {
+      const updateAll = db.transaction((s: DefinitionSpec) => {
+        const res = db.prepare(
+          `UPDATE definition SET name = @name, description = @description, base_image = @baseImage, tier = @tier WHERE id = @id`
+        ).run(s.definition)
+        if (res.changes === 0) throw new Error(`Definition ${s.definition.id} not found`)
+        deleteChildren(s.definition.id)
+        insertChildren(s)
+      })
+      updateAll(spec)
     },
     getDefinitionSpec(id) {
       const def = db.prepare(`SELECT id, name, description, base_image AS baseImage, tier, created_at AS createdAt FROM definition WHERE id = ?`).get(id) as Definition | undefined
