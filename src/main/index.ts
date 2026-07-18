@@ -1,5 +1,9 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
+import { openStore } from './store/db'
+import { createSbxAdapter } from './sbx/adapter'
+import { systemProbes } from './probes'
+import { registerIpc } from './ipc'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -21,6 +25,8 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  const store = openStore(join(app.getPath('userData'), 'sandbox-manager.db'))
+  registerIpc({ adapter: createSbxAdapter(), store, probes: systemProbes })
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

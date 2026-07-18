@@ -1,4 +1,10 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 
-// Real IPC methods are added in Task 7. This stub establishes the bridge.
-contextBridge.exposeInMainWorld('api', {})
+const api = {
+  prereqCheck: () => ipcRenderer.invoke('prereq:check'),
+  instancesList: () => ipcRenderer.invoke('instances:list')
+}
+
+contextBridge.exposeInMainWorld('api', api)
+
+export type Api = typeof api
