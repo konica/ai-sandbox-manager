@@ -1,0 +1,7 @@
+/* Electron-specific tweaks layered on top of the mockup's app.css.
+   Kept separate so app.css stays a faithful copy of the design export. */
+
+/* Clear the macOS traffic-light buttons under titleBarStyle: hiddenInset. */
+.titlebar {
+  padding-left: 80px;
+}

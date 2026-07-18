@@ -19,10 +19,17 @@ describe('Prereq screen', () => {
     expect(screen.getByText(/Run `sbx login`/)).toBeInTheDocument()
   })
 
-  it('invokes onRecheck when the button is clicked', () => {
+  it('invokes onRecheck when the retry button is clicked', () => {
     const onRecheck = vi.fn()
     render(<Prereq result={failing} onRecheck={onRecheck} />)
-    screen.getByRole('button', { name: /re-check/i }).click()
+    screen.getByRole('button', { name: /retry all checks/i }).click()
     expect(onRecheck).toHaveBeenCalledOnce()
+  })
+
+  it('offers Continue Anyway when onContinue is provided', () => {
+    const onContinue = vi.fn()
+    render(<Prereq result={failing} onRecheck={() => {}} onContinue={onContinue} />)
+    screen.getByRole('button', { name: /continue anyway/i }).click()
+    expect(onContinue).toHaveBeenCalledOnce()
   })
 })

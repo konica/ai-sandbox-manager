@@ -25,22 +25,22 @@ beforeEach(() => {
 describe('App navigation', () => {
   it('lands on Definitions after the prereq gate passes', async () => {
     render(<App />)
-    await waitFor(() => expect(screen.getByText('Sandbox Definitions')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sandbox Definitions' })).toBeInTheDocument())
   })
 
   it('navigates to Instances', async () => {
     render(<App />)
-    await waitFor(() => expect(screen.getByText('Sandbox Definitions')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: /instances/i }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sandbox Definitions' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /sandbox instances/i }))
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Instances' })).toBeInTheDocument())
   })
 
   it('opens the wizard from the create button and returns on cancel', async () => {
     render(<App />)
-    await waitFor(() => expect(screen.getByText('Sandbox Definitions')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sandbox Definitions' })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /create definition/i }))
-    await waitFor(() => expect(screen.getByText('Create Definition')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Create Definition' })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
-    await waitFor(() => expect(screen.getByText('Sandbox Definitions')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sandbox Definitions' })).toBeInTheDocument())
   })
 })

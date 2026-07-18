@@ -12,7 +12,7 @@ describe('Definitions screen', () => {
     render(<Definitions definitions={defs} onCreate={() => {}} />)
     expect(screen.getByText('prj-alpha')).toBeInTheDocument()
     expect(screen.getByText('docker/sandbox-templates:claude-code-docker')).toBeInTheDocument()
-    expect(screen.getByText('locked')).toBeInTheDocument()
+    expect(screen.getByText('Locked Down')).toBeInTheDocument()
   })
 
   it('shows the empty state when there are none', () => {

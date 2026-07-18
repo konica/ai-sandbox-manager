@@ -4,15 +4,18 @@ import { api } from './ipc/client'
 import { Prereq } from './screens/Prereq'
 import { Instances } from './screens/Instances'
 import { Definitions } from './screens/Definitions'
+import { Settings } from './screens/Settings'
 import { CreateDefinition } from './wizard/CreateDefinition'
-import { NavShell } from './components/NavShell'
+import { AppShell, type NavScreen } from './components/AppShell'
 
-type Gate = { kind: 'loading' } | { kind: 'prereq'; result: PrereqResult } | { kind: 'ready' } | { kind: 'error'; message: string }
-type Screen = 'definitions' | 'instances'
+type Phase =
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'ready'; prereq: PrereqResult }
 
 export default function App(): JSX.Element {
-  const [gate, setGate] = useState<Gate>({ kind: 'loading' })
-  const [screen, setScreen] = useState<Screen>('definitions')
+  const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
+  const [screen, setScreen] = useState<NavScreen>('prereq')
   const [wizard, setWizard] = useState(false)
   const [defs, setDefs] = useState<Definition[]>([])
   const [instances, setInstances] = useState<InstanceView[]>([])
@@ -27,39 +30,38 @@ export default function App(): JSX.Element {
   }, [])
 
   const runGate = useCallback(async () => {
-    setGate({ kind: 'loading' })
+    setPhase({ kind: 'loading' })
     const pre = await api.prereqCheck()
-    if (!pre.ok) return setGate({ kind: 'error', message: pre.error.message })
-    if (!pre.data.ok) return setGate({ kind: 'prereq', result: pre.data })
-    setGate({ kind: 'ready' })
-    await loadDefs()
-  }, [loadDefs])
+    if (!pre.ok) return setPhase({ kind: 'error', message: pre.error.message })
+    setPhase({ kind: 'ready', prereq: pre.data })
+    setScreen(pre.data.ok ? 'definitions' : 'prereq')
+    await Promise.all([loadDefs(), loadInstances()])
+  }, [loadDefs, loadInstances])
 
   useEffect(() => { void runGate() }, [runGate])
 
-  function navigate(s: Screen): void {
+  function navigate(s: NavScreen): void {
     setWizard(false)
     setScreen(s)
     if (s === 'definitions') void loadDefs()
-    else void loadInstances()
+    else if (s === 'instances') void loadInstances()
   }
 
-  if (gate.kind === 'loading') return <p style={{ padding: 16 }}>Loading…</p>
-  if (gate.kind === 'error') return <p style={{ padding: 16, color: 'var(--danger)' }}>Error: {gate.message}</p>
-  if (gate.kind === 'prereq') return <Prereq result={gate.result} onRecheck={() => void runGate()} />
+  if (phase.kind === 'loading') return <p style={{ padding: 'var(--space-6)' }}>Loading…</p>
+  if (phase.kind === 'error') return <p style={{ padding: 'var(--space-6)', color: 'var(--danger)' }}>Error: {phase.message}</p>
 
   return (
-    <NavShell active={screen} onNavigate={navigate}>
-      {wizard ? (
-        <CreateDefinition
-          onDone={() => { setWizard(false); void loadDefs() }}
-          onCancel={() => setWizard(false)}
-        />
-      ) : screen === 'definitions' ? (
-        <Definitions definitions={defs} onCreate={() => setWizard(true)} />
-      ) : (
-        <Instances instances={instances} />
+    <AppShell active={screen} onNavigate={navigate} defCount={defs.length} instanceCount={instances.length}>
+      {screen === 'prereq' && (
+        <Prereq result={phase.prereq} onRecheck={() => void runGate()} onContinue={() => setScreen('definitions')} />
       )}
-    </NavShell>
+      {screen === 'definitions' && (
+        wizard
+          ? <CreateDefinition onDone={() => { setWizard(false); void loadDefs() }} onCancel={() => setWizard(false)} />
+          : <Definitions definitions={defs} onCreate={() => setWizard(true)} />
+      )}
+      {screen === 'instances' && <Instances instances={instances} />}
+      {screen === 'settings' && <Settings />}
+    </AppShell>
   )
 }
