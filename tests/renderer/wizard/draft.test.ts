@@ -12,7 +12,7 @@ describe('parsePort', () => {
 
 describe('resolveBaseImage', () => {
   it('maps a builtin variant to a template ref', () => {
-    expect(resolveBaseImage({ ...initialDraft, imageChoice: 'claude-code-docker' })).toBe('docker/sandbox-templates:claude-code-docker')
+    expect(resolveBaseImage({ ...initialDraft, imageChoice: 'claude-code-docker' })).toBe('docker.io/docker/sandbox-templates:claude-code-docker')
   })
   it('uses the custom ref verbatim when custom is chosen', () => {
     expect(resolveBaseImage({ ...initialDraft, imageChoice: 'custom', customImageRef: 'docker.io/acme/img:1' })).toBe('docker.io/acme/img:1')
@@ -77,7 +77,7 @@ describe('toSpec', () => {
       credentials: [{ label: 'gh', kind: 'git' as const }]
     }
     const spec = toSpec(d, 'id1', '2026-07-18T00:00:00Z')
-    expect(spec.definition).toEqual({ id: 'id1', name: 'alpha', description: 'a', baseImage: 'docker/sandbox-templates:claude-code-docker', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' })
+    expect(spec.definition).toEqual({ id: 'id1', name: 'alpha', description: 'a', baseImage: 'docker.io/docker/sandbox-templates:claude-code-docker', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' })
     expect(spec.mounts).toEqual([
       { hostPath: '/home/u/alpha', mode: 'direct', isPrimary: true },
       { hostPath: '/home/u/lib', mode: 'clone', isPrimary: false }

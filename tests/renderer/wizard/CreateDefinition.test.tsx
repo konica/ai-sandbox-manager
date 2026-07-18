@@ -38,7 +38,7 @@ describe('CreateDefinition wizard', () => {
     fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
     await waitFor(() => expect(defCreate).toHaveBeenCalledOnce())
     const arg = defCreate.mock.calls[0][0]
-    expect(arg.definition).toMatchObject({ id: 'id1', name: 'prj-alpha', baseImage: 'docker/sandbox-templates:claude-code-docker', tier: 'locked' })
+    expect(arg.definition).toMatchObject({ id: 'id1', name: 'prj-alpha', baseImage: 'docker.io/docker/sandbox-templates:claude-code-docker', tier: 'locked' })
     expect(arg.mounts[0]).toEqual({ hostPath: '/home/u/alpha', mode: 'direct', isPrimary: true })
   })
 

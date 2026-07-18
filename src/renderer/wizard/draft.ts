@@ -2,7 +2,11 @@ import type { Tier, MountMode, CredentialKind, DefinitionSpec } from '@shared/ty
 
 export const TOTAL_STEPS = 7
 
-export type BuiltinVariant = 'claude-code-docker' | 'claude-code' | 'claude-code-minimal'
+export type BuiltinVariant = 'claude-code-docker' | 'claude-code' | 'claude-code-minimal' | 'claude-code-minimal-docker'
+
+// Docker Sandboxes publishes built-in base images under this repository.
+// Refs must include the docker.io host — sbx does not auto-resolve it.
+export const TEMPLATE_REPO = 'docker.io/docker/sandbox-templates'
 
 export interface Draft {
   step: number
@@ -73,7 +77,7 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
 }
 
 export function resolveBaseImage(d: Draft): string {
-  return d.imageChoice === 'custom' ? d.customImageRef.trim() : `docker/sandbox-templates:${d.imageChoice}`
+  return d.imageChoice === 'custom' ? d.customImageRef.trim() : `${TEMPLATE_REPO}:${d.imageChoice}`
 }
 
 export function parsePort(input: string): { hostPort: number; containerPort: number } | null {
