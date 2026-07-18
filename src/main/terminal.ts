@@ -8,12 +8,20 @@ const defaultSpawn: SpawnTermFn = (cmd, args) => {
   child.unref()
 }
 
-/** Build `osascript -e '<applescript>'` args that open Terminal.app and run `command`. */
+/**
+ * Build `osascript -e … -e …` args that open Terminal.app, run `command`, and
+ * bring Terminal to the foreground so the user can type immediately. Each
+ * AppleScript statement is passed as its own `-e` flag.
+ */
 export function buildOsascriptArgs(command: string): string[] {
   // AppleScript string literal is double-quoted; escape backslashes then quotes.
   const escaped = command.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-  const script = `tell application "Terminal" to do script "${escaped}"`
-  return ['-e', script]
+  return [
+    '-e', 'tell application "Terminal"',
+    '-e', `do script "${escaped}"`,
+    '-e', 'activate',
+    '-e', 'end tell'
+  ]
 }
 
 export function openHostTerminal(

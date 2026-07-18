@@ -2,17 +2,19 @@ import { describe, it, expect, vi } from 'vitest'
 import { buildOsascriptArgs, openHostTerminal } from '../../src/main/terminal'
 
 describe('buildOsascriptArgs', () => {
-  it('wraps the command in a Terminal do-script tell block', () => {
-    const args = buildOsascriptArgs('sbx run --name x')
-    expect(args[0]).toBe('-e')
-    expect(args[1]).toContain('tell application "Terminal"')
-    expect(args[1]).toContain('do script')
-    expect(args[1]).toContain('sbx run --name x')
+  it('opens Terminal, runs the command, and brings it to the foreground', () => {
+    const joined = buildOsascriptArgs('sbx run --name x').join('\n')
+    expect(joined).toContain('tell application "Terminal"')
+    expect(joined).toContain('do script "sbx run --name x"')
+    expect(joined).toContain('activate')
   })
   it('escapes embedded double quotes and backslashes', () => {
-    const args = buildOsascriptArgs(`sbx exec -it 'a b' bash`)
-    expect(args).toHaveLength(2)
-    expect(args[1].startsWith('tell application "Terminal"')).toBe(true)
+    const joined = buildOsascriptArgs('echo "hi" \\ there').join('\n')
+    expect(joined).toContain('do script "echo \\"hi\\" \\\\ there"')
+  })
+  it('passes each AppleScript statement as its own -e flag', () => {
+    const args = buildOsascriptArgs('x')
+    for (let i = 0; i < args.length; i += 2) expect(args[i]).toBe('-e')
   })
 })
 
