@@ -14,14 +14,31 @@ function splitPorts(raw: string): string[] {
 
 /** Parse `sbx ls --json` output. Throws if not valid JSON. */
 export function parseSbxLsJson(stdout: string): SbxInstance[] {
-  const data = JSON.parse(stdout) as Array<Record<string, unknown>>
-  return data.map((r) => ({
+  const parsed = JSON.parse(stdout) as unknown
+  return extractRows(parsed).map((r) => ({
     name: String(r.name ?? ''),
     status: toStatus(String(r.status ?? '')),
     agent: String(r.agent ?? ''),
-    workspace: r.workspace ? String(r.workspace) : null,
+    workspace: pickWorkspace(r),
     ports: Array.isArray(r.ports) ? (r.ports as unknown[]).map(String) : splitPorts(String(r.ports ?? ''))
   }))
+}
+
+/** `sbx ls --json` returns `{ sandboxes: [...] }`; also tolerate a bare array. */
+function extractRows(parsed: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(parsed)) return parsed as Array<Record<string, unknown>>
+  if (parsed && typeof parsed === 'object') {
+    const obj = parsed as Record<string, unknown>
+    if (Array.isArray(obj.sandboxes)) return obj.sandboxes as Array<Record<string, unknown>>
+  }
+  return []
+}
+
+/** Prefer the first entry of `workspaces[]`; fall back to a scalar `workspace`. */
+function pickWorkspace(r: Record<string, unknown>): string | null {
+  if (Array.isArray(r.workspaces) && r.workspaces.length > 0) return String(r.workspaces[0])
+  if (typeof r.workspace === 'string' && r.workspace !== '') return r.workspace
+  return null
 }
 
 /** Parse the whitespace-aligned `sbx ls` table (columns separated by runs of 2+ spaces). */
