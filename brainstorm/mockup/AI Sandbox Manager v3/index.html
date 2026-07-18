@@ -1,0 +1,2672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Sandbox Manager</title>
+<style>
+/* ============================================================
+   DESIGN SYSTEM TOKENS
+   Dark-first developer tool palette
+   ============================================================ */
+:root {
+  /* Neutrals */
+  --bg-base:     #0d0d0d;
+  --bg-surface:  #141414;
+  --bg-raised:   #1c1c1e;
+  --bg-hover:    #252528;
+  --bg-input:    #1a1a1d;
+
+  /* Text */
+  --text-primary:   #f0f0f0;
+  --text-secondary: #a0a0a8;
+  --text-muted:     #63636e;
+
+  /* Accent */
+  --accent:       #4f8cff;
+  --accent-hover: #3a7af5;
+  --accent-muted: rgba(79, 140, 255, 0.12);
+  --accent-glow:  rgba(79, 140, 255, 0.25);
+
+  /* Semantic */
+  --success:       #22c55e;
+  --success-bg:    rgba(34, 197, 94, 0.1);
+  --warning:       #f59e0b;
+  --warning-bg:    rgba(245, 158, 11, 0.1);
+  --danger:        #ef4444;
+  --danger-hover:  #dc2626;
+  --danger-bg:     rgba(239, 68, 68, 0.1);
+  --info:          #3b82f6;
+
+  /* Borders */
+  --border:       rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.14);
+  --border-focus: rgba(79, 140, 255, 0.5);
+
+  /* Shadows */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.5);
+
+  /* Typography */
+  --font-ui:    -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', system-ui, sans-serif;
+  --font-mono:  'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
+
+  /* Spacing (8px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Transitions */
+  --transition: 150ms ease;
+
+  /* Layout */
+  --sidebar-w: 240px;
+  --titlebar-h: 44px;
+}
+
+/* ============================================================
+   LIGHT THEME
+   ============================================================ */
+.theme-light {
+  --bg-base:     #f2f2f5;
+  --bg-surface:  #f8f8fa;
+  --bg-raised:   #ffffff;
+  --bg-hover:    #eaeaef;
+  --bg-input:    #f0f0f3;
+
+  --text-primary:   #111113;
+  --text-secondary: #5c5c66;
+  --text-muted:     #9c9ca6;
+
+  --border:       rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.14);
+  --border-focus: rgba(79, 140, 255, 0.5);
+
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.12);
+}
+
+/* ============================================================
+   RESET + BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+input, textarea, button, select { font-family: inherit; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ============================================================
+   APP CHROME
+   ============================================================ */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-base);
+}
+
+/* Title bar */
+.titlebar {
+  height: var(--titlebar-h);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  user-select: none;
+  flex-shrink: 0;
+}
+.titlebar-title {
+  font-size: 13px;
+  font-weight: 510;
+  color: var(--text-secondary);
+  letter-spacing: -0.01em;
+  margin-right: auto;
+}
+.titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  -webkit-app-region: no-drag;
+}
+.theme-toggle {
+  width: 28px; height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  transition: all var(--transition);
+}
+.theme-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-color: var(--border-hover);
+}
+.logo { filter: invert(1); }
+.theme-light .logo { filter: none; }
+
+/* Body: sidebar + content */
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+.sidebar-header {
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 var(--space-2);
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 450;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  border: none;
+  background: transparent;
+  text-align: left;
+  width: 100%;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-item.active {
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-weight: 510;
+}
+.nav-item svg {
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.nav-item .nav-badge {
+  margin-left: auto;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 99px;
+  line-height: 1.4;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.sidebar-footer .version {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* Content area */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-8);
+}
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ============================================================
+   COMPONENT LIBRARY
+   ============================================================ */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 510;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+  white-space: nowrap;
+  min-height: 32px;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+.btn-secondary:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--border-hover); }
+
+.btn-destructive {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+.btn-destructive:hover:not(:disabled) { background: var(--danger-hover); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+.btn-ghost:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); }
+
+.btn-sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: 12px;
+  min-height: 26px;
+}
+
+/* Form inputs */
+.input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.input:focus { border-color: var(--border-focus); }
+.input::placeholder { color: var(--text-muted); }
+.input-mono { font-family: var(--font-mono); font-size: 12px; }
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 510;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+/* Tags / Chips */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 450;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  transition: all var(--transition);
+}
+.tag-remove:hover { background: var(--danger-bg); color: var(--danger); }
+
+/* Status badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 510;
+  line-height: 1.4;
+}
+.badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.badge-running { background: var(--success-bg); color: var(--success); }
+.badge-running::before { background: var(--success); }
+.badge-stopped { background: var(--bg-hover); color: var(--text-muted); }
+.badge-stopped::before { background: var(--text-muted); }
+.badge-error { background: var(--danger-bg); color: var(--danger); }
+.badge-error::before { background: var(--danger); }
+
+/* Network tier badges */
+.tier-open { background: rgba(59, 130, 246, 0.1); color: var(--info); }
+.tier-balanced { background: var(--warning-bg); color: var(--warning); }
+.tier-locked { background: var(--success-bg); color: var(--success); }
+
+/* Modals / Dialogs */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 150ms ease;
+}
+.modal {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 480px;
+  padding: var(--space-6);
+  animation: slideUp 200ms ease;
+}
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+.modal-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-6);
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-4);
+}
+.tab {
+  padding: var(--space-2) var(--space-4);
+  font-size: 13px;
+  font-weight: 450;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition);
+  margin-bottom: -1px;
+}
+.tab:hover { color: var(--text-secondary); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 510;
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Data table */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th {
+  padding: var(--space-2) var(--space-3);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.table td {
+  padding: var(--space-3);
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.table tr:hover td { background: var(--bg-hover); }
+.table .row-actions {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
+/* Cards */
+.card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Section headings */
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: var(--space-4);
+}
+.section-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-5);
+  line-height: 1.5;
+}
+
+/* Inline code / path */
+.code-inline {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-hover);
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+/* Status indicator (for prerequisite checks) */
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+}
+.check-pass { background: var(--success-bg); }
+.check-fail { background: var(--danger-bg); }
+.check-icon {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.check-pass .check-icon { background: var(--success); color: #fff; }
+.check-fail .check-icon { background: var(--danger); color: #fff; }
+.check-label {
+  font-size: 13px;
+  font-weight: 510;
+  flex: 1;
+}
+.check-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.check-action {
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 510;
+}
+.check-action:hover { text-decoration: underline; }
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+}
+.empty-state svg {
+  width: 48px; height: 48px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-5);
+  stroke-width: 1.2;
+}
+.empty-state h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+.empty-state p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-6);
+  max-width: 320px;
+}
+
+/* Wizard steps */
+.wizard-header {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-8);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+.wizard-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+}
+.wizard-step.active { color: var(--accent); }
+.wizard-step.completed { color: var(--success); }
+.wizard-step-num {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.wizard-step.active .wizard-step-num {
+  background: var(--accent-muted);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.wizard-step.completed .wizard-step-num {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+.wizard-body { min-height: 300px; }
+.wizard-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+/* Toggle / switch */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+  user-select: none;
+}
+.toggle-track {
+  width: 36px; height: 22px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  position: relative;
+  transition: all var(--transition);
+}
+.toggle-track::after {
+  content: '';
+  width: 16px; height: 16px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  position: absolute;
+  top: 2px; left: 2px;
+  transition: all var(--transition);
+}
+.toggle.on .toggle-track { background: var(--accent-muted); border-color: var(--accent); }
+.toggle.on .toggle-track::after { background: var(--accent); left: 16px; }
+.toggle-label { font-size: 13px; color: var(--text-secondary); }
+
+/* Secret row */
+.secret-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+}
+.secret-info { display: flex; flex-direction: column; gap: 2px; }
+.secret-name { font-size: 13px; font-weight: 510; }
+.secret-value { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+.secret-actions { display: flex; gap: var(--space-1); }
+
+/* Terminal panel */
+.terminal-panel {
+  background: #0a0a0e;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  font-family: var(--font-mono);
+}
+.terminal-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.terminal-body {
+  padding: var(--space-4);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #c0c0cc;
+  min-height: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.terminal-cursor::after {
+  content: '▊';
+  animation: blink 1s step-end infinite;
+  color: var(--accent);
+}
+@keyframes blink { 50% { opacity: 0; } }
+.terminal-prompt { color: var(--accent); }
+.terminal-output { color: #a0a0b0; }
+.terminal-agent .terminal-header { border-left: 2px solid var(--accent); }
+.terminal-shell .terminal-header { border-left: 2px solid var(--success); }
+
+/* Inline warning */
+.warning-box {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--warning-bg);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--warning);
+  line-height: 1.5;
+  margin-top: var(--space-3);
+}
+.warning-box svg {
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Detail header */
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding-bottom: var(--space-5);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.detail-header h2 { font-size: 18px; font-weight: 600; }
+.detail-header .detail-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.detail-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Grid layout */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-5); }
+
+/* Settings rows */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border);
+}
+.setting-row:last-child { border-bottom: none; }
+.setting-info { flex: 1; }
+.setting-label { font-size: 14px; font-weight: 510; }
+.setting-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Misc utility */
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.mt-3 { margin-top: var(--space-3); }
+.mt-4 { margin-top: var(--space-4); }
+.mb-4 { margin-bottom: var(--space-4); }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Scrollbar */
+.content::-webkit-scrollbar,
+.terminal-body::-webkit-scrollbar,
+.modal-overlay ::-webkit-scrollbar { width: 6px; }
+.content::-webkit-scrollbar-track,
+.terminal-body::-webkit-scrollbar-track { background: transparent; }
+.content::-webkit-scrollbar-thumb,
+.terminal-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.content::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+/* Custom registry image field reveal */
+.custom-registry-field { margin-top: var(--space-3); }
+
+/* Ports table / chips */
+.ports-list { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3); }
+.port-row {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-hover); border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.port-row .port-spec {
+  flex: 1; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);
+}
+.port-row .port-meta { font-size: 11px; color: var(--text-muted); }
+.port-row .port-status {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 510;
+}
+.port-row .port-status.active { color: var(--success); }
+.port-row .port-status.inactive { color: var(--text-muted); }
+.port-row .port-status.pending { color: var(--warning); }
+
+/* Host terminal button */
+.host-terminal-btn {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: var(--radius-md); cursor: pointer;
+  font-size: 12px; font-weight: 510; color: var(--text-secondary);
+  transition: all var(--transition); white-space: nowrap;
+}
+.host-terminal-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-hover); }
+.host-terminal-btn svg { width: 14px; height: 14px; }
+.host-terminal-btn .os-tag {
+  font-size: 10px; padding: 0 5px; border-radius: 3px;
+  background: var(--accent-muted); color: var(--accent); margin-left: 2px;
+}
+
+/* Three-terminal layout */
+.terminal-area { display: flex; flex-direction: column; gap: var(--space-3); }
+.terminal-toolbar {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2); border-radius: var(--radius-md);
+  background: var(--bg-surface); border: 1px solid var(--border);
+}
+.terminal-surface { flex: 1; min-height: 0; }
+
+/* PortManager panel */
+.port-manager { display: flex; flex-direction: column; }
+.port-manager-empty {
+  text-align: center; padding: var(--space-8) var(--space-4);
+  font-size: 13px; color: var(--text-muted); line-height: 1.5;
+}
+.port-manager-empty svg {
+  width: 32px; height: 32px; margin-bottom: var(--space-3);
+  color: var(--text-muted); opacity: 0.5;
+}
+
+/* ============================================================
+   SCREEN-SPECIFIC STYLES
+   (all use design system tokens — no one-off values)
+   ============================================================ */
+
+/* Prerequisite check */
+.prereq-card {
+  max-width: 640px;
+}
+.prereq-card .section-title { font-size: 20px; }
+
+/* Wizard: folder list */
+.folder-list { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3); }
+.folder-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.folder-row .folder-path {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.folder-row .folder-mode {
+  font-size: 11px;
+  font-weight: 510;
+  color: var(--text-secondary);
+  padding: 1px 6px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+}
+
+/* Wizard: review summary */
+.review-table { width: 100%; }
+.review-table td {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.review-table td:first-child { color: var(--text-muted); width: 140px; }
+.review-table tr:last-child td { border-bottom: none; }
+
+/* Detail: mount summary */
+.mount-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.mount-row:last-child { border-bottom: none; }
+.mount-path { font-family: var(--font-mono); font-size: 12px; }
+
+/* Credentials panel */
+.credentials-list { display: flex; flex-direction: column; }
+
+/* Tab variants for terminal */
+.terminal-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+}
+.terminal-tabs .tab {
+  padding: var(--space-2) var(--space-4);
+  font-size: 12px;
+  border-bottom: 2px solid transparent;
+}
+.terminal-tabs .tab.terminal-tab-agent.active { border-bottom-color: var(--accent); color: var(--accent); }
+.terminal-tabs .tab.terminal-tab-shell.active { border-bottom-color: var(--success); color: var(--success); }
+
+/* Detail view tabs */
+.detail-tabs { margin-bottom: var(--space-5); }
+.detail-panel { display: none; }
+.detail-panel.active { display: block; }
+
+/* Traffic log table */
+.traffic-table { width: 100%; border-collapse: collapse; }
+.traffic-table th {
+  padding: var(--space-2) var(--space-3);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.traffic-table td {
+  padding: var(--space-2) var(--space-3);
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  font-family: var(--font-mono);
+}
+.traffic-table .traffic-allowed { color: var(--success); }
+.traffic-table .traffic-blocked { color: var(--danger); }
+.traffic-table .traffic-domain { color: var(--text-primary); }
+.traffic-table .traffic-proxy { color: var(--text-muted); font-size: 11px; }
+.traffic-table .traffic-rule { color: var(--text-secondary); }
+.traffic-table .traffic-count {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Live activity feed */
+.activity-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.activity-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  border-radius: var(--radius-sm);
+  animation: slideIn 200ms ease;
+}
+@keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.activity-entry .entry-time { color: var(--text-muted); width: 65px; flex-shrink: 0; }
+.activity-entry .entry-status { width: 16px; text-align: center; flex-shrink: 0; }
+.activity-entry.entry-allowed { background: var(--success-bg); }
+.activity-entry.entry-allowed .entry-status { color: var(--success); }
+.activity-entry.entry-blocked { background: var(--danger-bg); }
+.activity-entry.entry-blocked .entry-status { color: var(--danger); }
+.activity-entry .entry-domain { color: var(--text-primary); flex: 1; }
+.activity-entry .entry-rule { color: var(--text-muted); font-size: 11px; }
+
+/* Policy summary */
+.policy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.policy-row:last-child { border-bottom: none; }
+.policy-row .policy-name { font-weight: 510; }
+.policy-row .policy-meta { font-size: 11px; color: var(--text-muted); }
+.policy-row .policy-source { font-size: 11px; color: var(--text-secondary); }
+
+/* Policy status indicator */
+.policy-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 11px;
+  font-weight: 510;
+}
+.policy-status::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+.policy-status.active::before { background: var(--success); }
+.policy-status.inactive::before { background: var(--text-muted); }
+.policy-status-sync {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-3);
+}
+
+/* Monitoring header counters */
+.mon-summary {
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.mon-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mon-stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.mon-stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.mon-stat-value.allowed { color: var(--success); }
+.mon-stat-value.blocked { color: var(--danger); }
+.mon-stat-value.pending { color: var(--warning); }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <!-- Title Bar -->
+  <div class="titlebar">
+    <div class="titlebar-title" style="display: flex; align-items: center; gap: var(--space-2);">
+      <img src="mgm-logo-light.png" alt="AI Sandbox Manager" class="logo" style="height: 20px; width: auto;">
+      AI Sandbox Manager
+    </div>
+    <div class="titlebar-actions">
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <nav class="sidebar-nav" style="padding-top: var(--space-3);">
+        <button class="nav-item active" data-screen="prereq" data-od-id="nav-prereq">
+          <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Prerequisites
+        </button>
+        <button class="nav-item" data-screen="definitions" data-od-id="nav-definitions">
+          <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          Sandbox Definitions
+          <span class="nav-badge">2</span>
+        </button>
+        <button class="nav-item" data-screen="dashboard" data-od-id="nav-dashboard">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Sandbox Instances
+          <span class="nav-badge">3</span>
+        </button>
+        <button class="nav-item" data-screen="settings" data-od-id="nav-settings">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          Settings
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <span class="version">v0.1.0</span>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content">
+
+      <!-- ============================================================ -->
+      <!-- SCREEN 1: Prerequisite Check                                  -->
+      <!-- ============================================================ -->
+      <section class="screen active" id="screen-prereq" data-od-id="screen-prereq">
+        <div class="prereq-card card">
+          <h2 class="section-title">System Prerequisites</h2>
+          <p class="section-desc">Checking your environment for Docker Sandboxes support. Some items may require manual setup.</p>
+
+          <div class="check-item check-pass" data-od-id="check-docker">
+            <div class="check-icon">✓</div>
+            <div>
+              <div class="check-label">Docker Engine</div>
+              <div class="check-detail">Docker v24.0.7 detected — running</div>
+            </div>
+            <div class="check-action">Recheck</div>
+          </div>
+
+          <div class="check-item check-pass" data-od-id="check-sbx-cli">
+            <div class="check-icon">✓</div>
+            <div>
+              <div class="check-label">Docker Sandboxes CLI (<span class="code-inline">sbx</span>)</div>
+              <div class="check-detail">sbx v2.3.1 found at /usr/local/bin/sbx</div>
+            </div>
+            <div class="check-action">Recheck</div>
+          </div>
+
+          <div class="check-item check-fail" data-od-id="check-auth">
+            <div class="check-icon">✕</div>
+            <div>
+              <div class="check-label">Sandboxes Authentication</div>
+              <div class="check-detail">Not authenticated — run <span class="code-inline">sbx auth login</span> to connect your account</div>
+            </div>
+            <div class="check-action">Open Docs</div>
+          </div>
+
+          <div class="check-item check-fail" data-od-id="check-oskeychain">
+            <div class="check-icon">✕</div>
+            <div>
+              <div class="check-label">OS Keychain</div>
+              <div class="check-detail">macOS Keychain not unlocked or not configured for credential storage</div>
+            </div>
+            <div class="check-action">Configure</div>
+          </div>
+
+          <div class="check-item check-pass" data-od-id="check-disk">
+            <div class="check-icon">✓</div>
+            <div>
+              <div class="check-label">Disk Space</div>
+              <div class="check-detail">42.3 GB free on / — sufficient for sandbox images</div>
+            </div>
+            <div class="check-action">Recheck</div>
+          </div>
+
+          <div style="margin-top: var(--space-6); display: flex; gap: var(--space-3);">
+            <button class="btn btn-primary" id="retryChecks">Retry All Checks</button>
+            <button class="btn btn-secondary" id="skipToDashboard">Continue Anyway</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SCREEN 2: Sandbox Definitions                                 -->
+      <!-- ============================================================ -->
+      <section class="screen" id="screen-definitions" data-od-id="screen-definitions">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="section-title" style="margin-bottom: 0;">Sandbox Definitions</h2>
+          <button class="btn btn-primary" data-od-id="btn-create-definition">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Definition
+          </button>
+        </div>
+        <p class="section-desc">
+          Sandbox definitions are reusable specs that describe an environment. Each definition can launch multiple runtime instances.
+        </p>
+
+        <!-- Definitions table -->
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Base Image</th>
+                <th>Instances</th>
+                <th>Network</th>
+                <th>Created</th>
+                <th><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody data-od-id="definitions-table-body">
+              <tr data-od-id="def-row-prj-alpha">
+                <td>
+                  <strong style="font-size: 13px; font-weight: 510;">prj-alpha</strong>
+                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 1px;">Claude Code sandbox for project alpha development</div>
+                </td>
+                <td><span class="code-inline">claude-code-docker</span></td>
+                <td><span style="font-size: 13px; color: var(--text-secondary);">2 running</span></td>
+                <td><span class="badge tier-locked">Locked Down</span></td>
+                <td style="color: var(--text-muted); font-size: 12px;">2 days ago</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-primary btn-sm row-action" data-action="launch-instance">▶ Launch Instance</button>
+                    <button class="btn btn-ghost btn-sm row-action" data-action="edit-def">Edit</button>
+                    <button class="btn btn-ghost btn-sm row-action" data-action="remove-def" style="color: var(--danger);">✕ Remove</button>
+                  </div>
+                </td>
+              </tr>
+              <tr data-od-id="def-row-api-integration">
+                <td>
+                  <strong style="font-size: 13px; font-weight: 510;">api-integration</strong>
+                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 1px;">Sandbox for API integration testing with npm/pypi access</div>
+                </td>
+                <td><span class="code-inline">claude-code</span></td>
+                <td><span style="font-size: 13px; color: var(--text-muted);">0 (stopped)</span></td>
+                <td><span class="badge tier-balanced">Balanced</span></td>
+                <td style="color: var(--text-muted); font-size: 12px;">5 days ago</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-primary btn-sm row-action" data-action="launch-instance">▶ Launch Instance</button>
+                    <button class="btn btn-ghost btn-sm row-action" data-action="edit-def">Edit</button>
+                    <button class="btn btn-ghost btn-sm row-action" data-action="remove-def" style="color: var(--danger);">✕ Remove</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty state -->
+        <div class="empty-state" style="display: none;" data-od-id="definitions-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <h3>No definitions yet</h3>
+          <p>Create a sandbox definition to describe an environment. You can then launch multiple runtime instances from it.</p>
+          <button class="btn btn-primary">Create Definition</button>
+        </div>
+      </section>
+
+      <!-- Launch Instance Modal -->
+      <div class="modal-overlay" id="launchModal" style="display: none;" data-od-id="modal-launch">
+        <div class="modal" style="max-width: 400px;">
+          <h3 class="modal-title">Launch Instance</h3>
+          <p class="modal-desc">Create a new runtime instance from definition <strong data-od-id="modal-launch-def">prj-alpha</strong>.</p>
+          <div style="margin-bottom: var(--space-4);">
+            <label for="instance-name">Instance name</label>
+            <input type="text" class="input input-mono" id="instance-name" placeholder="e.g. sbx-prj-alpha-build-1" style="font-size: 12px;" data-od-id="instance-name-input">
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" id="launch-cancel">Cancel</button>
+            <button class="btn btn-primary" id="launch-confirm">Launch Instance</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- SCREEN 3: Instances (was Sandbox List / Dashboard)            -->
+      <!-- ============================================================ -->
+      <section class="screen" id="screen-dashboard" data-od-id="screen-dashboard">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="section-title" style="margin-bottom: 0;">Instances</h2>
+          <button class="btn btn-primary" data-od-id="btn-create-sandbox-dash">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Instance
+          </button>
+        </div>
+        <p class="section-desc">Runtime instances created from sandbox definitions. Each instance runs as an isolated Docker Sandbox.</p>
+
+        <!-- Sandbox table -->
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Instance Name</th>
+                <th>Status</th>
+                <th>Definition</th>
+                <th>Workspace</th>
+                <th>Agent</th>
+                <th>Network</th>
+                <th>Ports</th>
+                <th><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody data-od-id="sandbox-table-body">
+              <tr data-od-id="sandbox-row-sbx-prj-alpha">
+                <td><strong style="font-size: 13px; font-weight: 510;">sbx-prj-alpha</strong></td>
+                <td><span class="badge badge-running">Running</span></td>
+                <td><span class="code-inline" style="font-size: 11px;">prj-alpha</span></td>
+                <td><span class="code-inline">~/projects/prj-alpha</span></td>
+                <td style="color: var(--text-secondary);">Claude Code</td>
+                <td><span class="badge tier-locked">Locked Down</span></td>
+                <td><span class="code-inline" style="font-size: 11px; color: var(--text-muted);">127.0.0.1:8080→3000</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-ghost btn-sm row-action" data-action="start" disabled title="Already running">▶ Start</button>
+                    <button class="btn btn-ghost btn-sm row-action" data-action="stop">■ Stop</button>
+                    <button class="btn btn-ghost btn-sm row-action" data-action="remove" style="color: var(--danger);">✕ Remove</button>
+                  </div>
+                </td>
+              </tr>
+              <tr data-od-id="sandbox-row-sbx-api-integration">
+                <td><strong style="font-size: 13px; font-weight: 510;">sbx-api-integration</strong></td>
+                <td><span class="badge badge-stopped">Stopped</span></td>
+                <td><span class="code-inline" style="font-size: 11px;">api-integration</span></td>
+                <td><span class="code-inline">~/work/api-integration</span></td>
+                <td style="color: var(--text-secondary);">Claude Code</td>
+                <td><span class="badge tier-balanced">Balanced</span></td>
+                <td><span style="color: var(--text-muted); font-size: 11px;">—</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-ghost btn-sm row-action" data-action="start">▶ Start</button>
+                    <button class="btn btn-ghost btn-sm row-action" data-action="stop" disabled title="Already stopped">■ Stop</button>
+                    <button class="btn btn-ghost btn-sm row-action" data-action="remove" style="color: var(--danger);">✕ Remove</button>
+                  </div>
+                </td>
+              </tr>
+              <tr data-od-id="sandbox-row-sbx-legacy-migration">
+                <td><strong style="font-size: 13px; font-weight: 510;">sbx-legacy-migration</strong></td>
+                <td><span class="badge badge-error">Error</span></td>
+                <td><span class="code-inline" style="font-size: 11px;">legacy-migration</span></td>
+                <td><span class="code-inline">~/projects/legacy-migration</span></td>
+                <td style="color: var(--text-secondary);">Claude Code</td>
+                <td><span class="badge tier-open">Open</span></td>
+                <td><span style="color: var(--text-muted); font-size: 11px;">—</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-ghost btn-sm row-action" data-action="start">▶ Start</button>
+                    <button class="btn btn-ghost btn-sm row-action" data-action="stop" disabled>■ Stop</button>
+                    <button class="btn btn-ghost btn-sm row-action" data-action="remove" style="color: var(--danger);">✕ Remove</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty state (hidden when table has rows) -->
+        <div class="empty-state" style="display: none;" data-od-id="sandbox-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+          <h3>No sandboxes yet</h3>
+          <p>Create your first sandbox to isolate a Claude Code session against a project workspace.</p>
+          <button class="btn btn-primary">Create Sandbox</button>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SCREEN 3: Create Sandbox Wizard                               -->
+      <!-- ============================================================ -->
+      <section class="screen" id="screen-create" data-od-id="screen-create">
+        <h2 class="section-title">Create Definition</h2>
+        <p class="section-desc">Define a reusable sandbox spec. You can later launch multiple runtime instances from this definition.</p>
+
+        <div class="card">
+          <!-- Wizard Step Indicator (7 steps) -->
+          <div class="wizard-header" data-od-id="wizard-steps">
+            <div class="wizard-step active" data-step="1">
+              <span class="wizard-step-num">1</span>
+              Name & Desc
+            </div>
+            <div class="wizard-step" data-step="2">
+              <span class="wizard-step-num">2</span>
+              Base Image
+            </div>
+            <div class="wizard-step" data-step="3">
+              <span class="wizard-step-num">3</span>
+              Workspace
+            </div>
+            <div class="wizard-step" data-step="4">
+              <span class="wizard-step-num">4</span>
+              Network
+            </div>
+            <div class="wizard-step" data-step="5">
+              <span class="wizard-step-num">5</span>
+              Ports
+            </div>
+            <div class="wizard-step" data-step="6">
+              <span class="wizard-step-num">6</span>
+              Credentials
+            </div>
+            <div class="wizard-step" data-step="7">
+              <span class="wizard-step-num">7</span>
+              Review
+            </div>
+          </div>
+
+          <!-- Step 1: Name & Description -->
+          <div class="wizard-body wizard-panel active" data-panel="1" data-od-id="wizard-step-1">
+            <h3 style="font-size: 15px; font-weight: 600; margin-bottom: var(--space-2);">Name & Description</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: var(--space-5);">
+              Give your sandbox definition a name and optional description. This spec can then be used to launch multiple runtime instances.
+            </p>
+
+            <div style="margin-bottom: var(--space-4);">
+              <label for="def-name">Definition name</label>
+              <input type="text" class="input input-mono" id="def-name" value="prj-alpha" placeholder="my-sandbox-definition" style="font-size: 13px;">
+            </div>
+
+            <div>
+              <label for="def-desc">Description (optional)</label>
+              <textarea class="input" id="def-desc" placeholder="Describe what this sandbox definition is for…" style="min-height: 80px; resize: vertical; font-size: 13px;">Claude Code sandbox for project alpha development</textarea>
+            </div>
+          </div>
+
+          <!-- Step 2: Base Image -->
+          <div class="wizard-body wizard-panel" data-panel="2" data-od-id="wizard-step-2" style="display: none;">
+            <h3 style="font-size: 15px; font-weight: 600; margin-bottom: var(--space-2);">Base Image</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: var(--space-5);">
+              Pick a built-in template or pull an image from a registry. Built-in images are published as <span class="code-inline">docker/sandbox-templates:&lt;variant&gt;</span>.
+            </p>
+
+            <div style="margin-bottom: var(--space-4);">
+              <label for="base-image-select">Built-in templates</label>
+              <select class="input" id="base-image-select" data-od-id="base-image-select" style="font-family: var(--font-mono); font-size: 13px;">
+                <option value="claude-code-docker" selected>claude-code-docker (default, ~4.2 GB, docker-in-docker)</option>
+                <option value="claude-code">claude-code (~2.8 GB, standard)</option>
+                <option value="claude-code-minimal">claude-code-minimal (~1.1 GB, minimal)</option>
+              </select>
+              <p style="font-size: 11px; color: var(--text-muted); margin-top: var(--space-1);">
+                The <span class="code-inline">-docker</span> variant includes a full Docker Engine inside the sandbox and is used by default. Pick a non-docker variant for a lighter, non-privileged environment.
+              </p>
+            </div>
+
+            <div class="toggle" id="custom-image-toggle" data-od-id="custom-image-toggle" style="margin-bottom: var(--space-3); cursor: pointer;">
+              <span class="toggle-track"></span>
+              <span class="toggle-label">Use a custom registry image instead</span>
+            </div>
+
+            <div id="custom-image-field" style="display: none;">
+              <label for="custom-image-url">Image reference</label>
+              <input type="text" class="input input-mono" id="custom-image-url" data-od-id="custom-image-url" placeholder="docker.io/org/image:tag" style="font-size: 12px;">
+              <p style="font-size: 11px; color: var(--text-muted); margin-top: var(--space-1);">
+                Must be a Claude-Code-compatible base image. For private registries, store pull credentials with <span class="code-inline">sbx secret set --registry</span>.
+              </p>
+            </div>
+
+            <div style="margin-top: var(--space-4); padding: var(--space-3); background: var(--bg-hover); border-radius: var(--radius-md); font-size: 12px; color: var(--text-muted); display: flex; gap: var(--space-2); align-items: flex-start;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span>The agent is fixed to Claude Code. Only Claude-Code-compatible base images will function. See <a href="https://docs.docker.com/ai/sandboxes/customize/templates/" target="_blank" style="color: var(--accent);">Docker Sandbox templates</a> for details.</span>
+            </div>
+          </div>
+
+          <!-- Step 3: Workspace & folders -->
+          <div class="wizard-body wizard-panel" data-panel="3" data-od-id="wizard-step-3" style="display: none;">
+            <h3 style="font-size: 15px; font-weight: 600; margin-bottom: var(--space-2);">Workspace & Folders</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: var(--space-5);">
+              Select the working directory and configure per-folder mount modes.
+            </p>
+
+            <div style="margin-bottom: var(--space-5);">
+              <label for="workdir">Working directory</label>
+              <div style="display: flex; gap: var(--space-2);">
+                <input type="text" class="input input-mono" id="workdir" value="~/projects/prj-alpha" placeholder="/path/to/project" style="flex: 1;">
+                <button class="btn btn-secondary">Browse…</button>
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom: var(--space-3); background: var(--bg-surface);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3);">
+                <div>
+                  <div style="font-size: 13px; font-weight: 510;">~/projects/prj-alpha</div>
+                  <div style="font-size: 11px; color: var(--text-muted);">Working directory</div>
+                </div>
+                <div class="toggle on" data-od-id="mount-toggle-workdir">
+                  <span class="toggle-track"></span>
+                  <span class="toggle-label">Read-write (direct)</span>
+                </div>
+              </div>
+              <div class="warning-box" data-od-id="direct-mode-warning">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>Direct mode exposes files with implicit execution risk — git hooks, CI config, Makefiles, and any executable in the working directory may run or be modified inside the sandbox.</span>
+              </div>
+            </div>
+
+            <div>
+              <label>Extra folders</label>
+              <p style="font-size: 11px; color: var(--text-muted); margin-bottom: var(--space-3);">
+                Additional directories to mount into the sandbox. Toggle the mount mode per folder.
+              </p>
+              <div class="folder-list" data-od-id="extra-folders">
+                <div class="folder-row">
+                  <span class="folder-path">~/shared/data</span>
+                  <span class="folder-mode">read-write</span>
+                  <button class="tag-remove">✕</button>
+                </div>
+                <div class="folder-row">
+                  <span class="folder-path">~/shared/configs</span>
+                  <span class="folder-mode">read-only</span>
+                  <button class="tag-remove">✕</button>
+                </div>
+              </div>
+              <div style="display: flex; gap: var(--space-2);">
+                <input type="text" class="input input-mono" placeholder="/path/to/extra/folder" style="flex: 1; font-size: 12px;">
+                <button class="btn btn-secondary btn-sm">Add Folder</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: Network Policy -->
+          <div class="wizard-body wizard-panel" data-panel="4" data-od-id="wizard-step-4" style="display: none;">
+            <h3 style="font-size: 15px; font-weight: 600; margin-bottom: var(--space-2);">Network Policy</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: var(--space-5);">
+              Control outbound HTTP/HTTPS access from the sandbox. This affects domain-level egress only — raw TCP/UDP/ICMP is not configurable here.
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-5);">
+              <label class="tier-option" data-od-id="tier-open" style="display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer;">
+                <input type="radio" name="network-tier" value="open" style="margin-top: 3px;">
+                <div>
+                  <div style="font-size: 14px; font-weight: 510;">Open</div>
+                  <div style="font-size: 12px; color: var(--text-secondary);">All outbound HTTP/HTTPS allowed. Use only with fully trusted sandboxes.</div>
+                </div>
+              </label>
+              <label class="tier-option" data-od-id="tier-balanced" style="display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer;">
+                <input type="radio" name="network-tier" value="balanced" style="margin-top: 3px;">
+                <div>
+                  <div style="font-size: 14px; font-weight: 510;">Balanced</div>
+                  <div style="font-size: 12px; color: var(--text-secondary);">Allowlist-only: approved registries, APIs, and domains. Everything else blocked.</div>
+                </div>
+              </label>
+              <label class="tier-option" data-od-id="tier-locked" style="display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); border: 2px solid var(--accent); border-radius: var(--radius-md); cursor: pointer; background: var(--accent-muted);">
+                <input type="radio" name="network-tier" value="locked" checked style="margin-top: 3px;">
+                <div>
+                  <div style="font-size: 14px; font-weight: 510;">Locked Down <span style="font-size: 11px; color: var(--accent); font-weight: 510;">Recommended</span></div>
+                  <div style="font-size: 12px; color: var(--text-secondary);">Only the specific HTTP/HTTPS domains you allowlist. No unapproved outbound traffic.</div>
+                </div>
+              </label>
+            </div>
+
+            <div>
+              <label>Domain allowlist</label>
+              <p style="font-size: 11px; color: var(--text-muted); margin-bottom: var(--space-3);">HTTP/HTTPS domains only — raw TCP/UDP/ICMP cannot be allowlisted here. Add domains as needed.</p>
+              <div style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3);" data-od-id="domain-tags">
+                <span class="tag">docker.io <button class="tag-remove">✕</button></span>
+                <span class="tag">github.com <button class="tag-remove">✕</button></span>
+                <span class="tag">registry.npmjs.org <button class="tag-remove">✕</button></span>
+                <span class="tag">pypi.org <button class="tag-remove">✕</button></span>
+                <span class="tag">api.claude.ai <button class="tag-remove">✕</button></span>
+                <span class="tag">auth.docker.io <button class="tag-remove">✕</button></span>
+              </div>
+              <div style="display: flex; gap: var(--space-2);">
+                <input type="text" class="input input-mono" placeholder="example.com" style="flex: 1; font-size: 12px;" data-od-id="domain-input">
+                <button class="btn btn-secondary btn-sm">Add Domain</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 5: Ports -->
+          <div class="wizard-body wizard-panel" data-panel="5" data-od-id="wizard-step-5" style="display: none;">
+            <h3 style="font-size: 15px; font-weight: 600; margin-bottom: var(--space-2);">Ports</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: var(--space-5);">
+              Pre-declare port forwarding rules for the sandbox. Ports are configured for forwarding at runtime — they are not active at create time.
+            </p>
+
+            <div class="ports-list" data-od-id="ports-list">
+              <div class="port-row">
+                <span class="port-spec">127.0.0.1:8080 → 3000</span>
+                <span class="port-meta">web app</span>
+                <span class="port-status pending">Will forward</span>
+                <button class="tag-remove">✕</button>
+              </div>
+              <div class="port-row">
+                <span class="port-spec">127.0.0.1:9229 → 9229</span>
+                <span class="port-meta">debugger</span>
+                <span class="port-status pending">Will forward</span>
+                <button class="tag-remove">✕</button>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: var(--space-2); margin-bottom: var(--space-3);" data-od-id="add-port-form">
+              <input type="text" class="input input-mono" placeholder="host:container  e.g. 8080:3000" style="flex: 1; font-size: 12px;" data-od-id="port-input">
+              <input type="text" class="input" placeholder="label (optional)" style="width: 160px; font-size: 12px;" data-od-id="port-label-input">
+              <button class="btn btn-secondary btn-sm" data-od-id="btn-add-port">Add</button>
+            </div>
+
+            <div style="margin-top: var(--space-3); padding: var(--space-3); background: var(--bg-hover); border-radius: var(--radius-md); font-size: 12px; color: var(--text-muted);">
+              <strong style="color: var(--text-secondary);">Note:</strong> Ports cannot be published at create time — these declarations are "<strong>will forward</strong>" rules that activate once the sandbox is running. All forwards bind to <span class="code-inline">127.0.0.1</span> for security.
+            </div>
+          </div>
+
+          <!-- Step 6: Credentials -->
+          <div class="wizard-body wizard-panel" data-panel="6" data-od-id="wizard-step-6" style="display: none;">
+            <h3 style="font-size: 15px; font-weight: 600; margin-bottom: var(--space-2);">Credentials</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: var(--space-5);">
+              Add secrets the sandbox needs — git auth, Claude Code login, API keys. Stored in the OS keychain (with encrypted fallback). Values are never displayed in plaintext after saving.
+            </p>
+
+            <div class="credentials-list" data-od-id="credential-list" style="margin-bottom: var(--space-4);">
+              <div class="secret-row">
+                <div class="secret-info">
+                  <span class="secret-name">GitHub PAT</span>
+                  <span class="secret-value">ghp_••••••••••••a3kQ</span>
+                </div>
+                <div class="secret-actions">
+                  <button class="btn btn-ghost btn-sm">Edit</button>
+                  <button class="btn btn-ghost btn-sm" style="color: var(--danger);">Remove</button>
+                </div>
+              </div>
+              <div class="secret-row">
+                <div class="secret-info">
+                  <span class="secret-name">Claude Code Session Token</span>
+                  <span class="secret-value">sk-anthropic-••••••••••••f2d8</span>
+                </div>
+                <div class="secret-actions">
+                  <button class="btn btn-ghost btn-sm">Edit</button>
+                  <button class="btn btn-ghost btn-sm" style="color: var(--danger);">Remove</button>
+                </div>
+              </div>
+              <div class="secret-row">
+                <div class="secret-info">
+                  <span class="secret-name">Docker Registry Token</span>
+                  <span class="secret-value">dckr_pat_••••••••••••m7xR</span>
+                </div>
+                <div class="secret-actions">
+                  <button class="btn btn-ghost btn-sm">Edit</button>
+                  <button class="btn btn-ghost btn-sm" style="color: var(--danger);">Remove</button>
+                </div>
+              </div>
+            </div>
+
+            <button class="btn btn-secondary btn-sm" data-od-id="btn-add-credential">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Credential
+            </button>
+
+            <div style="margin-top: var(--space-4); padding: var(--space-3); background: var(--bg-hover); border-radius: var(--radius-md); font-size: 12px; color: var(--text-muted);">
+              <strong style="color: var(--text-secondary);">Security note:</strong> All secrets are stored in your OS keychain (macOS Keychain / GNOME Keyring / Windows Credential Manager) and never written to disk in plaintext. They are injected into the sandbox via environment variables at runtime.
+            </div>
+          </div>
+
+          <!-- Step 7: Review -->
+          <div class="wizard-body wizard-panel" data-panel="7" data-od-id="wizard-step-7" style="display: none;">
+            <h3 style="font-size: 15px; font-weight: 600; margin-bottom: var(--space-2);">Review</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: var(--space-5);">Confirm the definition. After creation you can launch runtime instances from it.</p>
+
+            <table class="review-table">
+              <tr><td>Name</td><td><span class="code-inline">prj-alpha</span></td></tr>
+              <tr><td>Description</td><td style="font-size: 12px; color: var(--text-secondary);">Claude Code sandbox for project alpha development</td></tr>
+              <tr><td>Base image</td><td><span class="code-inline">claude-code-docker</span> (default, ~4.2 GB)</td></tr>
+              <tr><td>Working directory</td><td><span class="code-inline">~/projects/prj-alpha</span></td></tr>
+              <tr><td>Mount mode</td><td><span class="code-inline">direct</span> (read-write)</td></tr>
+              <tr><td>Extra folders</td><td><span class="code-inline">~/shared/data</span> (direct), <span class="code-inline">~/shared/configs</span> (clone)</td></tr>
+              <tr><td>Network tier</td><td><span class="badge tier-locked">Locked Down</span> — 6 domains allowlisted</td></tr>
+              <tr><td>Port forwards</td><td>2 rules: <span class="code-inline">8080→3000</span>, <span class="code-inline">9229→9229</span></td></tr>
+              <tr><td>Credentials</td><td>3 secrets (GitHub PAT, Claude Code, Docker Registry)</td></tr>
+              <tr><td>Agent</td><td>Claude Code</td></tr>
+            </table>
+          </div>
+
+          <!-- Wizard navigation -->
+          <div class="wizard-actions">
+            <button class="btn btn-ghost" id="wizard-prev" disabled>Back</button>
+            <button class="btn btn-primary" id="wizard-next">Continue</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SCREEN 4: Sandbox Detail (UPDATED - 3-terminals + Ports)      -->
+      <!-- ============================================================ -->
+      <section class="screen" id="screen-detail" data-od-id="screen-detail">
+        <!-- Detail header -->
+        <div class="detail-header">
+          <h2 data-od-id="detail-name">sbx-prj-alpha</h2>
+          <span class="badge badge-running" data-od-id="detail-status-badge">Running</span>
+          <span class="detail-meta" data-od-id="detail-workspace">~/projects/prj-alpha</span>
+          <span class="detail-meta" style="margin-left: 0;">claude-code-docker</span>
+          <span style="font-size: 11px; color: var(--text-muted); margin-left: var(--space-2);">from definition <a href="#" onclick="navigateTo('definitions'); return false;" style="color: var(--accent);">prj-alpha</a></span>
+          <div class="detail-actions">
+            <button class="btn btn-secondary btn-sm" data-od-id="btn-detail-stop">■ Stop</button>
+            <button class="btn btn-destructive btn-sm" data-od-id="btn-detail-remove">✕ Remove</button>
+          </div>
+        </div>
+
+        <!-- Detail section tabs (3 tabs now) -->
+        <div class="tabs detail-tabs" data-od-id="detail-tabs">
+          <button class="tab active" data-detail-panel="terminals">Terminals</button>
+          <button class="tab" data-detail-panel="ports" data-od-id="tab-ports">Ports</button>
+          <button class="tab" data-detail-panel="monitoring">
+            Monitoring
+            <span class="nav-badge" style="margin-left: var(--space-1); font-size: 10px; background: var(--danger);" id="blocked-count-badge" data-od-id="blocked-count-badge">3</span>
+          </button>
+        </div>
+
+        <!-- Panel: Terminals (3-surface layout) -->
+        <div class="detail-panel active" data-detail-panel="terminals">
+          <div class="grid-2" style="grid-template-columns: 1.5fr 1fr;">
+            <div>
+              <!-- Terminal toolbar: three surfaces -->
+              <div class="terminal-toolbar" data-od-id="terminal-toolbar">
+                <div class="tabs terminal-tabs" data-od-id="terminal-tabs" style="border-bottom: none; margin-bottom: 0; flex: 1;">
+                  <button class="tab terminal-tab-agent active" data-terminal="agent" style="border-bottom: 2px solid var(--accent); color: var(--accent);">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: middle;"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Agent
+                  </button>
+                  <button class="tab terminal-tab-shell" data-terminal="shell" style="border-bottom: 2px solid transparent;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: middle;"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Shell
+                  </button>
+                </div>
+                <button class="host-terminal-btn" data-od-id="btn-host-terminal" title="Open in macOS Terminal">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                  Open in host terminal
+                  <span class="os-tag">macOS</span>
+                </button>
+              </div>
+
+              <!-- Agent terminal (in-app) -->
+              <div class="terminal-panel terminal-agent terminal-view active" data-terminal-view="agent" data-od-id="terminal-agent">
+                <div class="terminal-header">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                  Agent Terminal — connected to Claude Code session
+                </div>
+                <div class="terminal-body">
+                  <div class="terminal-output">[Sandbox] Starting Claude Code session...</div>
+                  <div class="terminal-output">[Sandbox] Sandbox ready (sbx://prj-alpha)</div>
+                  <div class="terminal-output">[Claude Code] Initializing workspace...</div>
+                  <div class="terminal-output">[Claude Code] Reading project structure...</div>
+                  <div class="terminal-output">[Claude Code] Ready for your request.</div>
+                  <div><span class="terminal-prompt">claude@sbx:~/workspace$</span> <span class="terminal-cursor"></span></div>
+                </div>
+              </div>
+              <!-- Shell terminal (in-app) -->
+              <div class="terminal-panel terminal-shell terminal-view" data-terminal-view="shell" data-od-id="terminal-shell" style="display: none;">
+                <div class="terminal-header">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                  Shell Terminal — independent bash session
+                </div>
+                <div class="terminal-body">
+                  <div class="terminal-output">[Sandbox] Opening shell session...</div>
+                  <div class="terminal-output">[Sandbox] Shell ready.</div>
+                  <div><span class="terminal-prompt">user@sbx:~/workspace$</span> <span class="terminal-cursor"></span></div>
+                </div>
+              </div>
+
+              <!-- Host terminal affordance panel (shown when button is active) -->
+              <div class="terminal-panel host-terminal-view" data-terminal-view="host" data-od-id="terminal-host" style="display: none;">
+                <div class="terminal-header">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                  Host Terminal — macOS Terminal.app
+                </div>
+                <div class="terminal-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; gap: var(--space-4);">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted);"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                  <div style="text-align: center;">
+                    <div style="font-size: 14px; font-weight: 510; color: var(--text-primary); margin-bottom: var(--space-2);">Launching Terminal.app…</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">A new terminal window will open bound to the sandbox shell.</div>
+                  </div>
+                  <div style="display: flex; gap: var(--space-3);">
+                    <button class="btn btn-primary btn-sm" data-od-id="btn-launch-host-agent">Open Agent Session</button>
+                    <button class="btn btn-secondary btn-sm" data-od-id="btn-launch-host-shell">Open Shell Session</button>
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-muted); padding: var(--space-2) var(--space-3); background: var(--bg-hover); border-radius: var(--radius-sm);">
+                    macOS Terminal.app — Linux (GNOME Terminal / Konsole) and Windows planned
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-5);">
+              <div class="card" data-od-id="panel-policy">
+                <div class="card-header">
+                  <div class="card-title">Network Policy</div>
+                  <button class="btn btn-ghost btn-sm" data-od-id="btn-edit-policy">Edit</button>
+                </div>
+                <div style="margin-bottom: var(--space-3);">
+                  <span class="badge tier-locked">Locked Down</span>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+                  <span class="tag">docker.io</span>
+                  <span class="tag">github.com</span>
+                  <span class="tag">registry.npmjs.org</span>
+                  <span class="tag">pypi.org</span>
+                  <span class="tag">api.claude.ai</span>
+                </div>
+              </div>
+              <div class="card" data-od-id="panel-credentials">
+                <div class="card-header">
+                  <div class="card-title">Credentials</div>
+                  <button class="btn btn-ghost btn-sm">Add</button>
+                </div>
+                <div class="credentials-list">
+                  <div class="secret-row" style="background: transparent; border: none; padding: var(--space-2) 0;">
+                    <div class="secret-info">
+                      <span class="secret-name">GitHub PAT</span>
+                      <span class="secret-value">ghp_••••••••••••a3kQ</span>
+                    </div>
+                  </div>
+                  <div class="secret-row" style="background: transparent; border: none; padding: var(--space-2) 0;">
+                    <div class="secret-info">
+                      <span class="secret-name">Claude Code Session Token</span>
+                      <span class="secret-value">sk-anthropic-••••••••••••f2d8</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="card" data-od-id="panel-mounts">
+                <div class="card-header">
+                  <div class="card-title">Mounts</div>
+                </div>
+                <div class="mount-row">
+                  <span class="mount-path">~/projects/prj-alpha</span>
+                  <span style="font-size: 11px; color: var(--text-muted);">direct</span>
+                </div>
+                <div class="mount-row">
+                  <span class="mount-path">~/shared/data</span>
+                  <span style="font-size: 11px; color: var(--text-muted);">direct</span>
+                </div>
+                <div class="mount-row">
+                  <span class="mount-path">~/shared/configs</span>
+                  <span style="font-size: 11px; color: var(--text-muted);">clone (read-only)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Ports (NEW - PortManager) -->
+        <div class="detail-panel" data-detail-panel="ports" data-od-id="panel-ports">
+          <div class="port-manager">
+            <div class="card" style="margin-bottom: var(--space-5);">
+              <div class="card-header">
+                <div class="card-title">Port Forwarding</div>
+                <button class="btn btn-primary btn-sm" data-od-id="btn-add-port-live">Add Forward</button>
+              </div>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: var(--space-4);">
+                Ports forwarded to <span class="code-inline">127.0.0.1</span>. Port forwarding is a post-run operation — add or remove forwards while the sandbox is running.
+              </p>
+              <div class="ports-list" data-od-id="live-port-list">
+                <div class="port-row">
+                  <span class="port-spec">127.0.0.1:8080 → 3000</span>
+                  <span class="port-meta">web app</span>
+                  <span class="port-status active">● Active</span>
+                  <button class="tag-remove" title="Remove forward">✕</button>
+                </div>
+                <div class="port-row">
+                  <span class="port-spec">127.0.0.1:9229 → 9229</span>
+                  <span class="port-meta">debugger</span>
+                  <span class="port-status active">● Active</span>
+                  <button class="tag-remove" title="Remove forward">✕</button>
+                </div>
+              </div>
+              <div style="display: flex; gap: var(--space-2); margin-top: var(--space-4);" data-od-id="add-port-live-form">
+                <input type="text" class="input input-mono" placeholder="host:container  e.g. 8080:3000" style="flex: 1; font-size: 12px;" data-od-id="port-input-live">
+                <input type="text" class="input" placeholder="label" style="width: 140px; font-size: 12px;" data-od-id="port-label-live">
+                <button class="btn btn-secondary btn-sm" data-od-id="btn-add-port-live-submit">Forward</button>
+              </div>
+            </div>
+
+            <div class="port-manager-empty" id="port-empty-state" style="display: none;" data-od-id="port-empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <div style="font-size: 14px; font-weight: 510; color: var(--text-primary); margin-bottom: var(--space-1);">No ports forwarded</div>
+              <div>The sandbox is network-isolated. Add a port forward above to expose a container port on <span class="code-inline">127.0.0.1</span>.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Monitoring -->
+        <div class="detail-panel" data-detail-panel="monitoring" data-od-id="panel-monitoring">
+          <!-- Summary counters -->
+          <div class="mon-summary">
+            <div class="mon-stat">
+              <span class="mon-stat-value allowed">42</span>
+              <span class="mon-stat-label">Allowed requests</span>
+            </div>
+            <div class="mon-stat">
+              <span class="mon-stat-value blocked">3</span>
+              <span class="mon-stat-label">Blocked requests</span>
+            </div>
+            <div class="mon-stat">
+              <span class="mon-stat-value pending" style="color: var(--text-secondary);">6</span>
+              <span class="mon-stat-label">Domains allowlisted</span>
+            </div>
+            <div class="mon-stat">
+              <span class="mon-stat-value" style="color: var(--text-secondary);">2</span>
+              <span class="mon-stat-label">Active policies</span>
+            </div>
+          </div>
+
+          <div class="grid-2" style="grid-template-columns: 1.4fr 1fr; gap: var(--space-5);">
+            <!-- Left: Live traffic feed -->
+            <div>
+              <div class="card" style="margin-bottom: var(--space-5);">
+                <div class="card-header">
+                  <div class="card-title">Live Traffic</div>
+                  <span style="font-size: 11px; color: var(--success); display: flex; align-items: center; gap: var(--space-1);">
+                    <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--success); display: inline-block;"></span>
+                    Live
+                  </span>
+                </div>
+                <div class="activity-feed" id="activityFeed" data-od-id="traffic-feed">
+                  <div class="activity-entry entry-allowed">
+                    <span class="entry-time">10:15:23</span>
+                    <span class="entry-status">✓</span>
+                    <span class="entry-domain">api.anthropic.com</span>
+                    <span class="entry-rule">domain-allowed</span>
+                  </div>
+                  <div class="activity-entry entry-allowed">
+                    <span class="entry-time">10:15:20</span>
+                    <span class="entry-status">✓</span>
+                    <span class="entry-domain">registry.npmjs.org</span>
+                    <span class="entry-rule">domain-allowed</span>
+                  </div>
+                  <div class="activity-entry entry-blocked">
+                    <span class="entry-time">10:15:18</span>
+                    <span class="entry-status">✕</span>
+                    <span class="entry-domain">telemetry.example.com</span>
+                    <span class="entry-rule">default-deny</span>
+                  </div>
+                  <div class="activity-entry entry-allowed">
+                    <span class="entry-time">10:15:15</span>
+                    <span class="entry-status">✓</span>
+                    <span class="entry-domain">github.com</span>
+                    <span class="entry-rule">domain-allowed</span>
+                  </div>
+                  <div class="activity-entry entry-allowed">
+                    <span class="entry-time">10:15:12</span>
+                    <span class="entry-status">✓</span>
+                    <span class="entry-domain">api.claude.ai</span>
+                    <span class="entry-rule">domain-allowed</span>
+                  </div>
+                  <div class="activity-entry entry-blocked">
+                    <span class="entry-time">10:15:10</span>
+                    <span class="entry-status">✕</span>
+                    <span class="entry-domain">analytics.tracking.com</span>
+                    <span class="entry-rule">default-deny</span>
+                  </div>
+                  <div class="activity-entry entry-blocked">
+                    <span class="entry-time">10:15:08</span>
+                    <span class="entry-status">✕</span>
+                    <span class="entry-domain">metrics.crashlytics.io</span>
+                    <span class="entry-rule">default-deny</span>
+                  </div>
+                  <div class="activity-entry entry-allowed">
+                    <span class="entry-time">10:15:05</span>
+                    <span class="entry-status">✓</span>
+                    <span class="entry-domain">pypi.org</span>
+                    <span class="entry-rule">domain-allowed</span>
+                  </div>
+                  <div class="activity-entry entry-allowed">
+                    <span class="entry-time">10:15:02</span>
+                    <span class="entry-status">✓</span>
+                    <span class="entry-domain">docker.io</span>
+                    <span class="entry-rule">domain-allowed</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Traffic log table -->
+              <div class="card" style="padding: 0; overflow: hidden;">
+                <div class="card-header" style="padding: var(--space-4) var(--space-4) 0;">
+                  <div class="card-title">Request Log</div>
+                </div>
+                <table class="traffic-table">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Host</th>
+                      <th>Proxy</th>
+                      <th>Rule</th>
+                      <th>Last Seen</th>
+                      <th style="text-align: right;">Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr data-od-id="log-row-allowed-1">
+                      <td><span class="traffic-allowed">allow</span></td>
+                      <td><span class="traffic-domain">api.anthropic.com</span></td>
+                      <td><span class="traffic-proxy">forward</span></td>
+                      <td><span class="traffic-rule">domain-allowed</span></td>
+                      <td style="color: var(--text-muted);">10:15:23</td>
+                      <td class="traffic-count" style="color: var(--text-secondary);">42</td>
+                    </tr>
+                    <tr data-od-id="log-row-allowed-2">
+                      <td><span class="traffic-allowed">allow</span></td>
+                      <td><span class="traffic-domain">registry.npmjs.org</span></td>
+                      <td><span class="traffic-proxy">forward-bypass</span></td>
+                      <td><span class="traffic-rule">domain-allowed</span></td>
+                      <td style="color: var(--text-muted);">10:15:20</td>
+                      <td class="traffic-count" style="color: var(--text-secondary);">18</td>
+                    </tr>
+                    <tr data-od-id="log-row-allowed-3">
+                      <td><span class="traffic-allowed">allow</span></td>
+                      <td><span class="traffic-domain">github.com</span></td>
+                      <td><span class="traffic-proxy">forward</span></td>
+                      <td><span class="traffic-rule">domain-allowed</span></td>
+                      <td style="color: var(--text-muted);">10:15:15</td>
+                      <td class="traffic-count" style="color: var(--text-secondary);">27</td>
+                    </tr>
+                    <tr data-od-id="log-row-blocked-1">
+                      <td><span class="traffic-blocked">deny</span></td>
+                      <td><span class="traffic-domain">telemetry.example.com</span></td>
+                      <td><span class="traffic-proxy">transparent</span></td>
+                      <td><span class="traffic-rule">default-deny</span></td>
+                      <td style="color: var(--text-muted);">10:15:18</td>
+                      <td class="traffic-count" style="color: var(--danger);">7</td>
+                    </tr>
+                    <tr data-od-id="log-row-blocked-2">
+                      <td><span class="traffic-blocked">deny</span></td>
+                      <td><span class="traffic-domain">analytics.tracking.com</span></td>
+                      <td><span class="traffic-proxy">transparent</span></td>
+                      <td><span class="traffic-rule">default-deny</span></td>
+                      <td style="color: var(--text-muted);">10:15:10</td>
+                      <td class="traffic-count" style="color: var(--danger);">14</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right: Policy controls -->
+            <div>
+              <!-- Active policies -->
+              <div class="card" data-od-id="panel-policy-detail" style="margin-bottom: var(--space-5);">
+                <div class="card-header">
+                  <div class="card-title">Active Policies</div>
+                  <button class="btn btn-ghost btn-sm" data-od-id="btn-reload-policies">Refresh</button>
+                </div>
+                <div class="policy-status-sync">
+                  <span style="color: var(--success);">●</span> Governance: Managed by local | Sync: OK, last synced 10:14:02
+                </div>
+                <div class="policy-row">
+                  <div>
+                    <div class="policy-name">default-network</div>
+                    <div class="policy-meta">network: 6 allow, 1 deny</div>
+                  </div>
+                  <div class="policy-source">local</div>
+                  <span class="policy-status active">active</span>
+                </div>
+                <div class="policy-row">
+                  <div>
+                    <div class="policy-name">default-filesystem</div>
+                    <div class="policy-meta">filesystem read: 2 allow; filesystem write: 1 allow</div>
+                  </div>
+                  <div class="policy-source">local</div>
+                  <span class="policy-status active">active</span>
+                </div>
+                <div class="policy-row" style="opacity: 0.5;">
+                  <div>
+                    <div class="policy-name">default-fs-read-allow-all</div>
+                    <div class="policy-meta">filesystem read: 1 allow</div>
+                  </div>
+                  <div class="policy-source">local</div>
+                  <span class="policy-status inactive">inactive</span>
+                </div>
+              </div>
+
+              <!-- Live allowlist editor -->
+              <div class="card" data-od-id="panel-allowlist-editor">
+                <div class="card-header">
+                  <div class="card-title">Allowlist</div>
+                  <span class="badge tier-locked" style="cursor: pointer;" id="live-tier-badge" data-od-id="live-tier-badge">Locked Down</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: var(--space-3);">
+                  Domains the agent can access. Agent-requested domains appear with a prompt indicator.
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3);" id="live-domain-list" data-od-id="live-domain-list">
+                  <span class="tag" data-domain="docker.io">docker.io <button class="tag-remove">✕</button></span>
+                  <span class="tag" data-domain="github.com">github.com <button class="tag-remove">✕</button></span>
+                  <span class="tag" data-domain="registry.npmjs.org">registry.npmjs.org <button class="tag-remove">✕</button></span>
+                  <span class="tag" data-domain="pypi.org">pypi.org <button class="tag-remove">✕</button></span>
+                  <span class="tag" data-domain="api.claude.ai">api.claude.ai <button class="tag-remove">✕</button></span>
+                  <span class="tag" data-domain="auth.docker.io">auth.docker.io <button class="tag-remove">✕</button></span>
+                  <!-- Pending domain (agent-requested, not yet approved) -->
+                  <span class="tag" style="border-color: var(--warning); background: var(--warning-bg); color: var(--warning);" data-domain="docs.anthropic.com" data-od-id="domain-pending-docs">
+                    docs.anthropic.com
+                    <span style="font-size: 10px; margin-left: 2px; font-weight: 600;">PENDING</span>
+                    <button class="tag-remove" style="color: var(--warning);">✕</button>
+                  </span>
+                  <span class="tag" style="border-color: var(--warning); background: var(--warning-bg); color: var(--warning);" data-domain="api.openai.com" data-od-id="domain-pending-openai">
+                    api.openai.com
+                    <span style="font-size: 10px; margin-left: 2px; font-weight: 600;">PENDING</span>
+                    <button class="tag-remove" style="color: var(--warning);">✕</button>
+                  </span>
+                </div>
+                <div style="display: flex; gap: var(--space-2); margin-bottom: var(--space-3);" data-od-id="pending-requests-bar">
+                  <div style="flex: 1; display: flex; gap: var(--space-2);">
+                    <input type="text" class="input input-mono" placeholder="domain.com" style="flex: 1; font-size: 12px;" id="live-domain-input" data-od-id="live-domain-input">
+                    <button class="btn btn-secondary btn-sm" id="btn-add-domain-live">Add</button>
+                  </div>
+                </div>
+                <div style="display: flex; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--border);">
+                  <div class="toggle on" id="tier-toggle-live" data-od-id="tier-toggle-live" style="cursor: pointer;">
+                    <span class="toggle-track"></span>
+                    <span class="toggle-label" id="tier-toggle-label">Allow all new domains by default</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Policy actions -->
+              <div style="display: flex; gap: var(--space-3); margin-top: var(--space-4);">
+                <button class="btn btn-primary btn-sm" id="btn-apply-policy">Apply Changes</button>
+                <button class="btn btn-ghost btn-sm">Reset to saved</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SCREEN 5: Settings                                            -->
+      <!-- ============================================================ -->
+      <section class="screen" id="screen-settings" data-od-id="screen-settings">
+        <h2 class="section-title">Settings</h2>
+        <p class="section-desc">Configure default behaviour for new sandboxes.</p>
+
+        <div class="card" style="max-width: 600px;">
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Default network tier</div>
+              <div class="setting-desc">Applied to all new sandboxes unless overridden during creation.</div>
+            </div>
+            <select class="input" style="width: auto; min-width: 160px;" data-od-id="setting-default-tier">
+              <option>Open</option>
+              <option>Balanced</option>
+              <option selected>Locked Down</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Credential storage</div>
+              <div class="setting-desc">Where secrets are persisted between sessions.</div>
+            </div>
+            <select class="input" style="width: auto; min-width: 200px;" data-od-id="setting-cred-storage">
+              <option selected>OS-native keychain</option>
+              <option>Encrypted file fallback</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Sandboxes CLI</div>
+              <div class="setting-desc">
+                <span class="code-inline">sbx v2.3.1</span> at <span class="code-inline">/usr/local/bin/sbx</span>
+              </div>
+            </div>
+            <button class="btn btn-secondary btn-sm">Recheck</button>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Agent</div>
+              <div class="setting-desc">Default AI agent for new sandboxes.</div>
+            </div>
+            <input type="text" class="input" value="Claude Code" readonly style="width: auto; min-width: 140px; font-size: 12px; background: var(--bg-surface);" data-od-id="setting-agent">
+          </div>
+
+          <div style="padding-top: var(--space-4); display: flex; gap: var(--space-3);">
+            <button class="btn btn-primary">Save Settings</button>
+            <button class="btn btn-ghost">Reset to Defaults</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- Remove Confirmation Modal -->
+<div class="modal-overlay" id="removeModal" style="display: none;" data-od-id="modal-remove">
+  <div class="modal">
+    <h3 class="modal-title">Remove Sandbox</h3>
+    <p class="modal-desc">Are you sure you want to remove <strong data-od-id="modal-remove-name">sbx-prj-alpha</strong>? This action is irreversible — all sandbox data, logs, and snapshots will be permanently deleted.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+      <button class="btn btn-destructive" id="modal-confirm">Remove Permanently</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ---- Screen Navigation ----
+  var navItems = document.querySelectorAll('.nav-item[data-screen]');
+  var screens = {};
+
+  navItems.forEach(function(item) {
+    var id = item.getAttribute('data-screen');
+    screens[id] = document.getElementById('screen-' + id);
+    item.addEventListener('click', function(e) {
+      var target = e.currentTarget.getAttribute('data-screen');
+      navigateTo(target);
+    });
+  });
+
+  // Also register screens that have no sidebar nav item
+  document.querySelectorAll('.screen[id]').forEach(function(s) {
+    var key = s.id.replace('screen-', '');
+    if (!screens[key]) screens[key] = s;
+  });
+
+  function navigateTo(screenId) {
+    navItems.forEach(function(n) { n.classList.toggle('active', n.getAttribute('data-screen') === screenId); });
+    Object.keys(screens).forEach(function(key) {
+      if (screens[key]) screens[key].classList.toggle('active', key === screenId);
+    });
+  }
+
+  // ---- Theme Toggle ----
+  var themeToggle = document.getElementById('themeToggle');
+  themeToggle.addEventListener('click', function() {
+    document.body.classList.toggle('theme-light');
+    // Persist preference
+    var isLight = document.body.classList.contains('theme-light');
+    try { localStorage.setItem('sbx-theme', isLight ? 'light' : 'dark'); } catch(e) {}
+  });
+  try {
+    if (localStorage.getItem('sbx-theme') === 'light') {
+      document.body.classList.add('theme-light');
+    }
+  } catch(e) {}
+
+  // ---- Wizard (7-step) ----
+  var wizardSteps = document.querySelectorAll('.wizard-step');
+  var wizardPanels = document.querySelectorAll('.wizard-panel');
+  var wizardPrev = document.getElementById('wizard-prev');
+  var wizardNext = document.getElementById('wizard-next');
+  var currentStep = 1;
+  var totalSteps = 7;
+
+  function goToStep(step) {
+    currentStep = Math.max(1, Math.min(totalSteps, step));
+    wizardSteps.forEach(function(el, i) {
+      var idx = i + 1;
+      el.classList.toggle('active', idx === currentStep);
+      el.classList.toggle('completed', idx < currentStep);
+    });
+    wizardPanels.forEach(function(el) {
+      el.style.display = String(el.getAttribute('data-panel')) === String(currentStep) ? 'block' : 'none';
+    });
+    wizardPrev.disabled = currentStep === 1;
+    wizardNext.textContent = currentStep === totalSteps ? 'Create Definition' : 'Continue';
+  }
+
+  wizardPrev.addEventListener('click', function() { goToStep(currentStep - 1); });
+  wizardNext.addEventListener('click', function() {
+    if (currentStep === totalSteps) {
+      var defName = document.getElementById('def-name')?.value || 'my-definition';
+      if (confirm('Create definition "' + defName + '"?')) {
+        goToStep(1);
+        navigateTo('definitions');
+      }
+    } else {
+      goToStep(currentStep + 1);
+    }
+  });
+
+  // ---- Toggle switches ----
+  document.querySelectorAll('.toggle').forEach(function(t) {
+    t.addEventListener('click', function() {
+      this.classList.toggle('on');
+      var label = this.querySelector('.toggle-label');
+      if (this.classList.contains('on')) {
+        label.textContent = 'Read-write (direct)';
+      } else {
+        label.textContent = 'Read-only (clone)';
+      }
+      // Show warning for working directory when direct
+      if (this.getAttribute('data-od-id') === 'mount-toggle-workdir') {
+        var warn = document.getElementById('direct-mode-warning');
+        if (warn) warn.style.display = this.classList.contains('on') ? 'flex' : 'none';
+      }
+    });
+  });
+
+  // ---- Detail panel tab switching (Terminals / Monitoring) ----
+  document.querySelectorAll('.detail-tabs .tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      var panel = this.getAttribute('data-detail-panel');
+      document.querySelectorAll('.detail-tabs .tab').forEach(function(t) {
+        t.classList.toggle('active', t.getAttribute('data-detail-panel') === panel);
+      });
+      document.querySelectorAll('.detail-panel').forEach(function(p) {
+        p.classList.toggle('active', p.getAttribute('data-detail-panel') === panel);
+      });
+    });
+  });
+
+  // "Edit" network policy in Terminals → switches to Monitoring tab
+  document.getElementById('btn-edit-policy')?.addEventListener('click', function() {
+    var monTab = document.querySelector('[data-detail-panel="monitoring"]');
+    if (monTab) monTab.click();
+  });
+
+  // ---- Live traffic simulation ----
+  var blockedDomains = ['telemetry.example.com', 'analytics.tracking.com', 'metrics.crashlytics.io', 'ad.doubleclick.net', 'pixel.facebook.com'];
+  var allowedDomains = ['api.anthropic.com', 'registry.npmjs.org', 'github.com', 'pypi.org', 'docker.io', 'api.claude.ai', 'auth.docker.io'];
+  var feed = document.getElementById('activityFeed');
+  var blockedCount = 3;
+  var allowedCount = 42;
+
+  function randomFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function padTime(n) { return (n < 10 ? '0' : '') + n; }
+
+  function addTrafficEntry() {
+    var now = new Date();
+    var time = padTime(now.getHours()) + ':' + padTime(now.getMinutes()) + ':' + padTime(now.getSeconds());
+    var isBlocked = Math.random() < 0.3;
+    var domain = isBlocked ? randomFrom(blockedDomains) : randomFrom(allowedDomains);
+    var rule = isBlocked ? 'default-deny' : 'domain-allowed';
+    var cls = isBlocked ? 'entry-blocked' : 'entry-allowed';
+    var sym = isBlocked ? '✕' : '✓';
+
+    if (isBlocked) blockedCount++; else allowedCount++;
+
+    // Update summary counters
+    var monValues = document.querySelectorAll('.mon-stat-value');
+    if (monValues.length >= 2) {
+      monValues[0].textContent = allowedCount;
+      monValues[1].textContent = blockedCount;
+    }
+
+    // Update blocked badge
+    var badge = document.getElementById('blocked-count-badge');
+    if (badge) badge.textContent = blockedCount;
+
+    var entry = document.createElement('div');
+    entry.className = 'activity-entry ' + cls;
+    entry.innerHTML = '<span class="entry-time">' + time + '</span><span class="entry-status">' + sym + '</span><span class="entry-domain">' + domain + '</span><span class="entry-rule">' + rule + '</span>';
+    if (feed) {
+      feed.insertBefore(entry, feed.firstChild);
+      while (feed.children.length > 50) feed.removeChild(feed.lastChild);
+    }
+  }
+
+  var trafficInterval = setInterval(addTrafficEntry, 3000);
+
+  // ---- Terminal tab switching (3 views: agent, shell, host) ----
+  document.querySelectorAll('.terminal-tabs .tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      var term = this.getAttribute('data-terminal');
+      document.querySelectorAll('.terminal-tabs .tab').forEach(function(t) { t.classList.remove('active'); t.style.borderBottomColor = 'transparent'; });
+      this.classList.add('active');
+      this.style.borderBottomColor = term === 'agent' ? 'var(--accent)' : 'var(--success)';
+      document.querySelectorAll('.terminal-view').forEach(function(v) { v.style.display = 'none'; });
+      var target = document.querySelector('.terminal-view[data-terminal-view="' + term + '"]');
+      if (target) target.style.display = 'block';
+    });
+  });
+
+  // ---- Host terminal button toggle ----
+  document.querySelector('[data-od-id="btn-host-terminal"]')?.addEventListener('click', function() {
+    var hostPanel = document.querySelector('[data-terminal-view="host"]');
+    if (!hostPanel) return;
+    var isVisible = hostPanel.style.display !== 'none';
+    // Hide all terminal views
+    document.querySelectorAll('.terminal-view').forEach(function(v) { v.style.display = 'none'; });
+    document.querySelectorAll('.terminal-tabs .tab').forEach(function(t) { t.classList.remove('active'); t.style.borderBottomColor = 'transparent'; });
+    if (!isVisible) {
+      hostPanel.style.display = 'block';
+      this.style.borderColor = 'var(--accent)';
+      this.style.color = 'var(--accent)';
+    } else {
+      // Switch back to agent view
+      this.style.borderColor = '';
+      this.style.color = '';
+      var agentTab = document.querySelector('[data-terminal="agent"]');
+      if (agentTab) agentTab.click();
+    }
+  });
+
+  // ---- Launch host terminal buttons ----
+  document.querySelectorAll('[data-od-id="btn-launch-host-agent"], [data-od-id="btn-launch-host-shell"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var original = this.textContent;
+      this.textContent = 'Launching…';
+      this.disabled = true;
+      setTimeout(function() {
+        btn.textContent = original;
+        btn.disabled = false;
+        // Would spawn macOS Terminal.app via open -a Terminal
+      }, 1200);
+    });
+  });
+
+  // ---- Base image: toggle custom registry ----
+  document.getElementById('custom-image-toggle')?.addEventListener('click', function() {
+    this.classList.toggle('on');
+    var field = document.getElementById('custom-image-field');
+    var select = document.getElementById('base-image-select');
+    if (field) field.style.display = this.classList.contains('on') ? 'block' : 'none';
+    if (select) select.disabled = this.classList.contains('on');
+  });
+
+  // ---- Port management (wizard) ----
+  document.querySelector('[data-od-id="btn-add-port"]')?.addEventListener('click', function() {
+    var input = document.querySelector('[data-od-id="port-input"]');
+    var labelInput = document.querySelector('[data-od-id="port-label-input"]');
+    var list = document.querySelector('[data-od-id="ports-list"]');
+    if (!input || !list) return;
+    var spec = input.value.trim();
+    if (!spec) return;
+    var label = labelInput ? labelInput.value.trim() : '';
+    if (!/^\d+:\d+$/.test(spec.replace(/.*:/, '').trim())) {
+      // Accept both "8080:3000" and "127.0.0.1:8080:3000"
+      if (!/^\d+(\.\d+){3}:\d+:\d+$/.test(spec) && !/^\d+:\d+$/.test(spec)) return;
+    }
+    var displaySpec = spec.indexOf(':') === spec.lastIndexOf(':') ? '127.0.0.1:' + spec : spec;
+    var row = document.createElement('div');
+    row.className = 'port-row';
+    row.innerHTML = '<span class="port-spec">' + displaySpec + '</span><span class="port-meta">' + label + '</span><span class="port-status pending">Will forward</span><button class="tag-remove">✕</button>';
+    list.appendChild(row);
+    input.value = '';
+    if (labelInput) labelInput.value = '';
+    setupTagRemoval(row);
+  });
+
+  document.querySelector('[data-od-id="port-input"]')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.querySelector('[data-od-id="btn-add-port"]')?.click();
+  });
+
+  // ---- Port management (live/PortManager) ----
+  document.querySelector('[data-od-id="btn-add-port-live-submit"]')?.addEventListener('click', function() {
+    var input = document.querySelector('[data-od-id="port-input-live"]');
+    var labelInput = document.querySelector('[data-od-id="port-label-live"]');
+    var list = document.querySelector('[data-od-id="live-port-list"]');
+    if (!input || !list) return;
+    var spec = input.value.trim();
+    if (!spec) return;
+    var label = labelInput ? labelInput.value.trim() : '';
+    if (!/^\d+(\.\d+){3}:\d+:\d+$/.test(spec) && !/^\d+:\d+$/.test(spec)) return;
+    var displaySpec = spec.indexOf(':') === spec.lastIndexOf(':') ? '127.0.0.1:' + spec : spec;
+    var row = document.createElement('div');
+    row.className = 'port-row';
+    row.innerHTML = '<span class="port-spec">' + displaySpec + '</span><span class="port-meta">' + label + '</span><span class="port-status active">● Active</span><button class="tag-remove">✕</button>';
+    list.appendChild(row);
+    input.value = '';
+    if (labelInput) labelInput.value = '';
+    setupTagRemoval(row);
+    // Hide empty state if visible
+    var empty = document.querySelector('[data-od-id="port-empty-state"]');
+    if (empty) empty.style.display = 'none';
+  });
+
+  document.querySelector('[data-od-id="port-input-live"]')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.querySelector('[data-od-id="btn-add-port-live-submit"]')?.click();
+  });
+
+  // ---- Remove Modal ----
+  var removeModal = document.getElementById('removeModal');
+  var modalCancel = document.getElementById('modal-cancel');
+  var modalConfirm = document.getElementById('modal-confirm');
+
+  document.querySelectorAll('.row-action[data-action="remove"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var row = this.closest('tr');
+      var name = row ? row.getAttribute('data-od-id').replace('sandbox-row-', '') : 'this sandbox';
+      document.querySelector('[data-od-id="modal-remove-name"]').textContent = name;
+      removeModal.style.display = 'flex';
+    });
+  });
+
+  document.querySelectorAll('[data-action="remove"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      removeModal.style.display = 'flex';
+    });
+  });
+
+  modalCancel.addEventListener('click', function() { removeModal.style.display = 'none'; });
+  modalConfirm.addEventListener('click', function() {
+    removeModal.style.display = 'none';
+    // Would call sbx remove API
+  });
+  removeModal.addEventListener('click', function(e) {
+    if (e.target === removeModal) removeModal.style.display = 'none';
+  });
+
+  // ---- Retry checks ----
+  document.getElementById('retryChecks')?.addEventListener('click', function() {
+    // Simulate recheck
+    this.textContent = 'Checking…';
+    this.disabled = true;
+    setTimeout(function() {
+      document.getElementById('retryChecks').textContent = 'Retry All Checks';
+      document.getElementById('retryChecks').disabled = false;
+    }, 1500);
+  });
+
+  // ---- Skip to definitions ----
+  document.getElementById('skipToDashboard')?.addEventListener('click', function() {
+    navigateTo('definitions');
+  });
+
+  // ---- "Create Definition" / "New Instance" CTA links ----
+  document.querySelectorAll('[data-od-id="btn-create-sandbox-dash"], [data-od-id="btn-create-definition"]').forEach(function(btn) {
+    btn.addEventListener('click', function() { navigateTo('create'); });
+  });
+  document.querySelectorAll('.empty-state .btn-primary').forEach(function(btn) {
+    btn.addEventListener('click', function() { navigateTo('create'); });
+  });
+
+  // ---- Launch Instance modal ----
+  var launchModal = document.getElementById('launchModal');
+  var launchCancel = document.getElementById('launch-cancel');
+  var launchConfirm = document.getElementById('launch-confirm');
+
+  document.querySelectorAll('[data-action="launch-instance"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var row = this.closest('tr');
+      var defName = row ? (row.querySelector('strong')?.textContent || 'this definition') : 'this definition';
+      document.querySelector('[data-od-id="modal-launch-def"]').textContent = defName;
+      var input = document.getElementById('instance-name');
+      if (input) input.value = '';
+      launchModal.style.display = 'flex';
+    });
+  });
+
+  if (launchCancel) launchCancel.addEventListener('click', function() { launchModal.style.display = 'none'; });
+  if (launchConfirm) launchConfirm.addEventListener('click', function() {
+    var name = document.getElementById('instance-name')?.value || 'unnamed';
+    launchModal.style.display = 'none';
+    navigateTo('dashboard');
+  });
+  if (launchModal) launchModal.addEventListener('click', function(e) {
+    if (e.target === launchModal) launchModal.style.display = 'none';
+  });
+
+  // ---- Start/Stop row actions ----
+  document.querySelectorAll('.row-action[data-action="start"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var row = this.closest('tr');
+      var badge = row ? row.querySelector('.badge') : null;
+      if (badge) { badge.className = 'badge badge-running'; badge.textContent = 'Running'; }
+      // Toggle button states
+      var actions = row ? row.querySelectorAll('.row-action') : [];
+      actions.forEach(function(a) {
+        if (a.getAttribute('data-action') === 'start') { a.disabled = true; }
+        if (a.getAttribute('data-action') === 'stop') { a.disabled = false; }
+      });
+    });
+  });
+
+  document.querySelectorAll('.row-action[data-action="stop"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var row = this.closest('tr');
+      var badge = row ? row.querySelector('.badge') : null;
+      if (badge) { badge.className = 'badge badge-stopped'; badge.textContent = 'Stopped'; }
+      var actions = row ? row.querySelectorAll('.row-action') : [];
+      actions.forEach(function(a) {
+        if (a.getAttribute('data-action') === 'start') { a.disabled = false; }
+        if (a.getAttribute('data-action') === 'stop') { a.disabled = true; }
+      });
+    });
+  });
+
+  // ---- Clicking a sandbox row name opens detail ----
+  document.querySelectorAll('.table tbody tr').forEach(function(row) {
+    row.addEventListener('dblclick', function() {
+      navigateTo('detail');
+    });
+  });
+  document.querySelectorAll('.table td strong').forEach(function(el) {
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', function() {
+      navigateTo('detail');
+    });
+  });
+
+  // ---- Domain tag removal (all pages) ----
+  function setupTagRemoval(container) {
+    (container || document).querySelectorAll('.tag-remove').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var tag = this.closest('.tag');
+        if (tag) tag.remove();
+      });
+    });
+  }
+  setupTagRemoval();
+
+  // ---- Live allowlist: add domain ----
+  document.getElementById('btn-add-domain-live')?.addEventListener('click', function() {
+    var input = document.getElementById('live-domain-input');
+    var domain = input ? input.value.trim() : '';
+    if (!domain) return;
+    var list = document.getElementById('live-domain-list');
+    if (!list) return;
+    var tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.setAttribute('data-domain', domain);
+    tag.innerHTML = domain + ' <button class="tag-remove">✕</button>';
+    list.insertBefore(tag, list.querySelector('[data-domain^="docs."]'));
+    if (input) input.value = '';
+    setupTagRemoval(tag);
+  });
+  document.getElementById('live-domain-input')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('btn-add-domain-live')?.click();
+  });
+
+  // ---- Live allowlist: tier toggle ----
+  document.getElementById('tier-toggle-live')?.addEventListener('click', function() {
+    this.classList.toggle('on');
+    var label = document.getElementById('tier-toggle-label');
+    var badge = document.getElementById('live-tier-badge');
+    if (this.classList.contains('on')) {
+      label.textContent = 'Auto-allow new domains';
+      if (badge) { badge.className = 'badge tier-locked'; badge.textContent = 'Locked Down'; }
+    } else {
+      label.textContent = 'Prompt on new domains';
+      if (badge) { badge.className = 'badge tier-balanced'; badge.textContent = 'Balanced'; }
+    }
+  });
+
+  // ---- Apply policy changes ----
+  document.getElementById('btn-apply-policy')?.addEventListener('click', function() {
+    var btn = this;
+    btn.textContent = 'Applying…';
+    btn.disabled = true;
+    setTimeout(function() {
+      btn.textContent = 'Apply Changes';
+      btn.disabled = false;
+      // Show a brief success effect
+      var orig = btn.style.background;
+      btn.style.background = 'var(--success)';
+      btn.textContent = 'Applied ✓';
+      setTimeout(function() {
+        btn.textContent = 'Apply Changes';
+        btn.style.background = orig;
+      }, 1500);
+    }, 800);
+  });
+
+  // ---- Pending domain click to approve (allowlist in monitoring) ----
+  document.querySelectorAll('[data-domain^="docs."], [data-domain^="api.openai"]').forEach(function(tag) {
+    tag.style.cursor = 'pointer';
+    tag.title = 'Click to approve';
+    tag.addEventListener('click', function(e) {
+      if (e.target.closest('.tag-remove')) return;
+      this.style.borderColor = '';
+      this.style.background = '';
+      this.style.color = '';
+      var pendingSpan = this.querySelector('span');
+      if (pendingSpan) pendingSpan.remove();
+    });
+  });
+
+})();
+</script>
+</body>
+</html>
