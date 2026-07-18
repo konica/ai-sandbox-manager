@@ -26,6 +26,35 @@ export interface InstanceMeta {
   createdAt: string
 }
 
+export type MountMode = 'direct' | 'clone'
+
+export interface MountIntent {
+  hostPath: string
+  mode: MountMode
+  isPrimary: boolean
+}
+
+export interface PortIntent {
+  hostPort: number
+  containerPort: number
+  label: string
+}
+
+export type CredentialKind = 'git' | 'api-key' | 'claude-auth'
+
+export interface CredentialRef {
+  label: string
+  kind: CredentialKind
+}
+
+export interface DefinitionSpec {
+  definition: Definition
+  mounts: MountIntent[]
+  domains: string[]
+  ports: PortIntent[]
+  credentials: CredentialRef[]
+}
+
 export interface InstanceView extends SbxInstance {
   definitionId: string | null
   definitionName: string | null
