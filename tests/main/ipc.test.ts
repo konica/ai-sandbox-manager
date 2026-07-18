@@ -9,7 +9,12 @@ import type { Probes } from '@main/prereq'
 
 const adapter: SbxAdapter = {
   runSbx: async () => ({ stdout: '', stderr: '', code: 0 }),
-  listSandboxes: async () => [{ name: 'sbx-a', status: 'running', agent: 'claude', ports: [], workspace: '/w' }]
+  listSandboxes: async () => [{ name: 'sbx-a', status: 'running', agent: 'claude', ports: [], workspace: '/w' }],
+  createSandbox: async () => {},
+  applyPolicy: async () => {},
+  publishPorts: async () => {},
+  stopSandbox: async () => {},
+  removeSandbox: async () => {}
 }
 const probes: Probes = {
   dockerVersion: async () => 'Docker version 24.0.7', sbxVersion: async () => 'sbx 1.0', sbxAuthed: async () => true,

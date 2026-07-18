@@ -6,7 +6,12 @@ import type { SbxAdapter } from '@main/sbx/adapter'
 function fakeAdapter(names: string[]): SbxAdapter {
   return {
     runSbx: async () => ({ stdout: '', stderr: '', code: 0 }),
-    listSandboxes: async () => names.map((n) => ({ name: n, status: 'running', agent: 'claude', ports: [], workspace: '/w' }))
+    listSandboxes: async () => names.map((n) => ({ name: n, status: 'running', agent: 'claude', ports: [], workspace: '/w' })),
+    createSandbox: async () => {},
+    applyPolicy: async () => {},
+    publishPorts: async () => {},
+    stopSandbox: async () => {},
+    removeSandbox: async () => {}
   }
 }
 

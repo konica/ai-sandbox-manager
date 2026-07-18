@@ -10,7 +10,12 @@ import type { DefinitionSpec } from '@shared/types'
 
 const adapter: SbxAdapter = {
   runSbx: async () => ({ stdout: '', stderr: '', code: 0 }),
-  listSandboxes: async () => []
+  listSandboxes: async () => [],
+  createSandbox: async () => {},
+  applyPolicy: async () => {},
+  publishPorts: async () => {},
+  stopSandbox: async () => {},
+  removeSandbox: async () => {}
 }
 const probes: Probes = {
   dockerVersion: async () => 'Docker version 24.0.7', sbxVersion: async () => 'sbx 1.0', sbxAuthed: async () => true,
