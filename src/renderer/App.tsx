@@ -22,6 +22,8 @@ export default function App(): JSX.Element {
   const [defs, setDefs] = useState<Definition[]>([])
   const [instances, setInstances] = useState<InstanceView[]>([])
   const [pendingRemove, setPendingRemove] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [notice, setNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
   const t = useT()
 
   const loadDefs = useCallback(async () => {
@@ -52,17 +54,33 @@ export default function App(): JSX.Element {
   }
 
   async function onLaunch(definitionId: string): Promise<void> {
-    const r = await api.instanceLaunch(definitionId)
-    if (r.ok) { setScreen('instances'); await loadInstances() }
+    setNotice(null)
+    setBusyId(definitionId)
+    try {
+      const r = await api.instanceLaunch(definitionId)
+      if (r.ok) {
+        setNotice({ kind: 'info', text: t('instances.launched', { name: r.data.name }) })
+        setScreen('instances')
+        await loadInstances()
+      } else {
+        setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
+      }
+    } finally {
+      setBusyId(null)
+    }
   }
-  async function refreshAfter(p: Promise<unknown>): Promise<void> { await p; await loadInstances() }
-  function onAttach(name: string): void { void api.instanceAttach(name) }
-  function onShell(name: string): void { void api.instanceShell(name) }
-  function onStop(name: string): void { void refreshAfter(api.instanceStop(name)) }
+  async function runAction(p: Promise<{ ok: boolean; error?: { message: string } }>): Promise<void> {
+    const r = await p
+    if (!r.ok && r.error) setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
+    await loadInstances()
+  }
+  function onAttach(name: string): void { void runAction(api.instanceAttach(name)) }
+  function onShell(name: string): void { void runAction(api.instanceShell(name)) }
+  function onStop(name: string): void { void runAction(api.instanceStop(name)) }
   function onRemoveConfirmed(): void {
     const name = pendingRemove
     setPendingRemove(null)
-    if (name) void refreshAfter(api.instanceRemove(name))
+    if (name) void runAction(api.instanceRemove(name))
   }
 
   if (phase.kind === 'loading') return <p style={{ padding: 'var(--space-6)' }}>Loading…</p>
@@ -70,13 +88,28 @@ export default function App(): JSX.Element {
 
   return (
     <AppShell active={screen} onNavigate={navigate} defCount={defs.length} instanceCount={instances.length}>
+      {notice && (
+        <div
+          role={notice.kind === 'error' ? 'alert' : 'status'}
+          className="card"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-4)',
+            marginBottom: 'var(--space-4)', padding: 'var(--space-3) var(--space-4)',
+            borderColor: notice.kind === 'error' ? 'var(--danger)' : 'var(--border-hover)',
+            color: notice.kind === 'error' ? 'var(--danger)' : 'var(--text-secondary)'
+          }}
+        >
+          <span style={{ fontSize: 13 }}>{notice.text}</span>
+          <button className="btn btn-ghost btn-sm" aria-label="Dismiss" onClick={() => setNotice(null)}>✕</button>
+        </div>
+      )}
       {screen === 'prereq' && (
         <Prereq result={phase.prereq} onRecheck={() => void runGate()} onContinue={() => setScreen('definitions')} />
       )}
       {screen === 'definitions' && (
         wizard
           ? <CreateDefinition onDone={() => { setWizard(false); void loadDefs() }} onCancel={() => setWizard(false)} />
-          : <Definitions definitions={defs} onCreate={() => setWizard(true)} onLaunch={(id) => void onLaunch(id)} />
+          : <Definitions definitions={defs} onCreate={() => setWizard(true)} onLaunch={(id) => void onLaunch(id)} launchingId={busyId} />
       )}
       {screen === 'instances' && (
         <Instances instances={instances} onAttach={onAttach} onShell={onShell} onStop={onStop} onRemove={(name) => setPendingRemove(name)} />

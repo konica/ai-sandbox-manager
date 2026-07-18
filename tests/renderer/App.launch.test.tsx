@@ -50,6 +50,13 @@ describe('App launch & lifecycle wiring', () => {
     await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1'))
   })
 
+  it('surfaces the error message when launch fails', async () => {
+    instanceLaunch.mockResolvedValue({ ok: false, error: { kind: 'not-found', message: 'sbx create failed: boom' } })
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
+    await waitFor(() => expect(screen.getByText(/sbx create failed: boom/)).toBeInTheDocument())
+  })
+
   it('Remove asks for confirmation before calling instanceRemove', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: /sandbox instances/i }))

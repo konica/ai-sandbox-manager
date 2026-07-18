@@ -10,10 +10,11 @@ function PlusIcon(): JSX.Element {
   )
 }
 
-export function Definitions({ definitions, onCreate, onLaunch }: {
+export function Definitions({ definitions, onCreate, onLaunch, launchingId }: {
   definitions: Definition[]
   onCreate: () => void
   onLaunch?: (definitionId: string) => void
+  launchingId?: string | null
 }): JSX.Element {
   const t = useT()
   return (
@@ -46,7 +47,7 @@ export function Definitions({ definitions, onCreate, onLaunch }: {
                   <td><span className="code-inline">{d.baseImage}</span></td>
                   <td><TierBadge tier={d.tier} /></td>
                   <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{d.createdAt.slice(0, 10)}</td>
-                  <td><button className="btn btn-primary btn-sm" onClick={() => onLaunch?.(d.id)}>{t('definitions.launch')}</button></td>
+                  <td><button className="btn btn-primary btn-sm" disabled={launchingId === d.id} onClick={() => onLaunch?.(d.id)}>{launchingId === d.id ? t('definitions.launching') : t('definitions.launch')}</button></td>
                 </tr>
               ))}
             </tbody>
