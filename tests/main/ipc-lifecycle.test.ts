@@ -25,12 +25,14 @@ function deps() {
 }
 
 describe('instance lifecycle IPC', () => {
-  it('instance:launch returns the new name', async () => {
+  it('instance:launch opens a terminal running the sbx chain and returns the name', async () => {
     const d = deps()
     const h = buildHandlers(d as never)
     const r = await h['instance:launch']('d1')
     expect(r).toEqual({ ok: true, data: { name: 'my-project' } })
-    expect(d.adapter.createSandbox).toHaveBeenCalled()
+    const cmd = d.openTerminal.mock.calls[0][0] as string
+    expect(cmd).toContain('sbx create claude')
+    expect(cmd).toMatch(/sbx run --name my-project$/)
   })
 
   it('instance:attach and instance:shell open a terminal with the right command', async () => {

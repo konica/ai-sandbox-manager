@@ -7,6 +7,8 @@ import {
   specToCreateArgs,
   portIntentToPublishSpec,
   shellQuote,
+  shellCommand,
+  launchCommand,
   agentAttachCommand,
   hostShellCommand
 } from '../../../src/main/sbx/translate'
@@ -97,5 +99,28 @@ describe('shell command builders', () => {
     expect(shellQuote('a b')).toBe("'a b'")
     expect(agentAttachCommand('my-project')).toBe("sbx run --name 'my-project'")
     expect(hostShellCommand('my-project')).toBe("sbx exec -it 'my-project' bash")
+  })
+  it('shellCommand leaves safe args unquoted and quotes the rest', () => {
+    expect(shellCommand(['sbx', 'run', '--name', 'my-project'])).toBe('sbx run --name my-project')
+    expect(shellCommand(['sbx', 'x', 'a b'])).toBe("sbx x 'a b'")
+    expect(shellCommand(['sbx', 'x', '**'])).toBe("sbx x '**'")
+  })
+})
+
+describe('launchCommand', () => {
+  it('chains create then run for a locked sandbox with no allowlist', () => {
+    expect(launchCommand(spec())).toBe(
+      'sbx create claude /home/u/proj --name my-project --template docker.io/docker/sandbox-templates:claude-code && sbx run --name my-project'
+    )
+  })
+  it('inserts a policy step and quotes the wildcard for the open tier', () => {
+    const cmd = launchCommand(spec({ definition: { ...spec().definition, tier: 'open' } }))
+    expect(cmd).toContain("sbx policy allow network --sandbox my-project '**'")
+    expect(cmd).toMatch(/&& sbx run --name my-project$/)
+  })
+  it('adds a ports step per intent', () => {
+    const cmd = launchCommand(spec({ ports: [{ hostPort: 3000, containerPort: 8080, label: 'web' }] }))
+    expect(cmd).toContain('sbx ports my-project --publish 3000:8080')
+    expect(cmd).toMatch(/&& sbx run --name my-project$/)
   })
 })
