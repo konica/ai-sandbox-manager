@@ -36,4 +36,20 @@ describe('reconcile', () => {
     await reconcile(fakeAdapter([]), store)
     expect(store.listInstanceMeta()).toHaveLength(0)
   })
+
+  it('keeps recently app-created metadata before the sandbox appears (grace window)', async () => {
+    const store = openStore(':memory:')
+    const nowMs = Date.parse('2026-07-18T12:00:00.000Z')
+    store.upsertInstanceMeta({ sbxName: 'provisioning', definitionId: null, createdByApp: true, createdAt: '2026-07-18T11:59:00.000Z' })
+    await reconcile(fakeAdapter([]), store, () => nowMs)
+    expect(store.listInstanceMeta().map((m) => m.sbxName)).toContain('provisioning')
+  })
+
+  it('prunes app-created metadata once it is past the grace window and still not live', async () => {
+    const store = openStore(':memory:')
+    const nowMs = Date.parse('2026-07-18T12:00:00.000Z')
+    store.upsertInstanceMeta({ sbxName: 'stale', definitionId: null, createdByApp: true, createdAt: '2026-07-18T11:40:00.000Z' })
+    await reconcile(fakeAdapter([]), store, () => nowMs)
+    expect(store.listInstanceMeta()).toHaveLength(0)
+  })
 })
