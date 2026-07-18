@@ -10,7 +10,11 @@ function PlusIcon(): JSX.Element {
   )
 }
 
-export function Definitions({ definitions, onCreate }: { definitions: Definition[]; onCreate: () => void }): JSX.Element {
+export function Definitions({ definitions, onCreate, onLaunch }: {
+  definitions: Definition[]
+  onCreate: () => void
+  onLaunch?: (definitionId: string) => void
+}): JSX.Element {
   const t = useT()
   return (
     <section className="screen active">
@@ -29,7 +33,7 @@ export function Definitions({ definitions, onCreate }: { definitions: Definition
           <table className="table">
             <thead>
               <tr>
-                <th>{t('definitions.colName')}</th><th>{t('definitions.colBase')}</th><th>{t('definitions.colNetwork')}</th><th>{t('definitions.colCreated')}</th>
+                <th>{t('definitions.colName')}</th><th>{t('definitions.colBase')}</th><th>{t('definitions.colNetwork')}</th><th>{t('definitions.colCreated')}</th><th>{t('definitions.colActions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -42,6 +46,7 @@ export function Definitions({ definitions, onCreate }: { definitions: Definition
                   <td><span className="code-inline">{d.baseImage}</span></td>
                   <td><TierBadge tier={d.tier} /></td>
                   <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{d.createdAt.slice(0, 10)}</td>
+                  <td><button className="btn btn-primary btn-sm" onClick={() => onLaunch?.(d.id)}>{t('definitions.launch')}</button></td>
                 </tr>
               ))}
             </tbody>

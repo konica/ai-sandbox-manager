@@ -2,7 +2,13 @@ import type { InstanceView } from '@shared/types'
 import { TierBadge, StatusBadge } from '../components/badges'
 import { useT } from '../i18n'
 
-export function Instances({ instances }: { instances: InstanceView[] }): JSX.Element {
+export function Instances({ instances, onAttach, onShell, onStop, onRemove }: {
+  instances: InstanceView[]
+  onAttach?: (name: string) => void
+  onShell?: (name: string) => void
+  onStop?: (name: string) => void
+  onRemove?: (name: string) => void
+}): JSX.Element {
   const t = useT()
   return (
     <section className="screen active">
@@ -20,7 +26,7 @@ export function Instances({ instances }: { instances: InstanceView[] }): JSX.Ele
           <table className="table">
             <thead>
               <tr>
-                <th>{t('instances.colName')}</th><th>{t('instances.colStatus')}</th><th>{t('instances.colDefinition')}</th><th>{t('instances.colWorkspace')}</th><th>{t('instances.colAgent')}</th><th>{t('instances.colNetwork')}</th><th>{t('instances.colPorts')}</th>
+                <th>{t('instances.colName')}</th><th>{t('instances.colStatus')}</th><th>{t('instances.colDefinition')}</th><th>{t('instances.colWorkspace')}</th><th>{t('instances.colAgent')}</th><th>{t('instances.colNetwork')}</th><th>{t('instances.colPorts')}</th><th>{t('instances.colActions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -33,6 +39,14 @@ export function Instances({ instances }: { instances: InstanceView[] }): JSX.Ele
                   <td style={{ color: 'var(--text-secondary)' }}>{i.agent}</td>
                   <td><TierBadge tier={i.tier} /></td>
                   <td>{i.ports.length ? <span className="code-inline" style={{ fontSize: 11, color: 'var(--text-muted)' }}>{i.ports.join(', ')}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                  <td>
+                    <div className="flex" style={{ gap: 'var(--space-2)' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => onAttach?.(i.name)}>{t('instances.attach')}</button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => onShell?.(i.name)}>{t('instances.shell')}</button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => onStop?.(i.name)}>{t('instances.stop')}</button>
+                      <button className="btn btn-destructive btn-sm" onClick={() => onRemove?.(i.name)}>{t('instances.remove')}</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

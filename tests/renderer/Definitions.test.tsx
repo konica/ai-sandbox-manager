@@ -26,4 +26,11 @@ describe('Definitions screen', () => {
     fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
     expect(onCreate).toHaveBeenCalledOnce()
   })
+
+  it('invokes onLaunch with the definition id', () => {
+    const onLaunch = vi.fn()
+    render(<Definitions definitions={defs} onCreate={() => {}} onLaunch={onLaunch} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
+    expect(onLaunch).toHaveBeenCalledWith('d1')
+  })
 })

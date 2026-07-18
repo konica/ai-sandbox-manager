@@ -34,7 +34,10 @@ export const de: Dict = {
     colName: 'Name',
     colBase: 'Basis-Image',
     colNetwork: 'Netzwerk',
-    colCreated: 'Erstellt'
+    colCreated: 'Erstellt',
+    colActions: 'Aktionen',
+    launch: 'Starten',
+    launching: 'Wird gestartet…'
   },
   instances: {
     title: 'Instanzen',
@@ -46,7 +49,18 @@ export const de: Dict = {
     colWorkspace: 'Arbeitsverzeichnis',
     colAgent: 'Agent',
     colNetwork: 'Netzwerk',
-    colPorts: 'Ports'
+    colPorts: 'Ports',
+    colActions: 'Aktionen',
+    attach: 'Verbinden',
+    shell: 'Shell',
+    stop: 'Stoppen',
+    remove: 'Entfernen',
+    removeTitle: 'Sandbox entfernen?',
+    removeBody: 'Entfernt „{name}“ dauerhaft: Container, Git-Worktrees und Sandbox-Status. Dies kann nicht rückgängig gemacht werden.',
+    confirmRemove: 'Entfernen',
+    cancel: 'Abbrechen',
+    launched: '„{name}“ gestartet — ein Terminal wird geöffnet.',
+    actionFailed: 'Aktion fehlgeschlagen: {message}'
   },
   settings: {
     title: 'Einstellungen',

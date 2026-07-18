@@ -32,7 +32,10 @@ export const en = {
     colName: 'Name',
     colBase: 'Base Image',
     colNetwork: 'Network',
-    colCreated: 'Created'
+    colCreated: 'Created',
+    colActions: 'Actions',
+    launch: 'Launch',
+    launching: 'Launching…'
   },
   instances: {
     title: 'Instances',
@@ -44,7 +47,18 @@ export const en = {
     colWorkspace: 'Workspace',
     colAgent: 'Agent',
     colNetwork: 'Network',
-    colPorts: 'Ports'
+    colPorts: 'Ports',
+    colActions: 'Actions',
+    attach: 'Attach',
+    shell: 'Shell',
+    stop: 'Stop',
+    remove: 'Remove',
+    removeTitle: 'Remove sandbox?',
+    removeBody: 'This permanently removes “{name}”: its container, Git worktrees, and sandbox state. This cannot be undone.',
+    confirmRemove: 'Remove',
+    cancel: 'Cancel',
+    launched: 'Launched “{name}” — a terminal is opening.',
+    actionFailed: 'Action failed: {message}'
   },
   settings: {
     title: 'Settings',
