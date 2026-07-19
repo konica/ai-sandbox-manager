@@ -1,4 +1,23 @@
-import type { Tier, MountMode, CredentialKind, DefinitionSpec } from '@shared/types'
+import type { Tier, MountMode, CredentialRef, DefinitionSpec } from '@shared/types'
+
+// Draft credentials carry a transient plaintext `value` that is NEVER persisted to
+// the spec — it is staged to the vault via IPC on submit (see App/CreateDefinition).
+export interface DraftServiceCred {
+  kind: 'service'
+  serviceId: string
+  envVar: string
+  value: string
+}
+export interface DraftCustomCred {
+  kind: 'custom'
+  id: string
+  label: string
+  envVar: string
+  domains: string[]
+  headers: { name: string; format: string }[]
+  value: string
+}
+export type DraftCred = DraftServiceCred | DraftCustomCred
 
 export const TOTAL_STEPS = 6
 
@@ -32,7 +51,7 @@ export interface Draft {
   tier: Tier
   domains: string[]
   ports: { hostPort: number; containerPort: number; label: string }[]
-  credentials: { label: string; kind: CredentialKind }[]
+  credentials: DraftCred[]
 }
 
 export const initialDraft: Draft = {
@@ -64,7 +83,8 @@ export type DraftAction =
   | { type: 'removeDomain'; host: string }
   | { type: 'addPort'; hostPort: number; containerPort: number; label: string }
   | { type: 'removePort'; index: number }
-  | { type: 'addCredential'; label: string; kind: CredentialKind }
+  | { type: 'addServiceCred'; serviceId: string; envVar: string; value: string }
+  | { type: 'addCustomCred'; cred: DraftCustomCred }
   | { type: 'removeCredential'; index: number }
 
 export function draftReducer(d: Draft, a: DraftAction): Draft {
@@ -82,7 +102,8 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'removeDomain': return { ...d, domains: d.domains.filter((h) => h !== a.host) }
     case 'addPort': return { ...d, ports: [...d.ports, { hostPort: a.hostPort, containerPort: a.containerPort, label: a.label }] }
     case 'removePort': return { ...d, ports: d.ports.filter((_, i) => i !== a.index) }
-    case 'addCredential': return { ...d, credentials: [...d.credentials, { label: a.label, kind: a.kind }] }
+    case 'addServiceCred': return { ...d, credentials: [...d.credentials, { kind: 'service', serviceId: a.serviceId, envVar: a.envVar, value: a.value }] }
+    case 'addCustomCred': return { ...d, credentials: [...d.credentials, a.cred] }
     case 'removeCredential': return { ...d, credentials: d.credentials.filter((_, i) => i !== a.index) }
     default: return d
   }
@@ -135,7 +156,10 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
     tier: spec.definition.tier,
     domains: [...spec.domains],
     ports: spec.ports.map((p) => ({ hostPort: p.hostPort, containerPort: p.containerPort, label: p.label })),
-    credentials: spec.credentials.map((c) => ({ label: c.label, kind: c.kind }))
+    credentials: spec.credentials.map((c): DraftCred =>
+      c.kind === 'service'
+        ? { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, value: '' }
+        : { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: [...c.domains], headers: c.headers.map((h) => ({ ...h })), value: '' })
   }
 }
 
@@ -148,6 +172,9 @@ export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec 
     ],
     domains: d.domains,
     ports: d.ports,
-    credentials: d.credentials
+    credentials: d.credentials.map((c): CredentialRef =>
+      c.kind === 'service'
+        ? { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, store: 'sbx' }
+        : { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: c.domains, headers: c.headers, store: 'encrypted' })
   }
 }
