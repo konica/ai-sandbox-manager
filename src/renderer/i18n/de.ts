@@ -150,6 +150,24 @@ export const de: Dict = {
     addHostService: 'Host-Dienst hinzufügen',
     hostWarning: 'Der Sandbox-Proxy übersetzt host.docker.internal vor der Weiterleitung zu localhost — localhost:<port> wird automatisch zur Netzwerk-Allowlist hinzugefügt.'
   },
+  detail: {
+    back: 'Zurück',
+    stop: 'Stoppen',
+    remove: 'Entfernen',
+    fromDefinition: 'aus Definition',
+    tabTerminals: 'Terminals',
+    tabPorts: 'Ports',
+    tabMonitoring: 'Überwachung',
+    terminals: 'Terminals',
+    nativeNote: 'Terminals öffnen sich in Ihrem nativen Terminal.app, verbunden mit der Sandbox.',
+    openAgent: 'Agent-Sitzung öffnen',
+    openShell: 'Shell-Sitzung öffnen',
+    networkPolicy: 'Netzwerkrichtlinie',
+    credentials: 'Anmeldedaten',
+    mounts: 'Mounts',
+    readonly: 'schreibgeschützt',
+    noDefinition: 'Keine verknüpfte Definition — Details nicht verfügbar.'
+  },
   wizard: {
     stepOf: 'Schritt {n} von {total}',
     steps: { workspace: 'Arbeitsverzeichnis', baseImage: 'Basis-Image', network: 'Netzwerk', ports: 'Ports', credentials: 'Anmeldedaten', review: 'Überprüfung' },

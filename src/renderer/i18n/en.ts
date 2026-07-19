@@ -148,6 +148,24 @@ export const en = {
     addHostService: 'Add host service',
     hostWarning: 'The sandbox proxy translates host.docker.internal to localhost before forwarding — localhost:<port> is added to the network allowlist automatically.'
   },
+  detail: {
+    back: 'Back',
+    stop: 'Stop',
+    remove: 'Remove',
+    fromDefinition: 'from definition',
+    tabTerminals: 'Terminals',
+    tabPorts: 'Ports',
+    tabMonitoring: 'Monitoring',
+    terminals: 'Terminals',
+    nativeNote: 'Terminals open in your native Terminal.app, connected to the sandbox.',
+    openAgent: 'Open Agent Session',
+    openShell: 'Open Shell Session',
+    networkPolicy: 'Network Policy',
+    credentials: 'Credentials',
+    mounts: 'Mounts',
+    readonly: 'read-only',
+    noDefinition: 'No linked definition — details unavailable.'
+  },
   wizard: {
     stepOf: 'Step {n} of {total}',
     steps: { workspace: 'Workspace', baseImage: 'Base Image', network: 'Network', ports: 'Ports', credentials: 'Credentials', review: 'Review' },
