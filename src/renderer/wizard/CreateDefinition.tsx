@@ -25,6 +25,17 @@ function credentialsSummary(creds: { kind: 'service' | 'custom'; serviceId?: str
   return parts.join(' + ')
 }
 
+// Review-step ports summary, e.g. "8080→3000/tcp, →9229/tcp6". Null when empty.
+function portsSummary(ports: { hostPort: number | null; containerPort: number; protocol: string }[]): string | null {
+  if (ports.length === 0) return null
+  return ports.map((p) => `${p.hostPort !== null ? p.hostPort : ''}→${p.containerPort}/${p.protocol}`).join(', ')
+}
+
+function hostServicesSummary(hs: { hostPort: number }[]): string | null {
+  if (hs.length === 0) return null
+  return hs.map((h) => `host.docker.internal:${h.hostPort}`).join(', ')
+}
+
 function Chip({ text, onRemove }: { text: string; onRemove: () => void }): JSX.Element {
   return (
     <span className="tag">{text}<button className="tag-remove" onClick={onRemove} aria-label={`Remove ${text}`}>✕</button></span>
@@ -214,7 +225,8 @@ export function CreateDefinition({
                   <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewWorkspace')}</td><td><span className="code-inline">{draft.workspace}</span> ({draft.workspaceMode})</td></tr>
                   <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewFolders')}</td><td>{draft.extraFolders.length}</td></tr>
                   <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewNetwork')}</td><td>{t(`tier.${draft.tier}`)} · {draft.domains.length}</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewPorts')}</td><td>{draft.ports.length}</td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewPorts')}</td><td>{portsSummary(draft.ports) ?? '—'}</td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewHostServices')}</td><td>{hostServicesSummary(draft.hostServices) ?? '—'}</td></tr>
                   <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewCredentials')}</td><td>{credentialsSummary(draft.credentials) ?? '—'}</td></tr>
                 </tbody>
               </table>

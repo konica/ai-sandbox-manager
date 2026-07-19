@@ -189,6 +189,7 @@ export const en = {
     reviewFolders: 'Extra folders',
     reviewNetwork: 'Network',
     reviewPorts: 'Ports',
+    reviewHostServices: 'Host services',
     reviewCredentials: 'Credentials',
     error: 'Error',
     stageFailed: 'Definition saved, but a credential value could not be stored: {message}'

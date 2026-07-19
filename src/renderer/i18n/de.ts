@@ -191,6 +191,7 @@ export const de: Dict = {
     reviewFolders: 'Zusätzliche Ordner',
     reviewNetwork: 'Netzwerk',
     reviewPorts: 'Ports',
+    reviewHostServices: 'Host-Dienste',
     reviewCredentials: 'Anmeldedaten',
     error: 'Fehler',
     stageFailed: 'Definition gespeichert, aber ein Anmeldedaten-Wert konnte nicht gespeichert werden: {message}'
