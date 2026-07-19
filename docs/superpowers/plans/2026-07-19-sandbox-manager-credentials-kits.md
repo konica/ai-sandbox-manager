@@ -108,14 +108,61 @@ Record: does stdin piping work (no interactive prompt)? Does `-g anthropic` appe
 - [ ] **Step 4: Decide network-policy ownership.** With the kit's `network.allowedDomains` set, check via `sbx policy log` whether a *separate* `sbx policy allow network --sandbox <name> …` is still required, or whether kit `allowedDomains` alone governs egress.
 Record the answer: **kit-owned policy** (drop the `sbx policy allow network` step in Phase 5) or **both** (keep it).
 
-- [ ] **Step 5: Clean up + write the decision record.** `sbx rm spike1 spike2 --force`; `rm ~/.spike-secret`. Write `2026-07-19-credentials-kits-spike-notes.md` capturing the four answers, and adjust Phase 5's tasks to match if reality differs from the assumptions. Commit:
+- [ ] **Step 5: Multi-service scenario — two API keys, two domains.** Validates the case `buildKitSpec` (Task 4) hits when a definition has 2+ custom credentials: multiple `serviceDomains` + `serviceAuth` + `credentials.sources` + `proxyManaged` entries, and **per-domain** injection (each domain gets only its own key). Uses two real header-echo services so the injected values are visible.
+
+```bash
+cd /tmp && rm -rf sbx-spike2 && mkdir -p sbx-spike2/ws sbx-spike2/k && cd sbx-spike2
+printf 'alpha-secret-AAA' > ~/.spike-alpha && chmod 600 ~/.spike-alpha
+printf 'beta-secret-BBB'  > ~/.spike-beta  && chmod 600 ~/.spike-beta
+cat > k/spec.yaml <<'YAML'
+schemaVersion: "1"
+kind: mixin
+name: spike-multi
+displayName: Spike Multi
+network:
+  allowedDomains:
+    - httpbin.org
+    - postman-echo.com
+  serviceDomains:
+    httpbin.org: svc-alpha
+    postman-echo.com: svc-beta
+  serviceAuth:
+    svc-alpha:
+      headerName: X-Alpha-Key
+      valueFormat: "Bearer %s"
+    svc-beta:
+      headerName: X-Beta-Key
+      valueFormat: "%s"
+credentials:
+  sources:
+    svc-alpha:
+      file:
+        path: "~/.spike-alpha"
+    svc-beta:
+      file:
+        path: "~/.spike-beta"
+environment:
+  proxyManaged:
+    - ALPHA_API_KEY
+    - BETA_API_KEY
+YAML
+sbx create claude "$PWD/ws" --name spike-multi --kit ./k/
+sbx exec spike-multi -- printenv ALPHA_API_KEY BETA_API_KEY               # both = sentinel, NOT the secrets
+sbx exec spike-multi -- curl -s https://httpbin.org/headers               # expect X-Alpha-Key="Bearer alpha-secret-AAA", NO X-Beta-Key
+sbx exec spike-multi -- curl -s https://postman-echo.com/get              # expect x-beta-key="beta-secret-BBB", NO X-Alpha-Key
+sbx rm spike-multi --force; rm -f ~/.spike-alpha ~/.spike-beta; cd / && rm -rf /tmp/sbx-spike2
+```
+
+Success = (1) both env vars are sentinels; (2) httpbin echoes `X-Alpha-Key: Bearer alpha-secret-AAA` and **no** `X-Beta-Key`; (3) postman-echo echoes `x-beta-key: beta-secret-BBB` and **no** `X-Alpha-Key`. If injection instead requires the agent to send the header, or the value-format renders differently, record it — `buildKitSpec` (Task 4) must be adjusted to match.
+
+- [ ] **Step 6: Clean up + write the decision record.** `sbx rm spike1 spike2 spike-multi --force` (any that remain); `rm -f ~/.spike-secret ~/.spike-alpha ~/.spike-beta`. Write `2026-07-19-credentials-kits-spike-notes.md` capturing the answers (Steps 1–5), and adjust Phase 5's tasks to match if reality differs from the assumptions. Commit:
 
 ```bash
 git add docs/superpowers/plans/2026-07-19-credentials-kits-spike-notes.md
 git commit -m "docs(spike): validate sbx kit + secret pipeline for credentials"
 ```
 
-**Assumptions this plan proceeds on (correct in Phase 5 if the spike disproves them):** `sbx create … --kit <dir>` works; kit `credentials.sources.<id>.file.path` injects a host file host-side; `sbx secret set -g <service>` reads stdin; kit `allowedDomains` governs egress so the separate `policy allow network` step can be dropped.
+**Assumptions this plan proceeds on (correct in Phase 5 if the spike disproves them):** `sbx create … --kit <dir>` works; kit `credentials.sources.<id>.file.path` injects a host file host-side; multiple custom services inject **per-domain** (Step 5); `sbx secret set -g <service>` reads stdin; kit `allowedDomains` governs egress so the separate `policy allow network` step can be dropped.
 
 ---
 
