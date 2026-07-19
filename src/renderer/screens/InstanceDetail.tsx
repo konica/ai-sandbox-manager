@@ -103,7 +103,7 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
         <button role="tab" aria-selected={tab === 'ports'} style={tabStyle(tab === 'ports')} onClick={() => setTab('ports')}>{t('detail.tabPorts')}</button>
         <button role="tab" aria-selected={tab === 'monitoring'} style={tabStyle(tab === 'monitoring')} onClick={() => setTab('monitoring')}>
           {t('detail.tabMonitoring')}
-          {blockedHosts > 0 && <span className="nav-badge" style={{ marginLeft: 'var(--space-1)', fontSize: 10, background: 'var(--danger)' }}>{blockedHosts}</span>}
+          {blockedHosts > 0 && <span className="nav-badge" title={t('detail.blockedDomainsHint')} style={{ marginLeft: 'var(--space-1)', fontSize: 10, background: 'var(--danger)' }}>{blockedHosts}</span>}
         </button>
       </div>
 

@@ -18,11 +18,13 @@ export function MonitoringTab({ summary, onAllow, onDeny }: {
   onDeny: (host: string) => void
 }): JSX.Element {
   const t = useT()
+  const blockedDomains = summary.events.filter((e) => !e.allowed).length
   return (
     <div>
       <div className="mon-summary" style={{ display: 'flex', gap: 'var(--space-5)', marginBottom: 'var(--space-5)' }}>
         <div className="mon-stat"><span className="mon-stat-value allowed">{summary.allowed}</span><span className="mon-stat-label">{t('detail.allowedRequests')}</span></div>
         <div className="mon-stat"><span className="mon-stat-value blocked">{summary.blocked}</span><span className="mon-stat-label">{t('detail.blockedRequests')}</span></div>
+        <div className="mon-stat" title={t('detail.blockedDomainsHint')}><span className="mon-stat-value blocked">{blockedDomains}</span><span className="mon-stat-label">{t('detail.blockedDomains')}</span></div>
       </div>
 
       <div className="card">
