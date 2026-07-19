@@ -176,6 +176,7 @@ export const de: Dict = {
     notLinkedNote: 'Diese Instanz ist nicht mit einer Definition verknüpft — Änderungen werden live angewendet, aber nicht für künftige Starts gespeichert.',
     allowedRequests: 'Erlaubte Anfragen',
     blockedRequests: 'Blockierte Anfragen',
+    allowedDomains: 'Erlaubte Domains',
     blockedDomains: 'Blockierte Domains',
     blockedDomainsHint: 'Eindeutige derzeit blockierte Domains (das ist die Zahl auf dem Überwachungs-Tab). Erlauben Sie eine, um sie freizugeben.',
     domainsAllowlisted: 'Domains auf Allowlist',

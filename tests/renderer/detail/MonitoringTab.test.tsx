@@ -11,10 +11,12 @@ const summary = {
 const base = { onAllow: vi.fn(), onDeny: vi.fn() }
 
 describe('MonitoringTab', () => {
-  it('shows counters and traffic rows with a time column', () => {
+  it('shows request counts, domain counts (distinct hosts), and a time column', () => {
     render(<MonitoringTab summary={summary} {...base} />)
-    expect(screen.getByText('42')).toBeInTheDocument()
-    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('Allowed requests').previousSibling).toHaveTextContent('42')
+    expect(screen.getByText('Blocked requests').previousSibling).toHaveTextContent('3')
+    expect(screen.getByText('Allowed domains').previousSibling).toHaveTextContent('1') // 1 distinct allowed host
+    expect(screen.getByText('Blocked domains').previousSibling).toHaveTextContent('1') // 1 distinct blocked host
     expect(screen.getByText('api.anthropic.com:443')).toBeInTheDocument()
     expect(screen.getByText('telemetry.example.com:443')).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /time/i })).toBeInTheDocument()

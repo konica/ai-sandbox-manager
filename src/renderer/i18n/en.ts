@@ -174,6 +174,7 @@ export const en = {
     notLinkedNote: "This instance isn't linked to a definition — changes apply live but won't persist for future launches.",
     allowedRequests: 'Allowed requests',
     blockedRequests: 'Blocked requests',
+    allowedDomains: 'Allowed domains',
     blockedDomains: 'Blocked domains',
     blockedDomainsHint: 'Distinct domains currently blocked (this is the count on the Monitoring tab). Allow one to unblock it.',
     domainsAllowlisted: 'Domains allowlisted',
