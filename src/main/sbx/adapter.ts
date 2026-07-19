@@ -19,6 +19,8 @@ export interface SbxAdapter {
   removeSandbox(name: string): Promise<void>
   setSecret(service: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   removeSecret(service: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
+  setCustomSecret(hosts: string[], env: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
+  removeCustomSecret(hosts: string[], opts: { global?: boolean; sandbox?: string }): Promise<void>
 }
 
 export const defaultSpawn: SpawnFn = (cmd, args, opts) =>
@@ -91,5 +93,20 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     await runSbx(['secret', 'rm', ...scope, service, '-f'])
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret }
+  // Custom secret: placeholder-substitution for non-built-in services (verified in the
+  // Phase 0 spike). `set-custom` has no stdin flag → value passes as argv (no shell, so
+  // no history leak; brief `ps` exposure of the user's own secret on their own machine).
+  function scopeArgs(opts: { global?: boolean; sandbox?: string }): string[] {
+    return opts.global ? ['-g'] : opts.sandbox ? [opts.sandbox] : []
+  }
+  async function setCustomSecret(hosts: string[], env: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void> {
+    const hostArgs = hosts.flatMap((h) => ['--host', h])
+    await runSbx(['secret', 'set-custom', ...scopeArgs(opts), ...hostArgs, '--env', env, '--value', value])
+  }
+  async function removeCustomSecret(hosts: string[], opts: { global?: boolean; sandbox?: string }): Promise<void> {
+    const hostArgs = hosts.flatMap((h) => ['--host', h])
+    await runSbx(['secret', 'rm', ...scopeArgs(opts), ...hostArgs, '-f'])
+  }
+
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, setCustomSecret, removeCustomSecret }
 }

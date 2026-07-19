@@ -31,12 +31,13 @@ describe('CredentialManager', () => {
     expect(f.adapter.removeSecret).toHaveBeenCalledWith('github', { global: true })
     expect(m.listGlobalSecrets()).toHaveLength(0)
   })
-  it('stages and takes a per-definition value one-shot', () => {
+  it('stages a per-definition value and reads it repeatedly (relaunch-safe, not consumed)', () => {
     const f = fakes()
     const m = createCredentialManager(f as any)
-    m.stageServiceValue('openai', 'v')
-    expect(m.takeStaged('def:openai')).toBe('v')
-    expect(m.takeStaged('def:openai')).toBeNull()
+    m.stageValue('d1:service:openai', 'v')
+    expect(m.getStaged('d1:service:openai')).toBe('v')
+    expect(m.getStaged('d1:service:openai')).toBe('v') // still there for the next launch
+    expect(m.getStaged('d1:service:missing')).toBeNull()
   })
   it('rejects an unknown service', async () => {
     const f = fakes()

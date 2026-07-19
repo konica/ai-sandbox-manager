@@ -16,6 +16,7 @@ interface Deps {
   probes: Probes
   openTerminal: (command: string) => void
   creds?: CredentialManager
+  materializeKit?: (spec: DefinitionSpec, name: string) => string | undefined
   readLoginEnv?: () => Record<string, string | undefined>
   log?: Logger
 }
@@ -60,7 +61,15 @@ export function buildHandlers(deps: Deps): {
     'def:getSpec': (id) => wrap(async () => deps.store.getDefinitionSpec(id)),
     'def:list': () => wrap(async () => deps.store.listDefinitions()),
     'instance:launch': (definitionId, name, sessionName) => wrap(() => launchDefinition(
-      { adapter: deps.adapter, store: deps.store, openTerminal: deps.openTerminal, log: deps.log }, definitionId, name, sessionName
+      {
+        adapter: deps.adapter,
+        store: deps.store,
+        creds: deps.creds ?? { getStaged: () => null },
+        materializeKit: deps.materializeKit ?? (() => undefined),
+        openTerminal: deps.openTerminal,
+        log: deps.log
+      },
+      definitionId, name, sessionName
     )),
     'instance:attach': (name) => wrap(async () => {
       const cmd = agentAttachCommand(name)
@@ -77,6 +86,18 @@ export function buildHandlers(deps: Deps): {
     'instance:stop': (name) => wrap(async () => { await deps.adapter.stopSandbox(name); return null }),
     'instance:remove': (name) => wrap(async () => {
       await deps.adapter.removeSandbox(name)
+      // Sandbox-scoped secrets are NOT auto-removed with the sandbox (Phase 0 spike) —
+      // clean up this instance's scoped secrets so they don't accumulate. Best-effort.
+      const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
+      const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
+      for (const c of spec?.credentials ?? []) {
+        try {
+          if (c.kind === 'service') await deps.adapter.removeSecret(c.serviceId, { sandbox: name })
+          else await deps.adapter.removeCustomSecret(c.domains, { sandbox: name })
+        } catch (e) {
+          deps.log?.error(`Could not remove scoped secret for "${name}": ${(e as Error).message}`)
+        }
+      }
       deps.store.deleteInstanceMeta(name)
       return null
     }),
@@ -84,14 +105,7 @@ export function buildHandlers(deps: Deps): {
     'secret:setGlobal': (serviceId, value) => wrap(async () => requireCreds(deps).setGlobalService(serviceId, value)),
     'secret:removeGlobal': (id) => wrap(async () => { await requireCreds(deps).removeGlobalSecret(id); return null }),
     'cred:scanEnv': () => wrap(async () => scanEnv((deps.readLoginEnv ?? (() => ({})))())),
-    'cred:stageValue': (key, value) => wrap(async () => {
-      const [kind, id] = key.split(':', 2)
-      const creds = requireCreds(deps)
-      if (kind === 'service') creds.stageServiceValue(id, value)
-      else if (kind === 'custom') creds.stageCustomValue(id, value)
-      else throw new Error(`bad stage key ${key}`)
-      return null
-    })
+    'cred:stageValue': (key, value) => wrap(async () => { requireCreds(deps).stageValue(key, value); return null })
   }
 }
 

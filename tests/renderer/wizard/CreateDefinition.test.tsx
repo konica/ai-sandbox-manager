@@ -48,7 +48,7 @@ describe('CreateDefinition wizard', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i })) // 5 -> 6 review
     expect(screen.getByText(/Anthropic/)).toBeInTheDocument() // review summarises credentials by name
     fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
-    await waitFor(() => expect(credStageValue).toHaveBeenCalledWith('service:anthropic', 'sk-ant-xyz'))
+    await waitFor(() => expect(credStageValue).toHaveBeenCalledWith('id1:service:anthropic', 'sk-ant-xyz'))
   })
 
   it('derives the sandbox name from the working directory when name is blank', async () => {

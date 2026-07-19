@@ -13,7 +13,8 @@ function deps() {
   const adapter = {
     runSbx: vi.fn(), listSandboxes: vi.fn(async () => []),
     createSandbox: vi.fn(), applyPolicy: vi.fn(), publishPorts: vi.fn(),
-    stopSandbox: vi.fn(async () => {}), removeSandbox: vi.fn(async () => {})
+    stopSandbox: vi.fn(async () => {}), removeSandbox: vi.fn(async () => {}),
+    removeSecret: vi.fn(async () => {}), removeCustomSecret: vi.fn(async () => {})
   }
   const store = {
     getDefinitionSpec: vi.fn(() => spec),
@@ -59,6 +60,23 @@ describe('instance lifecycle IPC', () => {
     const r = await h['instance:remove']('my-project')
     expect(r.ok).toBe(true)
     expect(d.adapter.removeSandbox).toHaveBeenCalledWith('my-project')
+    expect(d.store.deleteInstanceMeta).toHaveBeenCalledWith('my-project')
+  })
+
+  it('instance:remove also cleans up the instance\'s scoped secrets (not auto-removed by sbx)', async () => {
+    const d = deps()
+    d.store.listInstanceMeta.mockReturnValue([{ sbxName: 'my-project', definitionId: 'd1', createdByApp: true, createdAt: 't' }] as never)
+    d.store.getDefinitionSpec.mockReturnValue({
+      ...spec,
+      credentials: [
+        { kind: 'service', serviceId: 'anthropic', envVar: 'ANTHROPIC_API_KEY', store: 'sbx' },
+        { kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' }
+      ]
+    } as never)
+    const h = buildHandlers(d as never)
+    await h['instance:remove']('my-project')
+    expect(d.adapter.removeSecret).toHaveBeenCalledWith('anthropic', { sandbox: 'my-project' })
+    expect(d.adapter.removeCustomSecret).toHaveBeenCalledWith(['api.acme.com'], { sandbox: 'my-project' })
     expect(d.store.deleteInstanceMeta).toHaveBeenCalledWith('my-project')
   })
 })

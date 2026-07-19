@@ -10,6 +10,25 @@ import { openHostTerminal } from './terminal'
 import { createLogger } from './log'
 import { createSafeStorageVault } from './creds/vault'
 import { createCredentialManager } from './creds/manager'
+import { buildKitSpec } from './kit/generate'
+import { writeKit } from './kit/write'
+import type { DefinitionSpec } from '@shared/types'
+
+const kitFs = {
+  mkdir: (p: string) => nodeFs.mkdirSync(p, { recursive: true }),
+  writeFile: (p: string, data: string, mode: number) => nodeFs.writeFileSync(p, data, { mode }),
+  readFile: (p: string) => (nodeFs.existsSync(p) ? nodeFs.readFileSync(p, 'utf8') : null),
+  rm: (p: string) => { if (nodeFs.existsSync(p)) nodeFs.rmSync(p) }
+}
+
+// Write the definition's network-allowlist kit into <workspace>/.sandbox/kit (gitignored).
+// Carries no secrets — injection is via `sbx secret set` / `set-custom` at launch.
+function materializeKit(spec: DefinitionSpec, _name: string): string | undefined {
+  const primary = spec.mounts.find((m) => m.isPrimary) ?? spec.mounts[0]
+  if (!primary) return undefined
+  const ws = primary.hostPath
+  return writeKit(buildKitSpec(spec), {}, { fs: kitFs, kitDir: `${ws}/.sandbox/kit`, secretsDir: `${ws}/.sandbox/.unused`, gitignorePath: `${ws}/.gitignore` }).kitDir
+}
 
 // GUI apps on macOS don't inherit the shell's env, so read it from a login shell.
 function readLoginEnv(): Record<string, string | undefined> {
@@ -63,7 +82,7 @@ app.whenReady().then(() => {
     }
   })
   const creds = createCredentialManager({ adapter, vault, store })
-  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, readLoginEnv, log: logger })
+  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, log: logger })
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

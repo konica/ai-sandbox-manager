@@ -31,3 +31,18 @@ describe('adapter.setSecret / removeSecret', () => {
     expect(calls[0].args).toEqual(['secret', 'rm', '-g', 'github', '-f'])
   })
 })
+
+describe('adapter.setCustomSecret / removeCustomSecret', () => {
+  it('registers a sandbox-scoped custom secret with one --host per domain', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    await a.setCustomSecret(['api.acme.com', '*.acme.io'], 'ACME_KEY', 's3cr3t', { sandbox: 'box-1' })
+    expect(calls[0].args).toEqual(['secret', 'set-custom', 'box-1', '--host', 'api.acme.com', '--host', '*.acme.io', '--env', 'ACME_KEY', '--value', 's3cr3t'])
+  })
+  it('removes a sandbox-scoped custom secret by host', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    await a.removeCustomSecret(['api.acme.com'], { sandbox: 'box-1' })
+    expect(calls[0].args).toEqual(['secret', 'rm', 'box-1', '--host', 'api.acme.com', '-f'])
+  })
+})

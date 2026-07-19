@@ -7,8 +7,8 @@ function deps() {
     listGlobalSecrets: vi.fn(() => gs),
     setGlobalService: vi.fn(async (id: string) => ({ id, label: 'X', envVar: 'X_KEY', store: 'sbx', createdAt: 't' })),
     removeGlobalSecret: vi.fn(async () => {}),
-    stageServiceValue: vi.fn(),
-    stageCustomValue: vi.fn()
+    stageValue: vi.fn(),
+    getStaged: vi.fn(() => null)
   }
   return {
     adapter: {} as never, store: {} as never, probes: {} as never, openTerminal: vi.fn(),

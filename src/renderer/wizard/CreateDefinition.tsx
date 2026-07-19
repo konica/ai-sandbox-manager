@@ -67,11 +67,12 @@ export function CreateDefinition({
       : toSpec(draft, createId(), now())
     const res = initial ? await api.defUpdate(spec) : await api.defCreate(spec)
     if (!res.ok) { setError(res.error.message); return }
-    // Stage each entered secret value into the host vault (never persisted to the spec).
+    // Stage each entered secret value into the host vault, keyed by definition so it
+    // survives relaunches and never collides across definitions (never persisted to the spec).
     for (const c of draft.credentials) {
       if (!c.value.trim()) continue
-      const key = c.kind === 'service' ? `service:${c.serviceId}` : `custom:${c.id}`
-      await api.credStageValue(key, c.value)
+      const sub = c.kind === 'service' ? `service:${c.serviceId}` : `custom:${c.id}`
+      await api.credStageValue(`${spec.definition.id}:${sub}`, c.value)
     }
     onDone()
   }

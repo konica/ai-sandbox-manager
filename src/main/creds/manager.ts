@@ -16,9 +16,10 @@ export interface CredentialManager {
   setGlobalService(serviceId: string, value: string): Promise<GlobalSecretMeta>
   removeGlobalSecret(id: string): Promise<void>
   listGlobalSecrets(): GlobalSecretMeta[]
-  stageServiceValue(serviceId: string, value: string): void
-  stageCustomValue(credId: string, value: string): void
-  takeStaged(key: string): string | null
+  /** Stash a per-definition secret value in the app vault, keyed `<defId>:<kind>:<id>`. */
+  stageValue(key: string, value: string): void
+  /** Read a staged value WITHOUT removing it, so relaunching a definition re-registers it. */
+  getStaged(key: string): string | null
 }
 
 export function createCredentialManager(deps: { adapter: Adapter; vault: SecretVault; store: Store; now?: () => number }): CredentialManager {
@@ -37,12 +38,7 @@ export function createCredentialManager(deps: { adapter: Adapter; vault: SecretV
       deps.store.deleteGlobalSecret(id)
     },
     listGlobalSecrets: () => deps.store.listGlobalSecrets(),
-    stageServiceValue: (serviceId, value) => deps.vault.set(`def:${serviceId}`, value),
-    stageCustomValue: (credId, value) => deps.vault.set(`def:${credId}`, value),
-    takeStaged: (key) => {
-      const v = deps.vault.get(key)
-      if (v !== null) deps.vault.delete(key)
-      return v
-    }
+    stageValue: (key, value) => deps.vault.set(key, value),
+    getStaged: (key) => deps.vault.get(key)
   }
 }
