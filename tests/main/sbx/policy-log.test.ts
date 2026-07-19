@@ -23,4 +23,14 @@ describe('parsePolicyLog', () => {
     expect(parsePolicyLog('')).toEqual({ allowed: 0, blocked: 0, events: [] })
     expect(parsePolicyLog('not json')).toEqual({ allowed: 0, blocked: 0, events: [] })
   })
+  it('does not show an allowed host as blocked (sbx keeps the historical blocked row)', () => {
+    const both = JSON.stringify({
+      allowed_hosts: [{ host: 'download.docker.com:443', reason: 'domain-allowed', last_seen: 'b', count_since: 1 }],
+      blocked_hosts: [{ host: 'download.docker.com:443', reason: 'default deny', last_seen: 'a', count_since: 3 }]
+    })
+    const s = parsePolicyLog(both)
+    expect(s.blocked).toBe(0)
+    expect(s.events).toHaveLength(1)
+    expect(s.events[0].allowed).toBe(true)
+  })
 })

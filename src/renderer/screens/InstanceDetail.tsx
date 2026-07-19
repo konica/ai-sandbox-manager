@@ -37,6 +37,9 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
   const [spec, setSpec] = useState<DefinitionSpec | null>(null)
   const [livePorts, setLivePorts] = useState<LivePort[]>([])
   const [policy, setPolicy] = useState<PolicySummary>({ allowed: 0, blocked: 0, events: [] })
+  // Hosts allowed this session — suppress their stale blocked rows immediately, since
+  // sbx keeps the historical blocked entry until a new request re-classifies it.
+  const [justAllowed, setJustAllowed] = useState<Set<string>>(new Set())
 
   const reloadSpec = useCallback(async () => {
     if (!instance.definitionId) { setSpec(null); return }
@@ -117,8 +120,16 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
       )}
       {tab === 'monitoring' && (
         <MonitoringTab
-          summary={policy}
-          onAllow={async (host) => { await api.instanceDomainAllow(instance.name, host); void reloadPolicy() }}
+          summary={{
+            allowed: policy.allowed,
+            blocked: policy.events.filter((e) => !e.allowed && !justAllowed.has(e.host)).length,
+            events: policy.events.filter((e) => !(justAllowed.has(e.host) && !e.allowed))
+          }}
+          onAllow={async (host) => {
+            setJustAllowed((prev) => new Set(prev).add(host)) // hide the stale blocked row immediately
+            await api.instanceDomainAllow(instance.name, host)
+            void reloadPolicy()
+          }}
         />
       )}
     </section>

@@ -130,42 +130,63 @@ export function buildHandlers(deps: Deps): {
     // Live sandbox edits, dual-written to the definition (persist is best-effort + logged).
     'instance:ports:list': (name) => wrap(async () => deps.adapter.listPorts(name)),
     'instance:ports:publish': (name, port) => wrap(async () => {
+      const spec = port.hostPort !== null ? `${port.hostPort}:${port.containerPort}/${port.protocol}` : `${port.containerPort}/${port.protocol}`
+      deps.log?.info(`Publishing port for "${name}": sbx ports ${name} --publish ${spec}`)
       await deps.adapter.publishPort(name, port)
-      persist(deps, () => applyPortEdit(deps.store, name, port, 'add'), name)
+      const saved = persist(deps, () => applyPortEdit(deps.store, name, port, 'add'), name)
+      deps.log?.info(`Port ${spec} forwarded on "${name}"${saved ? ' and saved to its definition' : ''}.`)
       return null
     }),
     'instance:ports:unpublish': (name, port) => wrap(async () => {
+      const spec = port.hostPort !== null ? `${port.hostPort}:${port.containerPort}/${port.protocol}` : `${port.containerPort}/${port.protocol}`
+      deps.log?.info(`Unpublishing port for "${name}": sbx ports ${name} --unpublish ${spec}`)
       await deps.adapter.unpublishPort(name, port)
-      persist(deps, () => applyPortEdit(deps.store, name, port, 'remove'), name)
+      const saved = persist(deps, () => applyPortEdit(deps.store, name, port, 'remove'), name)
+      deps.log?.info(`Port ${spec} removed from "${name}"${saved ? ' and its definition' : ''}.`)
       return null
     }),
     'instance:hostService:add': (name, hostPort, label) => wrap(async () => {
+      deps.log?.info(`Allowing host service for "${name}": sbx policy allow network --sandbox ${name} localhost:${hostPort}`)
       await deps.adapter.allowNetwork(name, `localhost:${hostPort}`)
-      persist(deps, () => applyHostServiceEdit(deps.store, name, { hostPort, label }, 'add'), name)
+      const saved = persist(deps, () => applyHostServiceEdit(deps.store, name, { hostPort, label }, 'add'), name)
+      deps.log?.info(`Host service localhost:${hostPort} allowed on "${name}"${saved ? ' and saved to its definition' : ''}.`)
       return null
     }),
     'instance:hostService:remove': (name, hostPort) => wrap(async () => {
+      deps.log?.info(`Removing host service for "${name}": sbx policy rm network --sandbox ${name} --resource localhost:${hostPort}`)
       await deps.adapter.removeNetwork(name, `localhost:${hostPort}`)
-      persist(deps, () => applyHostServiceEdit(deps.store, name, { hostPort, label: '' }, 'remove'), name)
+      const saved = persist(deps, () => applyHostServiceEdit(deps.store, name, { hostPort, label: '' }, 'remove'), name)
+      deps.log?.info(`Host service localhost:${hostPort} removed from "${name}"${saved ? ' and its definition' : ''}.`)
       return null
     }),
     'instance:domain:allow': (name, domain) => wrap(async () => {
+      deps.log?.info(`Allowing domain for "${name}": sbx policy allow network --sandbox ${name} ${domain}`)
       await deps.adapter.allowNetwork(name, domain)
-      persist(deps, () => applyDomainEdit(deps.store, name, domain, 'add'), name)
+      const saved = persist(deps, () => applyDomainEdit(deps.store, name, domain, 'add'), name)
+      deps.log?.info(`Domain ${domain} allowed on "${name}"${saved ? ' and saved to its definition' : ''}. (The old blocked entry may linger in the traffic log until the next request.)`)
       return null
     }),
     'instance:domain:deny': (name, domain) => wrap(async () => {
+      deps.log?.info(`Denying domain for "${name}": sbx policy rm network --sandbox ${name} --resource ${domain}`)
       await deps.adapter.removeNetwork(name, domain)
-      persist(deps, () => applyDomainEdit(deps.store, name, domain, 'remove'), name)
+      const saved = persist(deps, () => applyDomainEdit(deps.store, name, domain, 'remove'), name)
+      deps.log?.info(`Domain ${domain} denied on "${name}"${saved ? ' and removed from its definition' : ''}.`)
       return null
     }),
     'instance:policyLog': (name) => wrap(async () => deps.adapter.policyLog(name))
   }
 }
 
-/** Run a definition-persist edit; the live sbx op already succeeded, so failures are logged, not thrown. */
-function persist(deps: Deps, edit: () => boolean, name: string): void {
-  try { edit() } catch (e) { deps.log?.error(`Could not persist edit to "${name}"'s definition: ${(e as Error).message}`) }
+/** Run a definition-persist edit; the live sbx op already succeeded, so failures are logged, not thrown. Returns whether the definition was updated. */
+function persist(deps: Deps, edit: () => boolean, name: string): boolean {
+  try {
+    const saved = edit()
+    if (!saved) deps.log?.info(`"${name}" isn't linked to a definition — applied live only, not persisted.`)
+    return saved
+  } catch (e) {
+    deps.log?.error(`Could not persist edit to "${name}"'s definition: ${(e as Error).message}`)
+    return false
+  }
 }
 
 export function registerIpc(deps: Deps): void {
