@@ -107,11 +107,19 @@ export const de: Dict = {
     valueFormat: 'Wertformat',
     wildcardHint: 'Unterstützt Platzhalter (*.example.com, **.example.com) und %s als Platzhalter für die Anmeldedaten im Wertformat.',
     none: 'Keine Anmeldedaten hinzugefügt.',
+    edit: 'Bearbeiten',
     importTitle: 'Aus Umgebungsvariablen importieren',
     importSubtitle: 'Durchsuchen Sie Ihre Shell nach bereits gesetzten API-Schlüsseln wie ANTHROPIC_API_KEY, OPENAI_API_KEY usw.',
+    importScope: 'Import-Bereich',
+    importSelected: 'Ausgewählte importieren',
+    importCancel: 'Abbrechen',
+    importNone: 'Keine API-Schlüssel in Ihrer aktuellen Shell-Umgebung gefunden.',
+    selected: 'ausgewählt',
     scopeSandbox: 'Diese Sandbox',
     scopeGlobal: 'Global (alle Sandboxes)',
-    import: 'Importieren'
+    import: 'Importieren',
+    securityLabel: 'Sicherheit:',
+    securityNote: 'Dienst-Anmeldedaten werden per Proxy eingefügt — der echte Wert gelangt nie in die VM. Gespeichert im Betriebssystem-Schlüsselbund (macOS Keychain / GNOME Keyring / Windows Credential Manager) mit verschlüsseltem Datei-Fallback unter Headless-Linux.'
   },
   secrets: {
     title: 'Globale Geheimnisse',

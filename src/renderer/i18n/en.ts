@@ -105,11 +105,19 @@ export const en = {
     valueFormat: 'Value Format',
     wildcardHint: 'Supports wildcards (*.example.com, **.example.com) and %s as the credential placeholder in the value format.',
     none: 'No credentials added.',
+    edit: 'Edit',
     importTitle: 'Import from environment variables',
     importSubtitle: 'Scan your shell for API keys already set as ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.',
+    importScope: 'Import scope',
+    importSelected: 'Import Selected',
+    importCancel: 'Cancel',
+    importNone: 'No API keys detected in your current shell environment.',
+    selected: 'selected',
     scopeSandbox: 'This sandbox',
     scopeGlobal: 'Global (all sandboxes)',
-    import: 'Import'
+    import: 'Import',
+    securityLabel: 'Security:',
+    securityNote: 'Service credentials are proxy-injected — the real value never enters the VM. Stored in your OS keychain (macOS Keychain / GNOME Keyring / Windows Credential Manager) with an encrypted file fallback on headless Linux.'
   },
   secrets: {
     title: 'Global secrets',

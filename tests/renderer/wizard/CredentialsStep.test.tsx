@@ -33,9 +33,17 @@ describe('CredentialsStep', () => {
     fireEvent.click(removeBtn)
     expect(p.onRemove).toHaveBeenCalledWith(0)
   })
-  it('lists env hits and imports one', () => {
+  it('imports a detected env var via the import panel', () => {
     const p = setup({ envHits: [{ serviceId: 'anthropic', label: 'Anthropic', envVar: 'ANTHROPIC_API_KEY', masked: 'sk-ant…' }] })
-    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+    fireEvent.click(screen.getByRole('button', { name: /import from environment/i })) // expand banner
+    fireEvent.click(screen.getByRole('checkbox', { name: /anthropic/i }))
+    fireEvent.click(screen.getByRole('button', { name: /import selected/i }))
     expect(p.onImport).toHaveBeenCalledWith('anthropic', expect.any(String))
+  })
+
+  it('shows an empty-state when no env vars are detected', () => {
+    setup({ envHits: [] })
+    fireEvent.click(screen.getByRole('button', { name: /import from environment/i }))
+    expect(screen.getByText(/no api keys detected/i)).toBeInTheDocument()
   })
 })

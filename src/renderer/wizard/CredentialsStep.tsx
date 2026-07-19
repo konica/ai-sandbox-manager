@@ -2,22 +2,24 @@ import { useState } from 'react'
 import { KNOWN_SERVICES, serviceById } from '@shared/services'
 import { toSbxName } from '@shared/names'
 import { useT } from '../i18n'
-import type { DraftCred, DraftCustomCred } from './draft'
+import type { DraftCred, DraftCustomCred, DraftServiceCred } from './draft'
 
 const rowStyle = { display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' as const, marginBottom: 'var(--space-2)' }
 const field = { display: 'flex', flexDirection: 'column' as const, gap: 4 }
 const lbl = { fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' as const, letterSpacing: '.04em' }
 const hint = { fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }
-const sectionLbl = { fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' as const, letterSpacing: '.04em', margin: 'var(--space-3) 0 var(--space-1)' }
+const sectionLbl = { fontSize: 13, fontWeight: 600, margin: 'var(--space-4) 0 var(--space-2)' }
+const credRow = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', padding: '10px 12px', background: 'var(--surface-2, rgba(127,127,127,.06))', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', marginBottom: 6 } as const
 
 function mask(value: string): string {
-  return value.trim().length >= 4 ? '••••••••' + value.trim().slice(-4) : '••••••••'
+  return value.trim().length >= 4 ? '••••••••••••••••' + value.trim().slice(-4) : '••••••••••••••••'
 }
 
 /**
  * Credentials wizard step, mirroring the v5 mockup: Service / Custom / (Registry —
- * deferred) tabs. Service values go to `sbx secret set`; custom secrets become a
- * generated mixin-kit serviceAuth four-block. Values are staged host-side on submit.
+ * deferred) tabs, an Import-from-environment panel, and a security note. Service
+ * values go to `sbx secret set`; custom secrets become a generated mixin-kit
+ * serviceAuth four-block. Values are staged host-side on submit.
  */
 export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemove, envHits, onImport }: {
   credentials: DraftCred[]
@@ -36,15 +38,21 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
   const [headerName, setHeaderName] = useState('Authorization')
   const [valueFormat, setValueFormat] = useState('Bearer %s')
   const [customValue, setCustomValue] = useState('')
+  const [importOpen, setImportOpen] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [importScope, setImportScope] = useState<'sandbox' | 'global'>('sandbox')
 
-  const selected = serviceById(serviceId)
-  const services = credentials.map((c, i) => ({ c, i })).filter((x) => x.c.kind === 'service')
-  const customs = credentials.map((c, i) => ({ c, i })).filter((x) => x.c.kind === 'custom')
+  const selectedSvc = serviceById(serviceId)
+  const services = credentials.map((c, i) => ({ c, i })).filter((x): x is { c: DraftServiceCred; i: number } => x.c.kind === 'service')
+  const customs = credentials.map((c, i) => ({ c, i })).filter((x): x is { c: DraftCustomCred; i: number } => x.c.kind === 'custom')
 
   function addService(): void {
-    if (!selected || !svcValue.trim()) return
-    onAddService(selected.id, selected.envVars[0], svcValue.trim())
+    if (!selectedSvc || !svcValue.trim()) return
+    onAddService(selectedSvc.id, selectedSvc.envVars[0], svcValue.trim())
     setSvcValue('')
+  }
+  function editService(c: DraftServiceCred, i: number): void {
+    setTab('service'); setServiceId(c.serviceId); setSvcValue(c.value); onRemove(i)
   }
   function addCustom(): void {
     if (!host.trim() || !envVar.trim()) return
@@ -54,11 +62,16 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
     })
     setHost(''); setEnvVar(''); setCustomValue('')
   }
-
-  function tabBtn(id: 'service' | 'custom', label: string): JSX.Element {
-    return (
-      <button role="tab" aria-selected={tab === id} className={`btn btn-sm ${tab === id ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab(id)}>{label}</button>
-    )
+  function editCustom(c: DraftCustomCred, i: number): void {
+    setTab('custom'); setHost(c.domains[0] ?? ''); setEnvVar(c.envVar)
+    setHeaderName(c.headers[0]?.name ?? 'Authorization'); setValueFormat(c.headers[0]?.format ?? 'Bearer %s'); setCustomValue(c.value); onRemove(i)
+  }
+  function toggleSel(id: string): void {
+    setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+  function importSelected(): void {
+    for (const id of selected) onImport(id, importScope)
+    setSelected(new Set()); setImportOpen(false)
   }
 
   return (
@@ -67,27 +80,70 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
       <p className="section-desc" style={{ marginTop: 0 }}>{t('credentials.subtitle')}</p>
 
       <div role="tablist" style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-        {tabBtn('service', t('credentials.tabService'))}
-        {tabBtn('custom', t('credentials.tabCustom'))}
+        <button role="tab" aria-selected={tab === 'service'} className={`btn btn-sm ${tab === 'service' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('service')}>{t('credentials.tabService')}</button>
+        <button role="tab" aria-selected={tab === 'custom'} className={`btn btn-sm ${tab === 'custom' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('custom')}>{t('credentials.tabCustom')}</button>
         <button role="tab" aria-selected={false} aria-disabled className="btn btn-sm btn-secondary" disabled title={t('credentials.registrySoon')} style={{ opacity: 0.5 }}>{t('credentials.tabRegistry')}</button>
       </div>
 
       {tab === 'service' && (
         <>
           <p style={hint}>{t('credentials.serviceHint')}</p>
+
+          {/* Import from environment variables (collapsible) */}
+          <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', margin: 'var(--space-3) 0', overflow: 'hidden' }}>
+            <button
+              aria-expanded={importOpen}
+              onClick={() => setImportOpen((v) => !v)}
+              style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '10px 12px', background: 'var(--surface-2, rgba(127,127,127,.06))', border: 'none', cursor: 'pointer' }}
+            >
+              <span aria-hidden style={{ color: 'var(--accent)' }}>→</span>
+              <span style={{ flex: '1 1 auto' }}>
+                <strong style={{ fontSize: 13 }}>{t('credentials.importTitle')}</strong>
+                <span style={hint}> · {t('credentials.importSubtitle')}</span>
+              </span>
+              <span aria-hidden style={{ transform: importOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>▾</span>
+            </button>
+            {importOpen && (
+              <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border)' }}>
+                {envHits.length === 0
+                  ? <p style={{ ...hint, margin: 0 }}>{t('credentials.importNone')}</p>
+                  : (
+                    <>
+                      {envHits.map((h) => (
+                        <label key={h.serviceId} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '4px 0', fontSize: 13, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={selected.has(h.serviceId)} onChange={() => toggleSel(h.serviceId)} />
+                          <span>{h.label} <span className="code-inline">{h.envVar}</span> <span style={hint}>{h.masked}</span></span>
+                        </label>
+                      ))}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
+                        <span style={lbl}>{t('credentials.importScope')}</span>
+                        <select aria-label="Import scope" className="input" style={{ maxWidth: 200 }} value={importScope} onChange={(e) => setImportScope(e.target.value as 'sandbox' | 'global')}>
+                          <option value="sandbox">{t('credentials.scopeSandbox')}</option>
+                          <option value="global">{t('credentials.scopeGlobal')}</option>
+                        </select>
+                        <button className="btn btn-primary btn-sm" disabled={selected.size === 0} onClick={importSelected}>{t('credentials.importSelected')}</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => { setSelected(new Set()); setImportOpen(false) }}>{t('credentials.importCancel')}</button>
+                        <span style={hint}>{selected.size} {t('credentials.selected')}</span>
+                      </div>
+                    </>
+                  )}
+              </div>
+            )}
+          </div>
+
           <div style={rowStyle}>
             <div style={{ ...field, flex: '1 1 320px' }}>
               <span style={lbl}>{t('credentials.service')}</span>
               <select aria-label="Service" className="input" value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
                 {KNOWN_SERVICES.map((s) => (<option key={s.id} value={s.id}>{s.label} — {s.envVars.join(' / ')}</option>))}
               </select>
-              {selected && <p style={hint}>{selected.domains.join(', ')}</p>}
+              {selectedSvc && <p style={hint}>{selectedSvc.domains.join(', ')}</p>}
             </div>
             <div style={{ ...field, flex: '1 1 200px' }}>
               <span style={lbl}>{t('credentials.value')}</span>
-              <input aria-label="Value" type="password" className="input" placeholder="sk-…" value={svcValue} onChange={(e) => setSvcValue(e.target.value)} />
+              <input aria-label="Value" type="password" className="input" placeholder="sk-ant-········" value={svcValue} onChange={(e) => setSvcValue(e.target.value)} />
             </div>
-            <button className="btn btn-secondary btn-sm" onClick={addService}>{t('credentials.add')}</button>
+            <button className="btn btn-primary btn-sm" onClick={addService}>{t('credentials.add')}</button>
           </div>
         </>
       )}
@@ -118,7 +174,7 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
               <span style={lbl}>{t('credentials.valueFormat')}</span>
               <input aria-label="Value Format" className="input" value={valueFormat} onChange={(e) => setValueFormat(e.target.value)} />
             </div>
-            <button className="btn btn-secondary btn-sm" onClick={addCustom}>{t('credentials.add')}</button>
+            <button className="btn btn-primary btn-sm" onClick={addCustom}>{t('credentials.add')}</button>
           </div>
           <p style={hint}>{t('credentials.wildcardHint')}</p>
         </>
@@ -129,10 +185,16 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
       {services.length > 0 && (
         <>
           <p style={sectionLbl}>{t('credentials.addedService')}</p>
-          {services.map(({ c, i }) => c.kind === 'service' && (
+          {services.map(({ c, i }) => (
             <div key={i} style={credRow}>
-              <span style={{ fontSize: 13 }}>{serviceById(c.serviceId)?.label ?? c.serviceId} <span className="code-inline">{c.envVar}</span> <span style={hint}>= {mask(c.value)}</span></span>
-              <button className="btn btn-ghost btn-sm" aria-label="Remove" onClick={() => onRemove(i)}>{t('credentials.remove')}</button>
+              <span>
+                <strong style={{ fontSize: 13 }}>{serviceById(c.serviceId)?.label ?? c.serviceId}</strong>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{c.envVar} = {mask(c.value)}</span>
+              </span>
+              <span style={{ display: 'flex', gap: 'var(--space-3)', flexShrink: 0 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => editService(c, i)}>{t('credentials.edit')}</button>
+                <button className="btn btn-ghost btn-sm" aria-label="Remove" style={{ color: 'var(--danger)' }} onClick={() => onRemove(i)}>{t('credentials.remove')}</button>
+              </span>
             </div>
           ))}
         </>
@@ -141,38 +203,24 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
       {customs.length > 0 && (
         <>
           <p style={sectionLbl}>{t('credentials.addedCustom')}</p>
-          {customs.map(({ c, i }) => c.kind === 'custom' && (
+          {customs.map(({ c, i }) => (
             <div key={i} style={credRow}>
-              <span style={{ fontSize: 13 }}>{c.domains.join(', ')} <span style={hint}>{c.headers[0]?.name}: {c.headers[0]?.format} ← </span><span className="code-inline">{c.envVar}</span> <span style={hint}>= {mask(c.value)}</span></span>
-              <button className="btn btn-ghost btn-sm" aria-label="Remove" onClick={() => onRemove(i)}>{t('credentials.remove')}</button>
+              <span>
+                <strong style={{ fontSize: 13 }}>{c.domains.join(', ')}</strong>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{c.headers[0]?.name}: {c.headers[0]?.format} ← {c.envVar} = {mask(c.value)}</span>
+              </span>
+              <span style={{ display: 'flex', gap: 'var(--space-3)', flexShrink: 0 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => editCustom(c, i)}>{t('credentials.edit')}</button>
+                <button className="btn btn-ghost btn-sm" aria-label="Remove" style={{ color: 'var(--danger)' }} onClick={() => onRemove(i)}>{t('credentials.remove')}</button>
+              </span>
             </div>
           ))}
         </>
       )}
 
-      {envHits.length > 0 && (
-        <div style={{ marginTop: 'var(--space-4)' }}>
-          <label>{t('credentials.importTitle')}</label>
-          <p className="section-desc" style={{ marginTop: 0 }}>{t('credentials.importSubtitle')}</p>
-          {envHits.map((h) => (<ImportRow key={h.serviceId} hit={h} onImport={onImport} t={t} />))}
-        </div>
-      )}
+      <div style={{ marginTop: 'var(--space-4)', padding: '10px 12px', background: 'var(--surface-2, rgba(127,127,127,.06))', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 12, color: 'var(--text-muted)' }}>
+        <strong style={{ color: 'var(--text-secondary)' }}>{t('credentials.securityLabel')}</strong> {t('credentials.securityNote')}
+      </div>
     </>
-  )
-}
-
-const credRow = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', marginBottom: 4 } as const
-
-function ImportRow({ hit, onImport, t }: { hit: { serviceId: string; label: string; envVar: string; masked: string }; onImport: (serviceId: string, scope: 'sandbox' | 'global') => void; t: (k: string, v?: Record<string, string | number>) => string }): JSX.Element {
-  const [scope, setScope] = useState<'sandbox' | 'global'>('sandbox')
-  return (
-    <div style={credRow}>
-      <span style={{ fontSize: 13, flex: '1 1 auto' }}>{hit.label} <span className="code-inline">{hit.envVar}</span> <span style={hint}>{hit.masked}</span></span>
-      <select aria-label={`Scope for ${hit.label}`} className="input" style={{ maxWidth: 180 }} value={scope} onChange={(e) => setScope(e.target.value as 'sandbox' | 'global')}>
-        <option value="sandbox">{t('credentials.scopeSandbox')}</option>
-        <option value="global">{t('credentials.scopeGlobal')}</option>
-      </select>
-      <button className="btn btn-secondary btn-sm" onClick={() => onImport(hit.serviceId, scope)}>{t('credentials.import')}</button>
-    </div>
   )
 }
