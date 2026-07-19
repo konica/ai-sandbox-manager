@@ -184,6 +184,8 @@ export const de: Dict = {
     domainsAllowlisted: 'Domains auf Allowlist',
     liveTraffic: 'Live-Verkehr',
     noTraffic: 'Noch kein Verkehr aufgezeichnet.',
+    domainRequests: 'Domain-Anfragen',
+    requestsTooltip: 'Anfragen an diese Domain seit der ersten Erfassung',
     allow: 'Erlauben',
     deny: 'Verweigern',
     addDomain: 'Domain hinzufügen',

@@ -62,6 +62,7 @@ export interface PolicyEvent {
   host: string
   allowed: boolean
   reason: string
+  count: number // requests to this host since it was first seen
 }
 
 /** Parsed `sbx policy log` — request counts + recent events. */

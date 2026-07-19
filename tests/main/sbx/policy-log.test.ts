@@ -17,7 +17,9 @@ describe('parsePolicyLog', () => {
     expect(s.allowed).toBe(5)
     expect(s.blocked).toBe(2)
     expect(s.events.find((e) => e.host.includes('api.anthropic.com'))?.allowed).toBe(true)
+    expect(s.events.find((e) => e.host.includes('api.anthropic.com'))?.count).toBe(5)
     expect(s.events.find((e) => e.host.includes('telemetry'))?.allowed).toBe(false)
+    expect(s.events.find((e) => e.host.includes('telemetry'))?.count).toBe(2)
   })
   it('tolerates empty / malformed input', () => {
     expect(parsePolicyLog('')).toEqual({ allowed: 0, blocked: 0, events: [] })

@@ -182,6 +182,8 @@ export const en = {
     domainsAllowlisted: 'Domains allowlisted',
     liveTraffic: 'Live Traffic',
     noTraffic: 'No traffic recorded yet.',
+    domainRequests: 'Domain Requests',
+    requestsTooltip: 'Requests to this domain since it was first seen',
     allow: 'Allow',
     deny: 'Deny',
     addDomain: 'Add domain',

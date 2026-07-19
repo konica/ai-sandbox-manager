@@ -20,8 +20,10 @@ export function MonitoringTab({ summary, onAllow, onDeny }: {
   const t = useT()
   // Counts are over distinct domains (one row per host) so they map to the list, the
   // Allow/Deny actions, and the Monitoring tab badge — not cumulative request totals.
-  const allowedDomains = summary.events.filter((e) => e.allowed).length
-  const blockedDomains = summary.events.filter((e) => !e.allowed).length
+  const allowedList = summary.events.filter((e) => e.allowed).sort((a, b) => b.count - a.count)
+  const blockedList = summary.events.filter((e) => !e.allowed).sort((a, b) => b.count - a.count)
+  const allowedDomains = allowedList.length
+  const blockedDomains = blockedList.length
   return (
     <div>
       <div className="mon-summary" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-5)', marginBottom: 'var(--space-5)' }}>
@@ -64,6 +66,41 @@ export function MonitoringTab({ summary, onAllow, onDeny }: {
             </table>
           )}
       </div>
+
+      {summary.events.length > 0 && (
+        <div className="card" style={{ marginTop: 'var(--space-5)' }}>
+          <div className="card-header"><div className="card-title">{t('detail.domainRequests')}</div></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-5)' }}>
+            <DomainGroup label={t('detail.allowedDomains')} rows={allowedList} allowed onAct={onDeny} actLabel={t('detail.deny')} t={t} />
+            <DomainGroup label={t('detail.blockedDomains')} rows={blockedList} allowed={false} onAct={onAllow} actLabel={t('detail.allow')} t={t} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DomainGroup({ label, rows, allowed, onAct, actLabel, t }: {
+  label: string
+  rows: { host: string; count: number }[]
+  allowed: boolean
+  onAct: (host: string) => void
+  actLabel: string
+  t: (k: string) => string
+}): JSX.Element {
+  return (
+    <div>
+      <div className="cred-type-label" role="heading" aria-level={4} style={{ display: 'flex', justifyContent: 'space-between' }}><span>{label}</span><span>{rows.length}</span></div>
+      {rows.length === 0
+        ? <p className="section-desc" style={{ fontSize: 12, margin: 0 }}>—</p>
+        : rows.map((r, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '4px 0', fontSize: 13, borderBottom: '1px solid var(--border)' }}>
+            <span className={allowed ? 'traffic-allowed' : 'traffic-blocked'} style={{ width: 12 }}>{allowed ? '✓' : '✕'}</span>
+            <span style={{ flex: '1 1 auto', fontFamily: 'var(--font-mono, monospace)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.host}>{r.host}</span>
+            <span title={t('detail.requestsTooltip')} style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{r.count}</span>
+            <button className="btn btn-ghost btn-sm" style={{ flexShrink: 0, ...(allowed ? { color: 'var(--danger)' } : {}) }} onClick={() => onAct(r.host)}>{actLabel}</button>
+          </div>
+        ))}
     </div>
   )
 }

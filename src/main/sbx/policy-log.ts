@@ -15,7 +15,7 @@ function toEvents(rows: unknown, allowed: boolean, skip?: Set<string>): { events
     if (!host || skip?.has(host)) continue
     const n = typeof o.count_since === 'number' ? o.count_since : 1
     count += n
-    events.push({ at: typeof o.last_seen === 'string' ? o.last_seen : '', host, allowed, reason: typeof o.reason === 'string' ? o.reason : '' })
+    events.push({ at: typeof o.last_seen === 'string' ? o.last_seen : '', host, allowed, reason: typeof o.reason === 'string' ? o.reason : '', count: n })
   }
   return { events, count }
 }
