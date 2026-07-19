@@ -1,4 +1,4 @@
-import type { SbxInstance, SbxStatus } from '@shared/types'
+import type { SbxInstance, SbxStatus, LivePort } from '@shared/types'
 
 function toStatus(raw: string): SbxStatus {
   const s = raw.toLowerCase()
@@ -89,4 +89,36 @@ export function parseSbxLsText(stdout: string): SbxInstance[] {
       workspace: workspace === '' || workspace === '-' ? null : workspace
     }
   })
+}
+
+/**
+ * Parse `sbx ports --json` (a bare array of {host_ip, host_port, sandbox_port, protocol})
+ * into LivePort[], deduping the 127.0.0.1 + ::1 pair by (host_port, sandbox_port, protocol).
+ * Tolerates a `{ ports: [...] }` envelope too.
+ */
+export function parsePortsJson(stdout: string): LivePort[] {
+  let parsed: unknown
+  try { parsed = JSON.parse(stdout) } catch { return [] }
+  const rows = Array.isArray(parsed)
+    ? parsed
+    : (parsed && typeof parsed === 'object' && Array.isArray((parsed as Record<string, unknown>).ports))
+      ? ((parsed as Record<string, unknown>).ports as unknown[])
+      : []
+  const seen = new Set<string>()
+  const out: LivePort[] = []
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue
+    const o = r as Record<string, unknown>
+    const host = o.host_port ?? o.hostPort
+    const sand = o.sandbox_port ?? o.sandboxPort ?? o.container_port ?? o.containerPort
+    if (sand == null) continue
+    const hostPort = host == null ? null : Number(host)
+    const containerPort = Number(sand)
+    const protocol = typeof o.protocol === 'string' && o.protocol ? o.protocol : 'tcp'
+    const key = `${hostPort}:${containerPort}/${protocol}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ hostPort, containerPort, protocol })
+  }
+  return out
 }

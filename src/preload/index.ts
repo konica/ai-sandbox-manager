@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { DefinitionSpec } from '@shared/types'
+import type { DefinitionSpec, LivePort } from '@shared/types'
 
 const api = {
   prereqCheck: () => ipcRenderer.invoke('prereq:check'),
@@ -19,7 +19,15 @@ const api = {
   secretRemoveGlobal: (id: string) => ipcRenderer.invoke('secret:removeGlobal', id),
   credScanEnv: () => ipcRenderer.invoke('cred:scanEnv'),
   credStageValue: (key: string, value: string) => ipcRenderer.invoke('cred:stageValue', key, value),
-  credStageFromEnv: (key: string, serviceId: string) => ipcRenderer.invoke('cred:stageFromEnv', key, serviceId)
+  credStageFromEnv: (key: string, serviceId: string) => ipcRenderer.invoke('cred:stageFromEnv', key, serviceId),
+  instancePortsList: (name: string) => ipcRenderer.invoke('instance:ports:list', name),
+  instancePortsPublish: (name: string, port: LivePort) => ipcRenderer.invoke('instance:ports:publish', name, port),
+  instancePortsUnpublish: (name: string, port: LivePort) => ipcRenderer.invoke('instance:ports:unpublish', name, port),
+  instanceHostServiceAdd: (name: string, hostPort: number, label: string) => ipcRenderer.invoke('instance:hostService:add', name, hostPort, label),
+  instanceHostServiceRemove: (name: string, hostPort: number) => ipcRenderer.invoke('instance:hostService:remove', name, hostPort),
+  instanceDomainAllow: (name: string, domain: string) => ipcRenderer.invoke('instance:domain:allow', name, domain),
+  instanceDomainDeny: (name: string, domain: string) => ipcRenderer.invoke('instance:domain:deny', name, domain),
+  instancePolicyLog: (name: string) => ipcRenderer.invoke('instance:policyLog', name)
 }
 
 contextBridge.exposeInMainWorld('api', api)

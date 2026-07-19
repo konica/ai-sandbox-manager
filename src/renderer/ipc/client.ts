@@ -1,4 +1,4 @@
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary } from '@shared/types'
 
 interface Api {
   prereqCheck(): Promise<Result<PrereqResult>>
@@ -19,6 +19,14 @@ interface Api {
   credScanEnv(): Promise<Result<EnvHit[]>>
   credStageValue(key: string, value: string): Promise<Result<null>>
   credStageFromEnv(key: string, serviceId: string): Promise<Result<null>>
+  instancePortsList(name: string): Promise<Result<LivePort[]>>
+  instancePortsPublish(name: string, port: LivePort): Promise<Result<null>>
+  instancePortsUnpublish(name: string, port: LivePort): Promise<Result<null>>
+  instanceHostServiceAdd(name: string, hostPort: number, label: string): Promise<Result<null>>
+  instanceHostServiceRemove(name: string, hostPort: number): Promise<Result<null>>
+  instanceDomainAllow(name: string, domain: string): Promise<Result<null>>
+  instanceDomainDeny(name: string, domain: string): Promise<Result<null>>
+  instancePolicyLog(name: string): Promise<Result<PolicySummary>>
 }
 
 export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
@@ -39,5 +47,13 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   secretRemoveGlobal: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   credScanEnv: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   credStageValue: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
-  credStageFromEnv: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } })
+  credStageFromEnv: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instancePortsList: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instancePortsPublish: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instancePortsUnpublish: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instanceHostServiceAdd: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instanceHostServiceRemove: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instanceDomainAllow: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instanceDomainDeny: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instancePolicyLog: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } })
 }

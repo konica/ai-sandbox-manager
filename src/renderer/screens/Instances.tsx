@@ -27,8 +27,9 @@ function Truncate({ text, max, mono, tail }: { text: string; max: number; mono?:
 
 const dash = <span style={{ color: 'var(--text-muted)' }}>—</span>
 
-export function Instances({ instances, onAttach, onShell, onStop, onRemove }: {
+export function Instances({ instances, onOpen, onAttach, onShell, onStop, onRemove }: {
   instances: InstanceView[]
+  onOpen?: (name: string) => void
   onAttach?: (name: string) => void
   onShell?: (name: string) => void
   onStop?: (name: string) => void
@@ -58,7 +59,7 @@ export function Instances({ instances, onAttach, onShell, onStop, onRemove }: {
             <tbody>
               {instances.map((i) => (
                 <tr key={i.name}>
-                  <td><strong style={{ fontSize: 13, fontWeight: 510 }}><Truncate text={i.name} max={200} /></strong></td>
+                  <td><button className="link-button" style={{ fontSize: 13, fontWeight: 510, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)' }} onClick={() => onOpen?.(i.name)}><Truncate text={i.name} max={200} /></button></td>
                   <td><StatusBadge status={i.status} /></td>
                   <td>{i.definitionName ? <Truncate text={i.definitionName} max={140} mono /> : dash}</td>
                   <td>{i.workspace ? <Truncate text={i.workspace} max={220} mono tail /> : dash}</td>

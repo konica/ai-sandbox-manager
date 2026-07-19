@@ -49,6 +49,28 @@ export interface HostServiceIntent {
   label: string
 }
 
+/** A live port forward on a running sandbox (from `sbx ports --json`). */
+export interface LivePort {
+  hostPort: number | null
+  containerPort: number
+  protocol: string
+}
+
+/** One row of `sbx policy log` (allowed or blocked outbound request). */
+export interface PolicyEvent {
+  at: string
+  host: string
+  allowed: boolean
+  reason: string
+}
+
+/** Parsed `sbx policy log` — request counts + recent events. */
+export interface PolicySummary {
+  allowed: number
+  blocked: number
+  events: PolicyEvent[]
+}
+
 export type CredentialStore = 'sbx' | 'encrypted'
 
 /** A built-in service (anthropic, openai, …). Value lives in sbx keychain; base kit owns serviceAuth. */

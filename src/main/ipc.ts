@@ -1,5 +1,5 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary } from '@shared/types'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
@@ -7,6 +7,7 @@ import { reconcile } from './reconciler'
 import { launchDefinition } from './launch'
 import { agentAttachCommand, hostShellCommand } from './sbx/translate'
 import { scanEnv } from './creds/env-scan'
+import { applyPortEdit, applyHostServiceEdit, applyDomainEdit } from './detail/persist'
 import { serviceById } from '@shared/services'
 import type { CredentialManager } from './creds/manager'
 import type { Logger } from './log'
@@ -54,6 +55,14 @@ export function buildHandlers(deps: Deps): {
   'cred:scanEnv': () => Promise<Result<EnvHit[]>>
   'cred:stageValue': (key: string, value: string) => Promise<Result<null>>
   'cred:stageFromEnv': (key: string, serviceId: string) => Promise<Result<null>>
+  'instance:ports:list': (name: string) => Promise<Result<LivePort[]>>
+  'instance:ports:publish': (name: string, port: LivePort) => Promise<Result<null>>
+  'instance:ports:unpublish': (name: string, port: LivePort) => Promise<Result<null>>
+  'instance:hostService:add': (name: string, hostPort: number, label: string) => Promise<Result<null>>
+  'instance:hostService:remove': (name: string, hostPort: number) => Promise<Result<null>>
+  'instance:domain:allow': (name: string, domain: string) => Promise<Result<null>>
+  'instance:domain:deny': (name: string, domain: string) => Promise<Result<null>>
+  'instance:policyLog': (name: string) => Promise<Result<PolicySummary>>
 } {
   return {
     'prereq:check': () => wrap(() => checkPrereqs(deps.probes)),
@@ -117,7 +126,66 @@ export function buildHandlers(deps: Deps): {
       if (!svc || !envVar) throw new Error(`No value for "${serviceId}" found in your environment`)
       requireCreds(deps).stageValue(key, env[envVar]!.trim())
       return null
-    })
+    }),
+    // Live sandbox edits, dual-written to the definition (persist is best-effort + logged).
+    'instance:ports:list': (name) => wrap(async () => deps.adapter.listPorts(name)),
+    'instance:ports:publish': (name, port) => wrap(async () => {
+      const spec = port.hostPort !== null ? `${port.hostPort}:${port.containerPort}/${port.protocol}` : `${port.containerPort}/${port.protocol}`
+      deps.log?.info(`Publishing port for "${name}": sbx ports ${name} --publish ${spec}`)
+      await deps.adapter.publishPort(name, port)
+      const saved = persist(deps, () => applyPortEdit(deps.store, name, port, 'add'), name)
+      deps.log?.info(`Port ${spec} forwarded on "${name}"${saved ? ' and saved to its definition' : ''}.`)
+      return null
+    }),
+    'instance:ports:unpublish': (name, port) => wrap(async () => {
+      const spec = port.hostPort !== null ? `${port.hostPort}:${port.containerPort}/${port.protocol}` : `${port.containerPort}/${port.protocol}`
+      deps.log?.info(`Unpublishing port for "${name}": sbx ports ${name} --unpublish ${spec}`)
+      await deps.adapter.unpublishPort(name, port)
+      const saved = persist(deps, () => applyPortEdit(deps.store, name, port, 'remove'), name)
+      deps.log?.info(`Port ${spec} removed from "${name}"${saved ? ' and its definition' : ''}.`)
+      return null
+    }),
+    'instance:hostService:add': (name, hostPort, label) => wrap(async () => {
+      deps.log?.info(`Allowing host service for "${name}": sbx policy allow network --sandbox ${name} localhost:${hostPort}`)
+      await deps.adapter.allowNetwork(name, `localhost:${hostPort}`)
+      const saved = persist(deps, () => applyHostServiceEdit(deps.store, name, { hostPort, label }, 'add'), name)
+      deps.log?.info(`Host service localhost:${hostPort} allowed on "${name}"${saved ? ' and saved to its definition' : ''}.`)
+      return null
+    }),
+    'instance:hostService:remove': (name, hostPort) => wrap(async () => {
+      deps.log?.info(`Removing host service for "${name}": sbx policy rm network --sandbox ${name} --resource localhost:${hostPort}`)
+      await deps.adapter.removeNetwork(name, `localhost:${hostPort}`)
+      const saved = persist(deps, () => applyHostServiceEdit(deps.store, name, { hostPort, label: '' }, 'remove'), name)
+      deps.log?.info(`Host service localhost:${hostPort} removed from "${name}"${saved ? ' and its definition' : ''}.`)
+      return null
+    }),
+    'instance:domain:allow': (name, domain) => wrap(async () => {
+      deps.log?.info(`Allowing domain for "${name}": sbx policy allow network --sandbox ${name} ${domain}`)
+      await deps.adapter.allowNetwork(name, domain)
+      const saved = persist(deps, () => applyDomainEdit(deps.store, name, domain, 'add'), name)
+      deps.log?.info(`Domain ${domain} allowed on "${name}"${saved ? ' and saved to its definition' : ''}. (The old blocked entry may linger in the traffic log until the next request.)`)
+      return null
+    }),
+    'instance:domain:deny': (name, domain) => wrap(async () => {
+      deps.log?.info(`Denying domain for "${name}": sbx policy rm network --sandbox ${name} --resource ${domain}`)
+      await deps.adapter.removeNetwork(name, domain)
+      const saved = persist(deps, () => applyDomainEdit(deps.store, name, domain, 'remove'), name)
+      deps.log?.info(`Domain ${domain} denied on "${name}"${saved ? ' and removed from its definition' : ''}.`)
+      return null
+    }),
+    'instance:policyLog': (name) => wrap(async () => deps.adapter.policyLog(name))
+  }
+}
+
+/** Run a definition-persist edit; the live sbx op already succeeded, so failures are logged, not thrown. Returns whether the definition was updated. */
+function persist(deps: Deps, edit: () => boolean, name: string): boolean {
+  try {
+    const saved = edit()
+    if (!saved) deps.log?.info(`"${name}" isn't linked to a definition — applied live only, not persisted.`)
+    return saved
+  } catch (e) {
+    deps.log?.error(`Could not persist edit to "${name}"'s definition: ${(e as Error).message}`)
+    return false
   }
 }
 
@@ -140,6 +208,14 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('cred:scanEnv', () => handlers['cred:scanEnv']())
   ipcMain.handle('cred:stageValue', (_e, key: string, value: string) => handlers['cred:stageValue'](key, value))
   ipcMain.handle('cred:stageFromEnv', (_e, key: string, serviceId: string) => handlers['cred:stageFromEnv'](key, serviceId))
+  ipcMain.handle('instance:ports:list', (_e, name: string) => handlers['instance:ports:list'](name))
+  ipcMain.handle('instance:ports:publish', (_e, name: string, port: LivePort) => handlers['instance:ports:publish'](name, port))
+  ipcMain.handle('instance:ports:unpublish', (_e, name: string, port: LivePort) => handlers['instance:ports:unpublish'](name, port))
+  ipcMain.handle('instance:hostService:add', (_e, name: string, hostPort: number, label: string) => handlers['instance:hostService:add'](name, hostPort, label))
+  ipcMain.handle('instance:hostService:remove', (_e, name: string, hostPort: number) => handlers['instance:hostService:remove'](name, hostPort))
+  ipcMain.handle('instance:domain:allow', (_e, name: string, domain: string) => handlers['instance:domain:allow'](name, domain))
+  ipcMain.handle('instance:domain:deny', (_e, name: string, domain: string) => handlers['instance:domain:deny'](name, domain))
+  ipcMain.handle('instance:policyLog', (_e, name: string) => handlers['instance:policyLog'](name))
   ipcMain.handle('dialog:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }

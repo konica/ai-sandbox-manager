@@ -1,7 +1,8 @@
 import { spawn } from 'child_process'
-import type { SbxInstance, DefinitionSpec, PortIntent, Tier } from '@shared/types'
+import type { SbxInstance, DefinitionSpec, PortIntent, Tier, LivePort, PolicySummary } from '@shared/types'
 import { SbxError, classifySbxError } from '@shared/errors'
-import { parseSbxLsJson, parseSbxLsText } from './parse'
+import { parseSbxLsJson, parseSbxLsText, parsePortsJson } from './parse'
+import { parsePolicyLog } from './policy-log'
 import { specToCreateArgs, tierToAllowlist, portIntentToPublishSpec } from './translate'
 import type { Logger } from '../log'
 
@@ -19,6 +20,12 @@ export interface SbxAdapter {
   removeSandbox(name: string): Promise<void>
   setSecret(service: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   removeSecret(service: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
+  listPorts(name: string): Promise<LivePort[]>
+  publishPort(name: string, port: LivePort): Promise<void>
+  unpublishPort(name: string, port: LivePort): Promise<void>
+  allowNetwork(name: string, resource: string): Promise<void>
+  removeNetwork(name: string, resource: string): Promise<void>
+  policyLog(name: string): Promise<PolicySummary>
   setCustomSecret(hosts: string[], env: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   removeCustomSecret(hosts: string[], opts: { global?: boolean; sandbox?: string }): Promise<void>
 }
@@ -108,5 +115,28 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     await runSbx(['secret', 'rm', ...scopeArgs(opts), ...hostArgs, '-f'])
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, setCustomSecret, removeCustomSecret }
+  // Live port + network-policy edits on a RUNNING sandbox (Phase 0 spike-verified).
+  async function listPorts(name: string): Promise<LivePort[]> {
+    const res = await runSbx(['ports', name, '--json'])
+    return parsePortsJson(res.stdout)
+  }
+  async function publishPort(name: string, port: LivePort): Promise<void> {
+    await runSbx(['ports', name, '--publish', portIntentToPublishSpec({ ...port, label: '' } as PortIntent)])
+  }
+  async function unpublishPort(name: string, port: LivePort): Promise<void> {
+    await runSbx(['ports', name, '--unpublish', portIntentToPublishSpec({ ...port, label: '' } as PortIntent)])
+  }
+  // Generalized policy edits: host-service = 'localhost:<port>', domain = the host.
+  async function allowNetwork(name: string, resource: string): Promise<void> {
+    await runSbx(['policy', 'allow', 'network', '--sandbox', name, resource])
+  }
+  async function removeNetwork(name: string, resource: string): Promise<void> {
+    await runSbx(['policy', 'rm', 'network', '--sandbox', name, '--resource', resource])
+  }
+  async function policyLog(name: string): Promise<PolicySummary> {
+    const res = await runSbx(['policy', 'log', name, '--json'])
+    return parsePolicyLog(res.stdout)
+  }
+
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, setCustomSecret, removeCustomSecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog }
 }

@@ -15,7 +15,8 @@ function fakeAdapter(names: string[]): SbxAdapter {
     setSecret: async () => {},
     removeSecret: async () => {},
     setCustomSecret: async () => {},
-    removeCustomSecret: async () => {}
+    removeCustomSecret: async () => {},
+    listPorts: async () => [], publishPort: async () => {}, unpublishPort: async () => {}, allowNetwork: async () => {}, removeNetwork: async () => {}, policyLog: async () => ({ allowed: 0, blocked: 0, events: [] })
   }
 }
 

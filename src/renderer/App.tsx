@@ -3,6 +3,7 @@ import type { PrereqResult, InstanceView, Definition, DefinitionSpec } from '@sh
 import { api } from './ipc/client'
 import { Prereq } from './screens/Prereq'
 import { Instances } from './screens/Instances'
+import { InstanceDetail } from './screens/InstanceDetail'
 import { Definitions } from './screens/Definitions'
 import { Settings } from './screens/Settings'
 import { CreateDefinition } from './wizard/CreateDefinition'
@@ -24,6 +25,7 @@ export default function App(): JSX.Element {
   const [instances, setInstances] = useState<InstanceView[]>([])
   const [pending, setPending] = useState<{ kind: 'stop' | 'remove'; name: string } | null>(null)
   const [launchFor, setLaunchFor] = useState<Definition | null>(null)
+  const [detailName, setDetailName] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
   const t = useT()
@@ -48,8 +50,17 @@ export default function App(): JSX.Element {
 
   useEffect(() => { void runGate() }, [runGate])
 
+  // Poll instances while viewing them so status changes (e.g. a sandbox finishing
+  // provisioning → running) surface in the list and the detail view without a manual refresh.
+  useEffect(() => {
+    if (screen !== 'instances') return
+    const id = setInterval(() => void loadInstances(), 4000)
+    return () => clearInterval(id)
+  }, [screen, loadInstances])
+
   function navigate(s: NavScreen): void {
     setWizard(null)
+    setDetailName(null)
     setScreen(s)
     if (s === 'definitions') void loadDefs()
     else if (s === 'instances') void loadInstances()
@@ -130,15 +141,28 @@ export default function App(): JSX.Element {
           ? <CreateDefinition initial={wizard.spec} onDone={() => { setWizard(null); void loadDefs() }} onCancel={() => setWizard(null)} />
           : <Definitions definitions={defs} onCreate={() => setWizard({})} onLaunch={openLaunchDialog} onEdit={(id) => void openEditor(id)} launchingId={busyId} />
       )}
-      {screen === 'instances' && (
-        <Instances
-          instances={instances}
-          onAttach={onAttach}
-          onShell={onShell}
-          onStop={(name) => setPending({ kind: 'stop', name })}
-          onRemove={(name) => setPending({ kind: 'remove', name })}
-        />
-      )}
+      {screen === 'instances' && (() => {
+        const detail = detailName ? instances.find((i) => i.name === detailName) : null
+        return detail ? (
+          <InstanceDetail
+            instance={detail}
+            onBack={() => setDetailName(null)}
+            onAttach={onAttach}
+            onShell={onShell}
+            onStop={(name) => setPending({ kind: 'stop', name })}
+            onRemove={(name) => setPending({ kind: 'remove', name })}
+          />
+        ) : (
+          <Instances
+            instances={instances}
+            onOpen={setDetailName}
+            onAttach={onAttach}
+            onShell={onShell}
+            onStop={(name) => setPending({ kind: 'stop', name })}
+            onRemove={(name) => setPending({ kind: 'remove', name })}
+          />
+        )
+      })()}
       {screen === 'settings' && <Settings />}
       <ConfirmModal
         open={pending !== null}

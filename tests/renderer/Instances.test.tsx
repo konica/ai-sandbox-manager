@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { Instances } from '../../src/renderer/screens/Instances'
 import type { InstanceView } from '@shared/types'
 
@@ -18,5 +18,12 @@ describe('Instances screen', () => {
   it('shows the empty state when there are no instances', () => {
     render(<Instances instances={[]} />)
     expect(screen.getByText(/no sandboxes yet/i)).toBeInTheDocument()
+  })
+
+  it('opens the detail view when the instance name is clicked', () => {
+    const onOpen = vi.fn()
+    render(<Instances instances={rows} onOpen={onOpen} />)
+    fireEvent.click(screen.getByRole('button', { name: 'sbx-a' }))
+    expect(onOpen).toHaveBeenCalledWith('sbx-a')
   })
 })
