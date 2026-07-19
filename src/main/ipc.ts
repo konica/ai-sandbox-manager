@@ -1,14 +1,29 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit } from '@shared/types'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
 import { reconcile } from './reconciler'
 import { launchDefinition } from './launch'
 import { agentAttachCommand, hostShellCommand } from './sbx/translate'
+import { scanEnv } from './creds/env-scan'
+import type { CredentialManager } from './creds/manager'
 import type { Logger } from './log'
 
-interface Deps { adapter: SbxAdapter; store: Store; probes: Probes; openTerminal: (command: string) => void; log?: Logger }
+interface Deps {
+  adapter: SbxAdapter
+  store: Store
+  probes: Probes
+  openTerminal: (command: string) => void
+  creds?: CredentialManager
+  readLoginEnv?: () => Record<string, string | undefined>
+  log?: Logger
+}
+
+function requireCreds(deps: Deps): CredentialManager {
+  if (!deps.creds) throw new Error('credential manager not configured')
+  return deps.creds
+}
 
 async function wrap<T>(fn: () => Promise<T>): Promise<Result<T>> {
   try {
@@ -31,6 +46,11 @@ export function buildHandlers(deps: Deps): {
   'instance:shell': (name: string) => Promise<Result<null>>
   'instance:stop': (name: string) => Promise<Result<null>>
   'instance:remove': (name: string) => Promise<Result<null>>
+  'secret:listGlobal': () => Promise<Result<GlobalSecretMeta[]>>
+  'secret:setGlobal': (serviceId: string, value: string) => Promise<Result<GlobalSecretMeta>>
+  'secret:removeGlobal': (id: string) => Promise<Result<null>>
+  'cred:scanEnv': () => Promise<Result<EnvHit[]>>
+  'cred:stageValue': (key: string, value: string) => Promise<Result<null>>
 } {
   return {
     'prereq:check': () => wrap(() => checkPrereqs(deps.probes)),
@@ -59,6 +79,18 @@ export function buildHandlers(deps: Deps): {
       await deps.adapter.removeSandbox(name)
       deps.store.deleteInstanceMeta(name)
       return null
+    }),
+    'secret:listGlobal': () => wrap(async () => requireCreds(deps).listGlobalSecrets()),
+    'secret:setGlobal': (serviceId, value) => wrap(async () => requireCreds(deps).setGlobalService(serviceId, value)),
+    'secret:removeGlobal': (id) => wrap(async () => { await requireCreds(deps).removeGlobalSecret(id); return null }),
+    'cred:scanEnv': () => wrap(async () => scanEnv((deps.readLoginEnv ?? (() => ({})))())),
+    'cred:stageValue': (key, value) => wrap(async () => {
+      const [kind, id] = key.split(':', 2)
+      const creds = requireCreds(deps)
+      if (kind === 'service') creds.stageServiceValue(id, value)
+      else if (kind === 'custom') creds.stageCustomValue(id, value)
+      else throw new Error(`bad stage key ${key}`)
+      return null
     })
   }
 }
@@ -76,6 +108,11 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instance:shell', (_e, name: string) => handlers['instance:shell'](name))
   ipcMain.handle('instance:stop', (_e, name: string) => handlers['instance:stop'](name))
   ipcMain.handle('instance:remove', (_e, name: string) => handlers['instance:remove'](name))
+  ipcMain.handle('secret:listGlobal', () => handlers['secret:listGlobal']())
+  ipcMain.handle('secret:setGlobal', (_e, serviceId: string, value: string) => handlers['secret:setGlobal'](serviceId, value))
+  ipcMain.handle('secret:removeGlobal', (_e, id: string) => handlers['secret:removeGlobal'](id))
+  ipcMain.handle('cred:scanEnv', () => handlers['cred:scanEnv']())
+  ipcMain.handle('cred:stageValue', (_e, key: string, value: string) => handlers['cred:stageValue'](key, value))
   ipcMain.handle('dialog:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }

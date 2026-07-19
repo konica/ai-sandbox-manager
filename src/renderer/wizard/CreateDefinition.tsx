@@ -1,7 +1,9 @@
-import { useReducer, useState } from 'react'
-import type { CredentialKind, Tier, DefinitionSpec } from '@shared/types'
+import { useEffect, useReducer, useState } from 'react'
+import type { Tier, DefinitionSpec } from '@shared/types'
+import { serviceById } from '@shared/services'
 import { api } from '../ipc/client'
 import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, parsePort, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
+import { CredentialsStep } from './CredentialsStep'
 import { useT } from '../i18n'
 
 const TIERS: { value: Tier; descKey: string }[] = [
@@ -9,7 +11,8 @@ const TIERS: { value: Tier; descKey: string }[] = [
   { value: 'balanced', descKey: 'wizard.tierBalancedDesc' },
   { value: 'locked', descKey: 'wizard.tierLockedDesc' }
 ]
-const KINDS: CredentialKind[] = ['git', 'api-key', 'claude-auth']
+
+type EnvHit = { serviceId: string; label: string; envVar: string; masked: string }
 
 function Chip({ text, onRemove }: { text: string; onRemove: () => void }): JSX.Element {
   return (
@@ -37,9 +40,16 @@ export function CreateDefinition({
   const [portInput, setPortInput] = useState('')
   const [portLabel, setPortLabel] = useState('')
   const [folderInput, setFolderInput] = useState('')
-  const [credLabel, setCredLabel] = useState('')
-  const [credKind, setCredKind] = useState<CredentialKind>('git')
+  const [envHits, setEnvHits] = useState<EnvHit[]>([])
   const [error, setError] = useState<string | null>(null)
+
+  // Scan the host environment for known service API keys when the Credentials step opens.
+  useEffect(() => {
+    if (draft.step !== 5) return
+    let alive = true
+    void api.credScanEnv().then((r) => { if (alive && r.ok) setEnvHits(r.data) })
+    return () => { alive = false }
+  }, [draft.step])
 
   async function submit(): Promise<void> {
     const spec = initial
@@ -158,18 +168,18 @@ export function CreateDefinition({
           )}
 
           {draft.step === 5 && (
-            <>
-              <label>{t('wizard.steps.credentials')}</label>
-              <p className="section-desc" style={{ marginTop: 0 }}>{t('wizard.credentialsHelp')}</p>
-              <div style={row}>
-                <input aria-label="Credential label" className="input" placeholder={t('wizard.credLabelPlaceholder')} value={credLabel} onChange={(e) => setCredLabel(e.target.value)} />
-                <select aria-label="Credential kind" className="input" style={{ maxWidth: 160 }} value={credKind} onChange={(e) => setCredKind(e.target.value as CredentialKind)}>
-                  {KINDS.map((k) => (<option key={k} value={k}>{k}</option>))}
-                </select>
-                <button className="btn btn-secondary btn-sm" onClick={() => { if (credLabel.trim()) { dispatch({ type: 'addCredential', label: credLabel.trim(), kind: credKind }); setCredLabel('') } }}>{t('wizard.add')}</button>
-              </div>
-              <div>{draft.credentials.map((c, i) => (<Chip key={i} text={`${c.label} (${c.kind})`} onRemove={() => dispatch({ type: 'removeCredential', index: i })} />))}</div>
-            </>
+            <CredentialsStep
+              credentials={draft.credentials}
+              envHits={envHits}
+              onAddService={(serviceId, envVar, value) => dispatch({ type: 'addServiceCred', serviceId, envVar, value })}
+              onAddCustom={(cred) => dispatch({ type: 'addCustomCred', cred })}
+              onRemove={(index) => dispatch({ type: 'removeCredential', index })}
+              onImport={(serviceId) => {
+                const svc = serviceById(serviceId)
+                if (svc && !draft.credentials.some((c) => c.kind === 'service' && c.serviceId === serviceId))
+                  dispatch({ type: 'addServiceCred', serviceId, envVar: svc.envVars[0], value: '' })
+              }}
+            />
           )}
 
           {draft.step === 6 && (

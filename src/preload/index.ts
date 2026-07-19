@@ -13,7 +13,12 @@ const api = {
   instanceAttach: (name: string) => ipcRenderer.invoke('instance:attach', name),
   instanceShell: (name: string) => ipcRenderer.invoke('instance:shell', name),
   instanceStop: (name: string) => ipcRenderer.invoke('instance:stop', name),
-  instanceRemove: (name: string) => ipcRenderer.invoke('instance:remove', name)
+  instanceRemove: (name: string) => ipcRenderer.invoke('instance:remove', name),
+  secretListGlobal: () => ipcRenderer.invoke('secret:listGlobal'),
+  secretSetGlobal: (serviceId: string, value: string) => ipcRenderer.invoke('secret:setGlobal', serviceId, value),
+  secretRemoveGlobal: (id: string) => ipcRenderer.invoke('secret:removeGlobal', id),
+  credScanEnv: () => ipcRenderer.invoke('cred:scanEnv'),
+  credStageValue: (key: string, value: string) => ipcRenderer.invoke('cred:stageValue', key, value)
 }
 
 contextBridge.exposeInMainWorld('api', api)

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 const defCreate = vi.fn()
-vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), pickFolder: async () => null } }))
+vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), credStageValue: async () => ({ ok: true, data: null }) } }))
 
 import { CreateDefinition } from '../../../src/renderer/wizard/CreateDefinition'
 

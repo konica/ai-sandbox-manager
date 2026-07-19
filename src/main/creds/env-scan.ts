@@ -1,11 +1,7 @@
 import { KNOWN_SERVICES } from '@shared/services'
+import type { EnvHit } from '@shared/types'
 
-export interface EnvHit {
-  serviceId: string
-  label: string
-  envVar: string
-  masked: string
-}
+export type { EnvHit }
 
 export function maskValue(v: string): string {
   return v.length <= 6 ? '…' : v.slice(0, 6) + '…'

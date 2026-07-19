@@ -69,6 +69,14 @@ export interface CustomCredentialRef {
 
 export type CredentialRef = ServiceCredentialRef | CustomCredentialRef
 
+/** A host env var found for a known service during import scanning. Value is masked. */
+export interface EnvHit {
+  serviceId: string
+  label: string
+  envVar: string
+  masked: string
+}
+
 /** A reusable secret managed in Settings (sbx `-g`). Metadata only — never the value. */
 export interface GlobalSecretMeta {
   id: string // service id, or a custom slug
