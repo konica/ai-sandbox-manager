@@ -131,7 +131,6 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
               <select aria-label="Service" className="input" value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
                 {KNOWN_SERVICES.map((s) => (<option key={s.id} value={s.id}>{s.label} — {s.envVars.join(' / ')}</option>))}
               </select>
-              {selectedSvc && <p style={hint}>{selectedSvc.domains.join(', ')}</p>}
             </div>
             <div style={{ ...field, flex: '1 1 200px' }}>
               <span style={lbl}>{t('credentials.value')}</span>
@@ -139,6 +138,7 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
             </div>
             <button className="btn btn-primary btn-sm" onClick={addService}>{t('credentials.add')}</button>
           </div>
+          {selectedSvc && <p style={{ ...hint, marginTop: 0, marginBottom: 'var(--space-2)' }}>{selectedSvc.domains.join(', ')}</p>}
         </>
       )}
 
