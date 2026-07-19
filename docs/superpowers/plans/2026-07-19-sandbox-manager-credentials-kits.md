@@ -54,6 +54,40 @@
 
 **This phase is manual and empirical.** It validates the kit + secret mechanism against the real `sbx` on the developer's machine. Its output is a short decision record checked into `docs/superpowers/plans/`. The launch-wiring phase (Phase 5) depends on its answers. Do **not** skip — several mechanism assumptions below are documented-but-unverified.
 
+### ⚠️ SPIKE FINDINGS & VERDICT (run 2026-07-19, macOS, sbx real) — READ BEFORE TASK 4/11
+
+The spike was run end-to-end (scenarios 1 and 2). Verified against real `sbx`:
+
+| Mechanism | Result |
+|---|---|
+| `sbx create claude … --kit <dir>` | ✅ works |
+| kit `environment.proxyManaged` → in-VM env var = `proxy-managed` sentinel | ✅ works |
+| kit `network.allowedDomains` → domain reachable from sandbox | ✅ works |
+| built-in service secret: `printf … \| sbx secret set -g <service>` (stdin) | ✅ works |
+| **kit mixin `serviceAuth` (headerName/valueFormat) header injection for CUSTOM domains** | ❌ **DOES NOT INJECT** |
+| **`sbx secret set-custom --host --env --value` (placeholder substitution)** | ✅ **works** |
+
+**Evidence for the ❌:** with a mixin kit declaring `serviceDomains` + `serviceAuth` for `httpbin.org`/`postman-echo.com`, `sbx policy log` showed those domains as **`forward-bypass`** (TLS tunnelled, NOT intercepted) while a built-in service (`api.anthropic.com`) showed **`forward`** (intercepted). Echo tests confirmed the proxy neither **added** the header (httpbin `/headers` had no `X-Alpha-Key`) nor **overwrote** one the client sent (`X-Beta-Key: PLACEHOLDER` came back unchanged). Only `environment.proxyManaged` took effect (env vars were sentinels).
+
+**Evidence for the ✅ (`set-custom`):** `sbx secret set-custom spike-multi --host postman-echo.com --env GAMMA_KEY --value realsecret-CCC` generated placeholder `sbx-cs-…`; sending `Authorization: Bearer sbx-cs-…` to postman-echo returned `"authorization":"Bearer realsecret-CCC"` — the proxy substituted the placeholder for the real secret in the request header.
+
+**VERDICT — the design changes as follows (supersedes the Goal/Architecture header above for CUSTOM credentials):**
+
+1. **Custom credentials use `sbx secret set-custom`, NOT kit `serviceAuth`.** The proxy swaps a generated placeholder (`sbx-cs-…`) for the real value wherever it appears in an outbound request to a matching `--host`. The env var is set to the placeholder at sandbox **creation** (so the secret must be registered before/at create — global `-g`, or recreate for sandbox scope).
+2. **The generated kit keeps ONLY `network.allowedDomains`** (reachability). Drop `serviceDomains`, `serviceAuth`, `credentials.sources`, `environment.proxyManaged`, and the `0600` host secret files — none are needed, and serviceAuth doesn't inject. (If no other kit content remains, the kit may be replaced entirely by `sbx policy allow network`; keep the kit only if a network-allowlist kit is still preferred.)
+3. **Service credentials are UNCHANGED** — `sbx secret set [-g] <service>` + the base kit inject correctly (`forward` path).
+4. **Custom Secret UI loses Header Name / Value Format.** `set-custom` keys on host + env-var + value only; the agent chooses the header and the proxy substitutes the placeholder. Those two fields are dead under the real mechanism → remove them (pending the designer's updated mockup).
+
+**Code deltas triggered (apply when doing Task 4 / Task 11 — do NOT treat the earlier task text as final):**
+- `buildKitSpec` (Task 4): emit only `network.allowedDomains`; remove the serviceAuth four-block and `secretFiles`.
+- `writeKit` (Task 5): no secret files to write; still writes the allowlist kit + `.gitignore` (or is dropped if we go policy-only).
+- `SbxAdapter`: add `setCustomSecret(host: string[], env: string, value: string, scope)` → `sbx secret set-custom [-g|<sandbox>] --host … --env … --value …`.
+- Data model: `CustomCredentialRef` drops `headers`; keeps `id`, `label`, `envVar`, `domains`, `store`.
+- Renderer `CredentialsStep`: remove Header Name / Value Format inputs from the Custom tab.
+- Task 11: register service creds via `secret set`, custom creds via `set-custom`, both from the main process before opening the terminal; kit (if kept) carries only allowedDomains.
+
+**Open question deferred to the designer:** whether to keep the Custom Secret tab at all, or fold it into a single "add any API key" flow, now that host+env+value is the whole model.
+
 ### Task 0: Validate the kit + secret pipeline
 
 **Files:**
