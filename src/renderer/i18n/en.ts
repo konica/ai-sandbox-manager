@@ -68,16 +68,11 @@ export const en = {
   },
   launch: {
     title: 'Launch “{name}”',
-    subtitle: 'Name the Claude Code session. The sandbox name is optional — leave it blank to auto-generate a unique one, or pick an existing sandbox to reconnect.',
-    sessionLabel: 'Session name',
+    subtitle: 'Start a new sandbox for this definition. A unique sandbox name is generated automatically.',
+    sessionLabel: 'Session name (optional)',
+    sessionPlaceholder: 'e.g. Refactor auth',
     sessionSub: 'Display name for the Claude Code session (claude --name).',
-    sandboxLabel: 'Sandbox name (optional)',
-    sandboxPlaceholder: 'Auto — a unique name is generated',
-    autoHint: 'A unique sandbox name will be generated automatically.',
-    newHint: 'New sandbox “{name}” — it will be created and launched.',
-    existsHint: '“{name}” already exists — its latest agent session will resume.',
-    launchNew: 'Launch new',
-    attachResume: 'Attach & Resume',
+    launch: 'Launch',
     cancel: 'Cancel'
   },
   settings: {

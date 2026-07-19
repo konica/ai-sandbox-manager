@@ -43,23 +43,13 @@ beforeEach(() => {
 })
 
 describe('App launch & lifecycle wiring', () => {
-  it('Launch opens a dialog; entering a fresh sandbox name calls instanceLaunch with name + session', async () => {
+  it('Launch opens a dialog; submitting calls instanceLaunch with the session name (sandbox auto)', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Sandbox name'), { target: { value: 'fresh' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: /launch new/i }))
-    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', 'fresh', 'My Project'))
-  })
-
-  it('Launch dialog offers Attach & Resume when an existing sandbox name is chosen', async () => {
-    render(<App />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
-    const dialog = await screen.findByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Sandbox name'), { target: { value: 'my-project' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: /attach & resume/i }))
-    await waitFor(() => expect(instanceAttach).toHaveBeenCalledWith('my-project'))
-    expect(instanceLaunch).not.toHaveBeenCalled()
+    fireEvent.change(within(dialog).getByLabelText('Session name'), { target: { value: 'Refactor auth' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Launch' }))
+    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', undefined, 'Refactor auth'))
   })
 
   it('surfaces the error message when launch fails', async () => {
@@ -67,8 +57,7 @@ describe('App launch & lifecycle wiring', () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Sandbox name'), { target: { value: 'fresh' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: /launch new/i }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Launch' }))
     await waitFor(() => expect(screen.getByText(/sbx create failed: boom/)).toBeInTheDocument())
   })
 

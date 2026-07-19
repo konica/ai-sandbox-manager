@@ -71,12 +71,12 @@ export default function App(): JSX.Element {
     void loadInstances() // refresh existing sandbox names for the dialog
   }
 
-  async function submitLaunch(definition: Definition, name: string, sessionName: string): Promise<void> {
+  async function submitLaunch(definition: Definition, sessionName: string): Promise<void> {
     setLaunchFor(null)
     setNotice(null)
     setBusyId(definition.id)
     try {
-      const r = await api.instanceLaunch(definition.id, name, sessionName)
+      const r = await api.instanceLaunch(definition.id, undefined, sessionName)
       if (r.ok) {
         setNotice({ kind: 'info', text: t('instances.launched', { name: r.data.name }) })
         setScreen('instances')
@@ -87,12 +87,6 @@ export default function App(): JSX.Element {
     } finally {
       setBusyId(null)
     }
-  }
-
-  function attachExisting(name: string): void {
-    setLaunchFor(null)
-    setScreen('instances')
-    void runAction(api.instanceAttach(name))
   }
   async function runAction(p: Promise<{ ok: boolean; error?: { message: string } }>): Promise<void> {
     const r = await p
@@ -163,9 +157,7 @@ export default function App(): JSX.Element {
       {launchFor && (
         <LaunchDialog
           definition={launchFor}
-          existingNames={instances.map((i) => i.name)}
-          onLaunch={(name, session) => void submitLaunch(launchFor, name, session)}
-          onAttach={attachExisting}
+          onLaunch={(session) => void submitLaunch(launchFor, session)}
           onCancel={() => setLaunchFor(null)}
         />
       )}
