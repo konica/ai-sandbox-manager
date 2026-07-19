@@ -41,7 +41,7 @@ describe('adapter lifecycle', () => {
   it('publishPorts publishes each intent', async () => {
     const { calls, spawn } = recorder()
     await createSbxAdapter(spawn).publishPorts('my-project', spec.ports)
-    expect(calls[0]).toEqual(['ports', 'my-project', '--publish', '3000:8080'])
+    expect(calls[0]).toEqual(['ports', 'my-project', '--publish', '3000:8080/tcp'])
   })
 
   it('stopSandbox and removeSandbox use the right verbs (rm is forced)', async () => {

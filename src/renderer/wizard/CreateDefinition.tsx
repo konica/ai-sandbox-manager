@@ -2,8 +2,9 @@ import { useEffect, useReducer, useState } from 'react'
 import type { Tier, DefinitionSpec } from '@shared/types'
 import { serviceById } from '@shared/services'
 import { api } from '../ipc/client'
-import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, parsePort, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
+import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
 import { CredentialsStep } from './CredentialsStep'
+import { PortsStep } from './PortsStep'
 import { useT } from '../i18n'
 
 const TIERS: { value: Tier; descKey: string }[] = [
@@ -47,8 +48,6 @@ export function CreateDefinition({
   const isEdit = initial !== undefined
   const [draft, dispatch] = useReducer(draftReducer, initial ? draftFromSpec(initial) : initialDraft)
   const [domainInput, setDomainInput] = useState('')
-  const [portInput, setPortInput] = useState('')
-  const [portLabel, setPortLabel] = useState('')
   const [folderInput, setFolderInput] = useState('')
   const [envHits, setEnvHits] = useState<EnvHit[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -180,16 +179,14 @@ export function CreateDefinition({
           )}
 
           {draft.step === 4 && (
-            <>
-              <label>{t('wizard.steps.ports')}</label>
-              <p className="section-desc" style={{ marginTop: 0 }}>{t('wizard.portsHelp')}</p>
-              <div style={row}>
-                <input aria-label="Port mapping" className="input input-mono" placeholder={t('wizard.portPlaceholder')} value={portInput} onChange={(e) => setPortInput(e.target.value)} />
-                <input aria-label="Port label" className="input" placeholder={t('wizard.portLabelPlaceholder')} value={portLabel} onChange={(e) => setPortLabel(e.target.value)} />
-                <button className="btn btn-secondary btn-sm" onClick={() => { const p = parsePort(portInput); if (p) { dispatch({ type: 'addPort', hostPort: p.hostPort, containerPort: p.containerPort, label: portLabel.trim() }); setPortInput(''); setPortLabel('') } }}>{t('wizard.addPort')}</button>
-              </div>
-              <div>{draft.ports.map((p, i) => (<Chip key={i} text={`${p.hostPort}:${p.containerPort}${p.label ? ` ${p.label}` : ''}`} onRemove={() => dispatch({ type: 'removePort', index: i })} />))}</div>
-            </>
+            <PortsStep
+              ports={draft.ports}
+              hostServices={draft.hostServices}
+              onAddPort={(hostPort, containerPort, protocol, label) => dispatch({ type: 'addPort', hostPort, containerPort, protocol, label })}
+              onRemovePort={(index) => dispatch({ type: 'removePort', index })}
+              onAddHostService={(hostPort, label) => dispatch({ type: 'addHostService', hostPort, label })}
+              onRemoveHostService={(index) => dispatch({ type: 'removeHostService', index })}
+            />
           )}
 
           {draft.step === 5 && (
