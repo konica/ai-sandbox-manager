@@ -520,7 +520,12 @@ git commit -m "feat(detail): Ports tab — live forwards + editable host service
 
 ---
 
-## Phase 4 — Monitoring tab (policy log)
+## Phase 4 — Monitoring tab (policy log) + live allow/deny domains
+
+> **Added by request:** the detail screen also lets the user **allow or deny a network domain in real time**, dual-written to the definition's `domains`. Same mechanism as host services — `sbx policy allow network --sandbox <name> <resource>` / `sbx policy rm network --sandbox <name> --resource <resource>` — so Task 4's adapter is generalized to `allowNetwork(name, resource)` / `removeNetwork(name, resource)` (host-service = `localhost:<port>`, domain = the host). Persist via a new `applyDomainEdit(store, name, domain, op)` mutating `spec.domains`.
+>
+> **UX:** on the **Monitoring** tab, each **blocked** row gets an **Allow** action (→ `allowNetwork(name, host)` + `applyDomainEdit(add)`), so you can unblock a domain the sandbox just tried to reach. The **Network Policy** card (Terminals sidebar) gains an add-domain form + a ✕ deny on each domain tag (→ `removeNetwork` + `applyDomainEdit(remove)`). Unlinked instances (no definition): live-only, no persist.
+
 
 > **Depends on Phase 0 spike** (Step 2). If `sbx policy log` has no `--json`, the parser consumes the **text table** (columns SANDBOX / TYPE / HOST / PROXY / RULE / REASON / LAST SEEN / COUNT + an "Allowed requests:" section). If there's no stream mode, the tab **polls** on an interval.
 
