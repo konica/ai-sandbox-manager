@@ -21,6 +21,7 @@ function spec(over: Partial<DefinitionSpec> = {}): DefinitionSpec {
     mounts: [{ hostPath: '/home/u/proj', mode: 'direct', isPrimary: true }],
     domains: [],
     ports: [],
+    hostServices: [],
     credentials: [],
     ...over
   }
@@ -107,7 +108,7 @@ describe('specToCreateArgs', () => {
 
 describe('portIntentToPublishSpec', () => {
   it('formats host:container', () => {
-    expect(portIntentToPublishSpec({ hostPort: 3000, containerPort: 8080, label: 'web' })).toBe('3000:8080')
+    expect(portIntentToPublishSpec({ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' })).toBe('3000:8080')
   })
 })
 
@@ -136,7 +137,7 @@ describe('launchCommand', () => {
     expect(cmd).toMatch(/&& sbx run --name my-project$/)
   })
   it('adds a ports step per intent', () => {
-    const cmd = launchCommand(spec({ ports: [{ hostPort: 3000, containerPort: 8080, label: 'web' }] }))
+    const cmd = launchCommand(spec({ ports: [{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }] }))
     expect(cmd).toContain('sbx ports my-project --publish 3000:8080')
     expect(cmd).toMatch(/&& sbx run --name my-project$/)
   })

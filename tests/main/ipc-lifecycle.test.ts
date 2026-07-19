@@ -5,7 +5,7 @@ import type { DefinitionSpec } from '../../src/shared/types'
 const spec: DefinitionSpec = {
   definition: { id: 'd1', name: 'My Project', description: '', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' },
   mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
-  domains: [], ports: [], credentials: []
+  domains: [], ports: [], hostServices: [], credentials: []
 }
 
 function deps() {
@@ -68,6 +68,7 @@ describe('instance lifecycle IPC', () => {
     d.store.listInstanceMeta.mockReturnValue([{ sbxName: 'my-project', definitionId: 'd1', createdByApp: true, createdAt: 't' }] as never)
     d.store.getDefinitionSpec.mockReturnValue({
       ...spec,
+      hostServices: [],
       credentials: [
         { kind: 'service', serviceId: 'anthropic', envVar: 'ANTHROPIC_API_KEY', store: 'sbx' },
         { kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' }

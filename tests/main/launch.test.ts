@@ -6,8 +6,8 @@ const spec: DefinitionSpec = {
   definition: { id: 'd1', name: 'My Project', description: '', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' },
   mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
   domains: ['api.example.com'],
-  ports: [{ hostPort: 3000, containerPort: 8080, label: 'web' }],
-  credentials: []
+  ports: [{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }],
+  hostServices: [], credentials: []
 }
 
 function deps(getSpec: () => DefinitionSpec | undefined, live: string[] = [], metaNames: string[] = []) {
@@ -51,7 +51,7 @@ describe('launchDefinition', () => {
   it('registers staged secrets sandbox-scoped, BEFORE opening the terminal, and never in the command', async () => {
     const credSpec: DefinitionSpec = {
       ...spec,
-      credentials: [
+      hostServices: [], credentials: [
         { kind: 'service', serviceId: 'anthropic', envVar: 'ANTHROPIC_API_KEY', store: 'sbx' },
         { kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' }
       ]
@@ -76,7 +76,7 @@ describe('launchDefinition', () => {
   })
 
   it('skips a credential with no staged value and logs a clear warning', async () => {
-    const credSpec: DefinitionSpec = { ...spec, credentials: [{ kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', store: 'sbx' }] }
+    const credSpec: DefinitionSpec = { ...spec, hostServices: [], credentials: [{ kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', store: 'sbx' }] }
     const d = deps(() => credSpec) // nothing staged
     await launchDefinition(d as never, 'd1')
     expect(d.setSecret).not.toHaveBeenCalled()

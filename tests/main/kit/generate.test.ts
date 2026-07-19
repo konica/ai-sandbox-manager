@@ -6,7 +6,7 @@ function spec(creds: DefinitionSpec['credentials'], tier: DefinitionSpec['defini
   return {
     definition: { id: 'd1', name: 'Proj Alpha', description: '', baseImage: 'img:tag', tier, createdAt: '2026-07-19T00:00:00.000Z' },
     mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
-    domains, ports: [], credentials: creds
+    domains, ports: [], hostServices: [], credentials: creds
   }
 }
 
@@ -21,7 +21,7 @@ describe('buildKitSpec', () => {
     expect(k.specYaml).not.toContain('serviceAuth')
     expect(k.specYaml).not.toContain('serviceDomains')
     expect(k.specYaml).not.toContain('proxyManaged')
-    expect(k.specYaml).not.toContain('credentials:')
+    expect(k.specYaml).not.toContain('hostServices: [], credentials:')
     expect(k.specYaml).toContain('api.acme.com') // custom host still allowlisted for reachability
     expect(k.secretFiles).toEqual([])
   })
