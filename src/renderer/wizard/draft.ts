@@ -7,6 +7,7 @@ export interface DraftServiceCred {
   serviceId: string
   envVar: string
   value: string
+  fromEnv?: boolean // imported from the host env → value is fetched host-side at submit, not typed here
 }
 export interface DraftCustomCred {
   kind: 'custom'
@@ -82,7 +83,7 @@ export type DraftAction =
   | { type: 'removeDomain'; host: string }
   | { type: 'addPort'; hostPort: number; containerPort: number; label: string }
   | { type: 'removePort'; index: number }
-  | { type: 'addServiceCred'; serviceId: string; envVar: string; value: string }
+  | { type: 'addServiceCred'; serviceId: string; envVar: string; value: string; fromEnv?: boolean }
   | { type: 'addCustomCred'; cred: DraftCustomCred }
   | { type: 'removeCredential'; index: number }
 
@@ -101,7 +102,7 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'removeDomain': return { ...d, domains: d.domains.filter((h) => h !== a.host) }
     case 'addPort': return { ...d, ports: [...d.ports, { hostPort: a.hostPort, containerPort: a.containerPort, label: a.label }] }
     case 'removePort': return { ...d, ports: d.ports.filter((_, i) => i !== a.index) }
-    case 'addServiceCred': return { ...d, credentials: [...d.credentials, { kind: 'service', serviceId: a.serviceId, envVar: a.envVar, value: a.value }] }
+    case 'addServiceCred': return { ...d, credentials: [...d.credentials, { kind: 'service', serviceId: a.serviceId, envVar: a.envVar, value: a.value, fromEnv: a.fromEnv }] }
     case 'addCustomCred': return { ...d, credentials: [...d.credentials, a.cred] }
     case 'removeCredential': return { ...d, credentials: d.credentials.filter((_, i) => i !== a.index) }
     default: return d

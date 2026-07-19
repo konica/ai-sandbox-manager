@@ -18,7 +18,8 @@ const api = {
   secretSetGlobal: (serviceId: string, value: string) => ipcRenderer.invoke('secret:setGlobal', serviceId, value),
   secretRemoveGlobal: (id: string) => ipcRenderer.invoke('secret:removeGlobal', id),
   credScanEnv: () => ipcRenderer.invoke('cred:scanEnv'),
-  credStageValue: (key: string, value: string) => ipcRenderer.invoke('cred:stageValue', key, value)
+  credStageValue: (key: string, value: string) => ipcRenderer.invoke('cred:stageValue', key, value),
+  credStageFromEnv: (key: string, serviceId: string) => ipcRenderer.invoke('cred:stageFromEnv', key, serviceId)
 }
 
 contextBridge.exposeInMainWorld('api', api)

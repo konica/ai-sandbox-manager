@@ -103,6 +103,7 @@ export const en = {
     envVar: 'Environment Variable',
     wildcardHint: 'Supports wildcards (*.example.com, **.example.com). The proxy substitutes your value wherever the environment variable appears in requests to the host — the agent never sees the real secret.',
     none: 'No credentials added.',
+    fromEnv: 'from environment ↩',
     edit: 'Edit',
     importTitle: 'Import from environment variables',
     importSubtitle: 'Scan your shell for API keys already set as ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.',

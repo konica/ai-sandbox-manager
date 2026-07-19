@@ -173,7 +173,7 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
             <div key={i} style={credRow}>
               <span>
                 <strong style={{ fontSize: 13 }}>{serviceById(c.serviceId)?.label ?? c.serviceId}</strong>
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{c.envVar} = {mask(c.value)}</span>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{c.envVar} = {!c.value.trim() && c.fromEnv ? t('credentials.fromEnv') : mask(c.value)}</span>
               </span>
               <span style={{ display: 'flex', gap: 'var(--space-3)', flexShrink: 0 }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => editService(c, i)}>{t('credentials.edit')}</button>

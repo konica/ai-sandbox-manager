@@ -18,6 +18,7 @@ interface Api {
   secretRemoveGlobal(id: string): Promise<Result<null>>
   credScanEnv(): Promise<Result<EnvHit[]>>
   credStageValue(key: string, value: string): Promise<Result<null>>
+  credStageFromEnv(key: string, serviceId: string): Promise<Result<null>>
 }
 
 export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
@@ -37,5 +38,6 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   secretSetGlobal: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   secretRemoveGlobal: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   credScanEnv: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
-  credStageValue: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } })
+  credStageValue: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  credStageFromEnv: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } })
 }

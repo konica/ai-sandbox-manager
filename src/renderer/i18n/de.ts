@@ -105,6 +105,7 @@ export const de: Dict = {
     envVar: 'Umgebungsvariable',
     wildcardHint: 'Unterstützt Platzhalter (*.example.com, **.example.com). Der Proxy ersetzt Ihren Wert überall dort, wo die Umgebungsvariable in Anfragen an den Host erscheint — der Agent sieht das echte Geheimnis nie.',
     none: 'Keine Anmeldedaten hinzugefügt.',
+    fromEnv: 'aus Umgebung ↩',
     edit: 'Bearbeiten',
     importTitle: 'Aus Umgebungsvariablen importieren',
     importSubtitle: 'Durchsuchen Sie Ihre Shell nach bereits gesetzten API-Schlüsseln wie ANTHROPIC_API_KEY, OPENAI_API_KEY usw.',

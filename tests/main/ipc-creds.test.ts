@@ -30,4 +30,16 @@ describe('credential IPC handlers', () => {
     expect(scan.ok && scan.data.some((x) => x.serviceId === 'anthropic')).toBe(true)
     expect((await h['cred:stageValue']('service:openai', 'v')).ok).toBe(true)
   })
+  it('stages an imported credential\'s REAL value read from the host env', async () => {
+    const d = deps()
+    const h = buildHandlers(d)
+    const r = await h['cred:stageFromEnv']('d1:service:anthropic', 'anthropic')
+    expect(r.ok).toBe(true)
+    expect((d as { creds: { stageValue: ReturnType<typeof vi.fn> } }).creds.stageValue).toHaveBeenCalledWith('d1:service:anthropic', 'sk-ant-xyz')
+  })
+  it('fails clearly when the imported service has no env value', async () => {
+    const h = buildHandlers(deps())
+    const r = await h['cred:stageFromEnv']('d1:service:openai', 'openai') // not in the fake env
+    expect(r.ok).toBe(false)
+  })
 })

@@ -67,13 +67,20 @@ export function CreateDefinition({
       : toSpec(draft, createId(), now())
     const res = initial ? await api.defUpdate(spec) : await api.defCreate(spec)
     if (!res.ok) { setError(res.error.message); return }
-    // Stage each entered secret value into the host vault, keyed by definition so it
-    // survives relaunches and never collides across definitions (never persisted to the spec).
+    // Stage each secret value into the host vault, keyed by definition so it survives
+    // relaunches and never collides across definitions (never persisted to the spec).
+    // Typed values go straight through; imported service creds have their real value
+    // fetched host-side (the renderer only ever saw a mask).
     for (const c of draft.credentials) {
-      if (!c.value.trim()) continue
       const sub = c.kind === 'service' ? `service:${c.serviceId}` : `custom:${c.id}`
-      const staged = await api.credStageValue(`${spec.definition.id}:${sub}`, c.value)
-      if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return }
+      const key = `${spec.definition.id}:${sub}`
+      if (c.value.trim()) {
+        const staged = await api.credStageValue(key, c.value)
+        if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return }
+      } else if (c.kind === 'service' && c.fromEnv) {
+        const staged = await api.credStageFromEnv(key, c.serviceId)
+        if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return }
+      }
     }
     onDone()
   }
@@ -195,7 +202,7 @@ export function CreateDefinition({
               onImport={(serviceId) => {
                 const svc = serviceById(serviceId)
                 if (svc && !draft.credentials.some((c) => c.kind === 'service' && c.serviceId === serviceId))
-                  dispatch({ type: 'addServiceCred', serviceId, envVar: svc.envVars[0], value: '' })
+                  dispatch({ type: 'addServiceCred', serviceId, envVar: svc.envVars[0], value: '', fromEnv: true })
               }}
             />
           )}

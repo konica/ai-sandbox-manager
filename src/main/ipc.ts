@@ -7,6 +7,7 @@ import { reconcile } from './reconciler'
 import { launchDefinition } from './launch'
 import { agentAttachCommand, hostShellCommand } from './sbx/translate'
 import { scanEnv } from './creds/env-scan'
+import { serviceById } from '@shared/services'
 import type { CredentialManager } from './creds/manager'
 import type { Logger } from './log'
 
@@ -52,6 +53,7 @@ export function buildHandlers(deps: Deps): {
   'secret:removeGlobal': (id: string) => Promise<Result<null>>
   'cred:scanEnv': () => Promise<Result<EnvHit[]>>
   'cred:stageValue': (key: string, value: string) => Promise<Result<null>>
+  'cred:stageFromEnv': (key: string, serviceId: string) => Promise<Result<null>>
 } {
   return {
     'prereq:check': () => wrap(() => checkPrereqs(deps.probes)),
@@ -105,7 +107,17 @@ export function buildHandlers(deps: Deps): {
     'secret:setGlobal': (serviceId, value) => wrap(async () => requireCreds(deps).setGlobalService(serviceId, value)),
     'secret:removeGlobal': (id) => wrap(async () => { await requireCreds(deps).removeGlobalSecret(id); return null }),
     'cred:scanEnv': () => wrap(async () => scanEnv((deps.readLoginEnv ?? (() => ({})))())),
-    'cred:stageValue': (key, value) => wrap(async () => { requireCreds(deps).stageValue(key, value); return null })
+    'cred:stageValue': (key, value) => wrap(async () => { requireCreds(deps).stageValue(key, value); return null }),
+    // Stash the REAL value of an imported service credential — read from the host env
+    // here in the main process, so the secret is never sent to the renderer.
+    'cred:stageFromEnv': (key, serviceId) => wrap(async () => {
+      const svc = serviceById(serviceId)
+      const env: Record<string, string | undefined> = deps.readLoginEnv ? deps.readLoginEnv() : {}
+      const envVar = svc?.envVars.find((v) => (env[v] ?? '').trim().length > 0)
+      if (!svc || !envVar) throw new Error(`No value for "${serviceId}" found in your environment`)
+      requireCreds(deps).stageValue(key, env[envVar]!.trim())
+      return null
+    })
   }
 }
 
@@ -127,6 +139,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('secret:removeGlobal', (_e, id: string) => handlers['secret:removeGlobal'](id))
   ipcMain.handle('cred:scanEnv', () => handlers['cred:scanEnv']())
   ipcMain.handle('cred:stageValue', (_e, key: string, value: string) => handlers['cred:stageValue'](key, value))
+  ipcMain.handle('cred:stageFromEnv', (_e, key: string, serviceId: string) => handlers['cred:stageFromEnv'](key, serviceId))
   ipcMain.handle('dialog:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }
