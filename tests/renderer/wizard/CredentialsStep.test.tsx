@@ -19,7 +19,7 @@ describe('CredentialsStep', () => {
   })
   it('switches to the Custom tab and adds a custom credential with a header', () => {
     const p = setup()
-    fireEvent.click(screen.getByRole('tab', { name: 'Custom' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
     fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'api.acme.com' } })
     fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'ACME_KEY' } })
     fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v' } })

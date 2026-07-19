@@ -14,6 +14,16 @@ const TIERS: { value: Tier; descKey: string }[] = [
 
 type EnvHit = { serviceId: string; label: string; envVar: string; masked: string }
 
+// Review-step summary, e.g. "Anthropic, GitHub + 1 custom". Null when empty.
+function credentialsSummary(creds: { kind: 'service' | 'custom'; serviceId?: string }[]): string | null {
+  if (creds.length === 0) return null
+  const svcNames = creds.filter((c) => c.kind === 'service').map((c) => serviceById(c.serviceId ?? '')?.label ?? c.serviceId ?? '')
+  const customCount = creds.filter((c) => c.kind === 'custom').length
+  const parts = [...svcNames]
+  if (customCount > 0) parts.push(`${customCount} custom`)
+  return parts.join(' + ')
+}
+
 function Chip({ text, onRemove }: { text: string; onRemove: () => void }): JSX.Element {
   return (
     <span className="tag">{text}<button className="tag-remove" onClick={onRemove} aria-label={`Remove ${text}`}>✕</button></span>
@@ -199,7 +209,7 @@ export function CreateDefinition({
                   <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewFolders')}</td><td>{draft.extraFolders.length}</td></tr>
                   <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewNetwork')}</td><td>{t(`tier.${draft.tier}`)} · {draft.domains.length}</td></tr>
                   <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewPorts')}</td><td>{draft.ports.length}</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewCredentials')}</td><td>{draft.credentials.length}</td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewCredentials')}</td><td>{credentialsSummary(draft.credentials) ?? '—'}</td></tr>
                 </tbody>
               </table>
               {error && <p style={{ color: 'var(--danger)' }}>{t('wizard.error')}: {error}</p>}

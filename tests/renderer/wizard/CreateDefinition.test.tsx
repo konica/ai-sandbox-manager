@@ -46,6 +46,7 @@ describe('CreateDefinition wizard', () => {
     fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'sk-ant-xyz' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     fireEvent.click(screen.getByRole('button', { name: /next/i })) // 5 -> 6 review
+    expect(screen.getByText(/Anthropic/)).toBeInTheDocument() // review summarises credentials by name
     fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
     await waitFor(() => expect(credStageValue).toHaveBeenCalledWith('service:anthropic', 'sk-ant-xyz'))
   })
