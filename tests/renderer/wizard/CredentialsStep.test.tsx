@@ -43,6 +43,20 @@ describe('CredentialsStep', () => {
     expect(p.onImport).toHaveBeenCalledWith('anthropic', expect.any(String))
   })
 
+  it('shows each tab only its own added list (service list not shown on the Custom tab)', () => {
+    setup({ credentials: [
+      { kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', value: '' },
+      { kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], value: '' }
+    ] })
+    // default (Service) tab: service list shown, custom list hidden
+    expect(screen.getByText('Added service credentials')).toBeInTheDocument()
+    expect(screen.queryByText('Added custom secrets')).toBeNull()
+    // switch to Custom tab: custom list shown, service list hidden
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    expect(screen.getByText('Added custom secrets')).toBeInTheDocument()
+    expect(screen.queryByText('Added service credentials')).toBeNull()
+  })
+
   it('shows an empty-state when no env vars are detected', () => {
     setup({ envHits: [] })
     fireEvent.click(screen.getByRole('button', { name: /import from environment/i }))

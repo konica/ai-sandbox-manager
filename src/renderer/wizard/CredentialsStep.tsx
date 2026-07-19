@@ -150,6 +150,21 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
             <button className="btn btn-primary btn-sm" onClick={addService}>{t('credentials.add')}</button>
           </div>
           {selectedSvc && <p style={{ ...hint, marginTop: 0, marginBottom: 'var(--space-2)' }}>{selectedSvc.domains.join(', ')}</p>}
+          <p style={sectionLbl}>{t('credentials.addedService')}</p>
+          {services.length === 0
+            ? <p style={hint}>{t('credentials.none')}</p>
+            : services.map(({ c, i }) => (
+              <div key={i} style={credRow}>
+                <span>
+                  <strong style={{ fontSize: 13 }}>{serviceById(c.serviceId)?.label ?? c.serviceId}</strong>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{c.envVar} = {!c.value.trim() && c.fromEnv ? t('credentials.fromEnv') : mask(c.value)}</span>
+                </span>
+                <span style={{ display: 'flex', gap: 'var(--space-3)', flexShrink: 0 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => editService(c, i)}>{t('credentials.edit')}</button>
+                  <button className="btn btn-ghost btn-sm" aria-label="Remove" style={{ color: 'var(--danger)' }} onClick={() => onRemove(i)}>{t('credentials.remove')}</button>
+                </span>
+              </div>
+            ))}
         </>
       )}
 
@@ -172,44 +187,21 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
             <button className="btn btn-primary btn-sm" onClick={addCustom}>{t('credentials.add')}</button>
           </div>
           <p style={hint}>{t('credentials.wildcardHint')}</p>
-        </>
-      )}
-
-      {credentials.length === 0 && <p style={hint}>{t('credentials.none')}</p>}
-
-      {services.length > 0 && (
-        <>
-          <p style={sectionLbl}>{t('credentials.addedService')}</p>
-          {services.map(({ c, i }) => (
-            <div key={i} style={credRow}>
-              <span>
-                <strong style={{ fontSize: 13 }}>{serviceById(c.serviceId)?.label ?? c.serviceId}</strong>
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{c.envVar} = {!c.value.trim() && c.fromEnv ? t('credentials.fromEnv') : mask(c.value)}</span>
-              </span>
-              <span style={{ display: 'flex', gap: 'var(--space-3)', flexShrink: 0 }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => editService(c, i)}>{t('credentials.edit')}</button>
-                <button className="btn btn-ghost btn-sm" aria-label="Remove" style={{ color: 'var(--danger)' }} onClick={() => onRemove(i)}>{t('credentials.remove')}</button>
-              </span>
-            </div>
-          ))}
-        </>
-      )}
-
-      {customs.length > 0 && (
-        <>
           <p style={sectionLbl}>{t('credentials.addedCustom')}</p>
-          {customs.map(({ c, i }) => (
-            <div key={i} style={credRow}>
-              <span>
-                <strong style={{ fontSize: 13 }}>{c.domains.join(', ')}</strong>
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{c.envVar} = {mask(c.value)}</span>
-              </span>
-              <span style={{ display: 'flex', gap: 'var(--space-3)', flexShrink: 0 }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => editCustom(c, i)}>{t('credentials.edit')}</button>
-                <button className="btn btn-ghost btn-sm" aria-label="Remove" style={{ color: 'var(--danger)' }} onClick={() => onRemove(i)}>{t('credentials.remove')}</button>
-              </span>
-            </div>
-          ))}
+          {customs.length === 0
+            ? <p style={hint}>{t('credentials.none')}</p>
+            : customs.map(({ c, i }) => (
+              <div key={i} style={credRow}>
+                <span>
+                  <strong style={{ fontSize: 13 }}>{c.domains.join(', ')}</strong>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{c.envVar} = {mask(c.value)}</span>
+                </span>
+                <span style={{ display: 'flex', gap: 'var(--space-3)', flexShrink: 0 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => editCustom(c, i)}>{t('credentials.edit')}</button>
+                  <button className="btn btn-ghost btn-sm" aria-label="Remove" style={{ color: 'var(--danger)' }} onClick={() => onRemove(i)}>{t('credentials.remove')}</button>
+                </span>
+              </div>
+            ))}
         </>
       )}
 
