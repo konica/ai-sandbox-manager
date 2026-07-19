@@ -12,7 +12,9 @@ export const en = {
     next: 'Next',
     cancel: 'Cancel',
     browse: 'Browse…',
-    createSandbox: 'Create Sandbox'
+    createSandbox: 'Create Sandbox',
+    editSandbox: 'Edit Sandbox',
+    save: 'Save Changes'
   },
   prereq: {
     title: 'System Prerequisites',
@@ -32,7 +34,11 @@ export const en = {
     colName: 'Name',
     colBase: 'Base Image',
     colNetwork: 'Network',
-    colCreated: 'Created'
+    colCreated: 'Created',
+    colActions: 'Actions',
+    launch: 'Launch',
+    launching: 'Launching…',
+    edit: 'Edit'
   },
   instances: {
     title: 'Instances',
@@ -44,7 +50,30 @@ export const en = {
     colWorkspace: 'Workspace',
     colAgent: 'Agent',
     colNetwork: 'Network',
-    colPorts: 'Ports'
+    colPorts: 'Ports',
+    colActions: 'Actions',
+    attach: 'Attach',
+    shell: 'Shell',
+    stop: 'Stop',
+    remove: 'Remove',
+    stopTitle: 'Stop sandbox?',
+    stopBody: 'This stops the running sandbox “{name}”. You can start it again later with Attach.',
+    confirmStop: 'Stop',
+    removeTitle: 'Remove sandbox?',
+    removeBody: 'This permanently removes “{name}”: its container, Git worktrees, and sandbox state. This cannot be undone.',
+    confirmRemove: 'Remove',
+    cancel: 'Cancel',
+    launched: 'Launched “{name}” — a terminal is opening.',
+    actionFailed: 'Action failed: {message}'
+  },
+  launch: {
+    title: 'Launch “{name}”',
+    subtitle: 'Start a new sandbox for this definition. A unique sandbox name is generated automatically.',
+    sessionLabel: 'Session name (optional)',
+    sessionPlaceholder: 'e.g. Refactor auth',
+    sessionSub: 'Display name for the Claude Code session (claude --name).',
+    launch: 'Launch',
+    cancel: 'Cancel'
   },
   settings: {
     title: 'Settings',
@@ -55,6 +84,46 @@ export const en = {
     credStorageValue: 'OS keychain, with an encrypted fallback',
     agent: 'Agent',
     agentValue: 'Claude Code'
+  },
+  credentials: {
+    subtitle: 'Secrets never enter the sandbox — the host-side proxy injects them at runtime. Stored in your OS keychain (with encrypted fallback).',
+    tabService: 'Service Credentials',
+    tabCustom: 'Custom Secret',
+    tabRegistry: 'Registry Credential',
+    registrySoon: 'Coming soon',
+    serviceHint: 'The proxy injects API keys into requests to the matching service domain. Store a value on the host — the sandbox sees only proxy-managed.',
+    service: 'Service',
+    value: 'Value',
+    add: 'Add',
+    remove: 'Remove',
+    addedService: 'Added service credentials',
+    addedCustom: 'Added custom secrets',
+    customHint: "For credentials that don't fit the service model — the proxy matches on domain(s) and injects into a request header. The agent sees a placeholder value.",
+    host: 'Host / Domain',
+    envVar: 'Environment Variable',
+    wildcardHint: 'Supports wildcards (*.example.com, **.example.com). The proxy substitutes your value wherever the environment variable appears in requests to the host — the agent never sees the real secret.',
+    none: 'No credentials added.',
+    fromEnv: 'from environment ↩',
+    edit: 'Edit',
+    importTitle: 'Import from environment variables',
+    importSubtitle: 'Scan your shell for API keys already set as ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.',
+    importScope: 'Import scope',
+    importSelected: 'Import Selected',
+    importCancel: 'Cancel',
+    importNone: 'No API keys detected in your current shell environment.',
+    selected: 'selected',
+    scopeSandbox: 'This sandbox',
+    scopeGlobal: 'Global (all sandboxes)',
+    import: 'Import',
+    securityLabel: 'Security:',
+    securityNote: 'Service credentials are proxy-injected — the real value never enters the VM. Stored in your OS keychain (macOS Keychain / GNOME Keyring / Windows Credential Manager) with an encrypted file fallback on headless Linux.'
+  },
+  secrets: {
+    title: 'Global secrets',
+    subtitle: 'Reusable API keys stored in your OS keychain (via sbx -g). Applied when a sandbox is created.',
+    add: 'Add',
+    remove: 'Remove',
+    none: 'No global secrets yet.'
   },
   wizard: {
     stepOf: 'Step {n} of {total}',
@@ -98,7 +167,8 @@ export const en = {
     reviewNetwork: 'Network',
     reviewPorts: 'Ports',
     reviewCredentials: 'Credentials',
-    error: 'Error'
+    error: 'Error',
+    stageFailed: 'Definition saved, but a credential value could not be stored: {message}'
   },
   tier: { open: 'Open', balanced: 'Balanced', locked: 'Locked Down', custom: 'Custom' },
   status: { running: 'Running', stopped: 'Stopped', error: 'Error', unknown: 'Unknown' }

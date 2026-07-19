@@ -14,7 +14,9 @@ export const de: Dict = {
     next: 'Weiter',
     cancel: 'Abbrechen',
     browse: 'Durchsuchen…',
-    createSandbox: 'Sandbox erstellen'
+    createSandbox: 'Sandbox erstellen',
+    editSandbox: 'Sandbox bearbeiten',
+    save: 'Änderungen speichern'
   },
   prereq: {
     title: 'Systemvoraussetzungen',
@@ -34,7 +36,11 @@ export const de: Dict = {
     colName: 'Name',
     colBase: 'Basis-Image',
     colNetwork: 'Netzwerk',
-    colCreated: 'Erstellt'
+    colCreated: 'Erstellt',
+    colActions: 'Aktionen',
+    launch: 'Starten',
+    launching: 'Wird gestartet…',
+    edit: 'Bearbeiten'
   },
   instances: {
     title: 'Instanzen',
@@ -46,7 +52,30 @@ export const de: Dict = {
     colWorkspace: 'Arbeitsverzeichnis',
     colAgent: 'Agent',
     colNetwork: 'Netzwerk',
-    colPorts: 'Ports'
+    colPorts: 'Ports',
+    colActions: 'Aktionen',
+    attach: 'Verbinden',
+    shell: 'Shell',
+    stop: 'Stoppen',
+    remove: 'Entfernen',
+    stopTitle: 'Sandbox stoppen?',
+    stopBody: 'Stoppt die laufende Sandbox „{name}“. Sie können sie später mit „Verbinden“ erneut starten.',
+    confirmStop: 'Stoppen',
+    removeTitle: 'Sandbox entfernen?',
+    removeBody: 'Entfernt „{name}“ dauerhaft: Container, Git-Worktrees und Sandbox-Status. Dies kann nicht rückgängig gemacht werden.',
+    confirmRemove: 'Entfernen',
+    cancel: 'Abbrechen',
+    launched: '„{name}“ gestartet — ein Terminal wird geöffnet.',
+    actionFailed: 'Aktion fehlgeschlagen: {message}'
+  },
+  launch: {
+    title: '„{name}“ starten',
+    subtitle: 'Starten Sie eine neue Sandbox für diese Definition. Ein eindeutiger Sandbox-Name wird automatisch erzeugt.',
+    sessionLabel: 'Session-Name (optional)',
+    sessionPlaceholder: 'z. B. Auth überarbeiten',
+    sessionSub: 'Anzeigename für die Claude-Code-Session (claude --name).',
+    launch: 'Starten',
+    cancel: 'Abbrechen'
   },
   settings: {
     title: 'Einstellungen',
@@ -57,6 +86,46 @@ export const de: Dict = {
     credStorageValue: 'Betriebssystem-Schlüsselbund, mit verschlüsseltem Fallback',
     agent: 'Agent',
     agentValue: 'Claude Code'
+  },
+  credentials: {
+    subtitle: 'Geheimnisse gelangen nie in die Sandbox — der Host-seitige Proxy fügt sie zur Laufzeit ein. Gespeichert im Betriebssystem-Schlüsselbund (mit verschlüsseltem Fallback).',
+    tabService: 'Dienst-Anmeldedaten',
+    tabCustom: 'Benutzerdefiniertes Geheimnis',
+    tabRegistry: 'Registry-Anmeldedaten',
+    registrySoon: 'Demnächst',
+    serviceHint: 'Der Proxy fügt API-Schlüssel in Anfragen an die passende Dienst-Domäne ein. Speichern Sie einen Wert auf dem Host — die Sandbox sieht nur proxy-managed.',
+    service: 'Dienst',
+    value: 'Wert',
+    add: 'Hinzufügen',
+    remove: 'Entfernen',
+    addedService: 'Hinzugefügte Dienst-Anmeldedaten',
+    addedCustom: 'Hinzugefügte benutzerdefinierte Geheimnisse',
+    customHint: 'Für Anmeldedaten, die nicht zum Dienstmodell passen — der Proxy prüft die Domäne(n) und fügt sie in einen Anfrage-Header ein. Der Agent sieht einen Platzhalterwert.',
+    host: 'Host / Domäne',
+    envVar: 'Umgebungsvariable',
+    wildcardHint: 'Unterstützt Platzhalter (*.example.com, **.example.com). Der Proxy ersetzt Ihren Wert überall dort, wo die Umgebungsvariable in Anfragen an den Host erscheint — der Agent sieht das echte Geheimnis nie.',
+    none: 'Keine Anmeldedaten hinzugefügt.',
+    fromEnv: 'aus Umgebung ↩',
+    edit: 'Bearbeiten',
+    importTitle: 'Aus Umgebungsvariablen importieren',
+    importSubtitle: 'Durchsuchen Sie Ihre Shell nach bereits gesetzten API-Schlüsseln wie ANTHROPIC_API_KEY, OPENAI_API_KEY usw.',
+    importScope: 'Import-Bereich',
+    importSelected: 'Ausgewählte importieren',
+    importCancel: 'Abbrechen',
+    importNone: 'Keine API-Schlüssel in Ihrer aktuellen Shell-Umgebung gefunden.',
+    selected: 'ausgewählt',
+    scopeSandbox: 'Diese Sandbox',
+    scopeGlobal: 'Global (alle Sandboxes)',
+    import: 'Importieren',
+    securityLabel: 'Sicherheit:',
+    securityNote: 'Dienst-Anmeldedaten werden per Proxy eingefügt — der echte Wert gelangt nie in die VM. Gespeichert im Betriebssystem-Schlüsselbund (macOS Keychain / GNOME Keyring / Windows Credential Manager) mit verschlüsseltem Datei-Fallback unter Headless-Linux.'
+  },
+  secrets: {
+    title: 'Globale Geheimnisse',
+    subtitle: 'Wiederverwendbare API-Schlüssel im Betriebssystem-Schlüsselbund (über sbx -g). Werden bei Erstellung einer Sandbox angewendet.',
+    add: 'Hinzufügen',
+    remove: 'Entfernen',
+    none: 'Noch keine globalen Geheimnisse.'
   },
   wizard: {
     stepOf: 'Schritt {n} von {total}',
@@ -100,7 +169,8 @@ export const de: Dict = {
     reviewNetwork: 'Netzwerk',
     reviewPorts: 'Ports',
     reviewCredentials: 'Anmeldedaten',
-    error: 'Fehler'
+    error: 'Fehler',
+    stageFailed: 'Definition gespeichert, aber ein Anmeldedaten-Wert konnte nicht gespeichert werden: {message}'
   },
   tier: { open: 'Offen', balanced: 'Ausgewogen', locked: 'Abgeschottet', custom: 'Benutzerdefiniert' },
   status: { running: 'Läuft', stopped: 'Gestoppt', error: 'Fehler', unknown: 'Unbekannt' }

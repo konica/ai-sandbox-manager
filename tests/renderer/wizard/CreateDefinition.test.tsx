@@ -2,11 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 const defCreate = vi.fn()
-vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), pickFolder: async () => null } }))
+const credStageValue = vi.fn()
+vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), credStageValue: (k: string, v: string) => credStageValue(k, v) } }))
 
 import { CreateDefinition } from '../../../src/renderer/wizard/CreateDefinition'
 
-beforeEach(() => { defCreate.mockReset(); defCreate.mockResolvedValue({ ok: true, data: { id: 'id1' } }) })
+beforeEach(() => {
+  defCreate.mockReset(); defCreate.mockResolvedValue({ ok: true, data: { id: 'id1' } })
+  credStageValue.mockReset(); credStageValue.mockResolvedValue({ ok: true, data: null })
+})
 
 describe('CreateDefinition wizard', () => {
   it('disables Next on step 1 until a working directory is entered', () => {
@@ -31,6 +35,20 @@ describe('CreateDefinition wizard', () => {
     const arg = defCreate.mock.calls[0][0]
     expect(arg.definition).toMatchObject({ id: 'id1', name: 'prj-alpha', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'locked' })
     expect(arg.mounts[0]).toEqual({ hostPath: '/home/u/alpha', mode: 'direct', isPrimary: true })
+  })
+
+  it('stages an entered service credential value on submit', async () => {
+    render(<CreateDefinition onDone={() => {}} onCancel={() => {}} createId={() => 'id1'} now={() => '2026-07-18T00:00:00Z'} />)
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'prj-alpha' } })
+    fireEvent.change(screen.getByLabelText(/workspace/i), { target: { value: '/home/u/alpha' } })
+    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: /next/i })) // -> 5 credentials
+    fireEvent.change(screen.getByLabelText('Service'), { target: { value: 'anthropic' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'sk-ant-xyz' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 5 -> 6 review
+    expect(screen.getByText(/Anthropic/)).toBeInTheDocument() // review summarises credentials by name
+    fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
+    await waitFor(() => expect(credStageValue).toHaveBeenCalledWith('id1:service:anthropic', 'sk-ant-xyz'))
   })
 
   it('derives the sandbox name from the working directory when name is blank', async () => {

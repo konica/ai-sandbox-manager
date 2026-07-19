@@ -25,13 +25,43 @@ describe('parseSbxLsText', () => {
 })
 
 describe('parseSbxLsJson', () => {
-  it('maps JSON objects to SbxInstance', () => {
+  it('parses the real { "sandboxes": [...] } envelope with a workspaces array', () => {
+    const json = JSON.stringify({
+      sandboxes: [
+        { name: 'claude-mgm-rag-ingest-console', id: '32b', agent: 'claude', status: 'stopped', workspaces: ['/Users/ttdinh/Projects/mgm-rag-ingest-console'] }
+      ]
+    })
+    expect(parseSbxLsJson(json)).toEqual([
+      { name: 'claude-mgm-rag-ingest-console', status: 'stopped', agent: 'claude', ports: [], workspace: '/Users/ttdinh/Projects/mgm-rag-ingest-console' }
+    ])
+  })
+  it('formats object ports and dedups the IPv4/IPv6 pairs', () => {
+    const json = JSON.stringify({
+      sandboxes: [
+        {
+          name: 'x', agent: 'claude', status: 'running', workspaces: ['/w'],
+          ports: [
+            { host_ip: '::1', host_port: 5173, sandbox_port: 5173, protocol: 'tcp' },
+            { host_ip: '127.0.0.1', host_port: 5173, sandbox_port: 5173, protocol: 'tcp' },
+            { host_ip: '127.0.0.1', host_port: 8080, sandbox_port: 3000, protocol: 'tcp' }
+          ]
+        }
+      ]
+    })
+    const [row] = parseSbxLsJson(json)
+    expect(row.ports).toEqual(['5173/tcp', '8080->3000/tcp'])
+  })
+  it('still accepts a bare top-level array', () => {
     const json = JSON.stringify([
       { name: 'my-sandbox', agent: 'claude', status: 'running', ports: ['127.0.0.1:8080->3000/tcp'], workspace: '/home/user/proj' }
     ])
     expect(parseSbxLsJson(json)).toEqual([
       { name: 'my-sandbox', status: 'running', agent: 'claude', ports: ['127.0.0.1:8080->3000/tcp'], workspace: '/home/user/proj' }
     ])
+  })
+  it('returns [] for an empty or shapeless JSON object', () => {
+    expect(parseSbxLsJson('{"sandboxes": []}')).toEqual([])
+    expect(parseSbxLsJson('{}')).toEqual([])
   })
   it('throws on non-JSON so the caller can fall back to text', () => {
     expect(() => parseSbxLsJson('SANDBOX AGENT ...')).toThrow()

@@ -1,7 +1,9 @@
-import { useReducer, useState } from 'react'
-import type { CredentialKind, Tier } from '@shared/types'
+import { useEffect, useReducer, useState } from 'react'
+import type { Tier, DefinitionSpec } from '@shared/types'
+import { serviceById } from '@shared/services'
 import { api } from '../ipc/client'
-import { draftReducer, initialDraft, canAdvance, toSpec, parsePort, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
+import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, parsePort, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
+import { CredentialsStep } from './CredentialsStep'
 import { useT } from '../i18n'
 
 const TIERS: { value: Tier; descKey: string }[] = [
@@ -9,7 +11,18 @@ const TIERS: { value: Tier; descKey: string }[] = [
   { value: 'balanced', descKey: 'wizard.tierBalancedDesc' },
   { value: 'locked', descKey: 'wizard.tierLockedDesc' }
 ]
-const KINDS: CredentialKind[] = ['git', 'api-key', 'claude-auth']
+
+type EnvHit = { serviceId: string; label: string; envVar: string; masked: string }
+
+// Review-step summary, e.g. "Anthropic, GitHub + 1 custom". Null when empty.
+function credentialsSummary(creds: { kind: 'service' | 'custom'; serviceId?: string }[]): string | null {
+  if (creds.length === 0) return null
+  const svcNames = creds.filter((c) => c.kind === 'service').map((c) => serviceById(c.serviceId ?? '')?.label ?? c.serviceId ?? '')
+  const customCount = creds.filter((c) => c.kind === 'custom').length
+  const parts = [...svcNames]
+  if (customCount > 0) parts.push(`${customCount} custom`)
+  return parts.join(' + ')
+}
 
 function Chip({ text, onRemove }: { text: string; onRemove: () => void }): JSX.Element {
   return (
@@ -20,28 +33,56 @@ function Chip({ text, onRemove }: { text: string; onRemove: () => void }): JSX.E
 export function CreateDefinition({
   onDone,
   onCancel,
+  initial,
   createId = () => crypto.randomUUID(),
   now = () => new Date().toISOString()
 }: {
   onDone: () => void
   onCancel: () => void
+  initial?: DefinitionSpec
   createId?: () => string
   now?: () => string
 }): JSX.Element {
   const t = useT()
-  const [draft, dispatch] = useReducer(draftReducer, initialDraft)
+  const isEdit = initial !== undefined
+  const [draft, dispatch] = useReducer(draftReducer, initial ? draftFromSpec(initial) : initialDraft)
   const [domainInput, setDomainInput] = useState('')
   const [portInput, setPortInput] = useState('')
   const [portLabel, setPortLabel] = useState('')
   const [folderInput, setFolderInput] = useState('')
-  const [credLabel, setCredLabel] = useState('')
-  const [credKind, setCredKind] = useState<CredentialKind>('git')
+  const [envHits, setEnvHits] = useState<EnvHit[]>([])
   const [error, setError] = useState<string | null>(null)
 
+  // Scan the host environment for known service API keys when the Credentials step opens.
+  useEffect(() => {
+    if (draft.step !== 5) return
+    let alive = true
+    void api.credScanEnv().then((r) => { if (alive && r.ok) setEnvHits(r.data) })
+    return () => { alive = false }
+  }, [draft.step])
+
   async function submit(): Promise<void> {
-    const res = await api.defCreate(toSpec(draft, createId(), now()))
-    if (res.ok) onDone()
-    else setError(res.error.message)
+    const spec = initial
+      ? toSpec(draft, initial.definition.id, initial.definition.createdAt)
+      : toSpec(draft, createId(), now())
+    const res = initial ? await api.defUpdate(spec) : await api.defCreate(spec)
+    if (!res.ok) { setError(res.error.message); return }
+    // Stage each secret value into the host vault, keyed by definition so it survives
+    // relaunches and never collides across definitions (never persisted to the spec).
+    // Typed values go straight through; imported service creds have their real value
+    // fetched host-side (the renderer only ever saw a mask).
+    for (const c of draft.credentials) {
+      const sub = c.kind === 'service' ? `service:${c.serviceId}` : `custom:${c.id}`
+      const key = `${spec.definition.id}:${sub}`
+      if (c.value.trim()) {
+        const staged = await api.credStageValue(key, c.value)
+        if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return }
+      } else if (c.kind === 'service' && c.fromEnv) {
+        const staged = await api.credStageFromEnv(key, c.serviceId)
+        if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return }
+      }
+    }
+    onDone()
   }
 
   const row = { display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' } as const
@@ -50,7 +91,7 @@ export function CreateDefinition({
   return (
     <section className="screen active">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="section-title" style={{ marginBottom: 0 }}>{t('common.createSandbox')}</h2>
+        <h2 className="section-title" style={{ marginBottom: 0 }}>{isEdit ? t('common.editSandbox') : t('common.createSandbox')}</h2>
         <button className="btn btn-ghost" onClick={onCancel}>{t('common.cancel')}</button>
       </div>
 
@@ -152,18 +193,18 @@ export function CreateDefinition({
           )}
 
           {draft.step === 5 && (
-            <>
-              <label>{t('wizard.steps.credentials')}</label>
-              <p className="section-desc" style={{ marginTop: 0 }}>{t('wizard.credentialsHelp')}</p>
-              <div style={row}>
-                <input aria-label="Credential label" className="input" placeholder={t('wizard.credLabelPlaceholder')} value={credLabel} onChange={(e) => setCredLabel(e.target.value)} />
-                <select aria-label="Credential kind" className="input" style={{ maxWidth: 160 }} value={credKind} onChange={(e) => setCredKind(e.target.value as CredentialKind)}>
-                  {KINDS.map((k) => (<option key={k} value={k}>{k}</option>))}
-                </select>
-                <button className="btn btn-secondary btn-sm" onClick={() => { if (credLabel.trim()) { dispatch({ type: 'addCredential', label: credLabel.trim(), kind: credKind }); setCredLabel('') } }}>{t('wizard.add')}</button>
-              </div>
-              <div>{draft.credentials.map((c, i) => (<Chip key={i} text={`${c.label} (${c.kind})`} onRemove={() => dispatch({ type: 'removeCredential', index: i })} />))}</div>
-            </>
+            <CredentialsStep
+              credentials={draft.credentials}
+              envHits={envHits}
+              onAddService={(serviceId, envVar, value) => dispatch({ type: 'addServiceCred', serviceId, envVar, value })}
+              onAddCustom={(cred) => dispatch({ type: 'addCustomCred', cred })}
+              onRemove={(index) => dispatch({ type: 'removeCredential', index })}
+              onImport={(serviceId) => {
+                const svc = serviceById(serviceId)
+                if (svc && !draft.credentials.some((c) => c.kind === 'service' && c.serviceId === serviceId))
+                  dispatch({ type: 'addServiceCred', serviceId, envVar: svc.envVars[0], value: '', fromEnv: true })
+              }}
+            />
           )}
 
           {draft.step === 6 && (
@@ -177,7 +218,7 @@ export function CreateDefinition({
                   <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewFolders')}</td><td>{draft.extraFolders.length}</td></tr>
                   <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewNetwork')}</td><td>{t(`tier.${draft.tier}`)} · {draft.domains.length}</td></tr>
                   <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewPorts')}</td><td>{draft.ports.length}</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewCredentials')}</td><td>{draft.credentials.length}</td></tr>
+                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewCredentials')}</td><td>{credentialsSummary(draft.credentials) ?? '—'}</td></tr>
                 </tbody>
               </table>
               {error && <p style={{ color: 'var(--danger)' }}>{t('wizard.error')}: {error}</p>}
@@ -190,7 +231,7 @@ export function CreateDefinition({
           {draft.step < TOTAL_STEPS ? (
             <button className="btn btn-primary" onClick={() => dispatch({ type: 'next' })} disabled={!canAdvance(draft)}>{t('common.next')}</button>
           ) : (
-            <button className="btn btn-primary" onClick={() => void submit()}>{t('common.createSandbox')}</button>
+            <button className="btn btn-primary" onClick={() => void submit()}>{isEdit ? t('common.save') : t('common.createSandbox')}</button>
           )}
         </div>
       </div>

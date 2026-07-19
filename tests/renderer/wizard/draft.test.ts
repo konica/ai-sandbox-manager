@@ -1,5 +1,37 @@
 import { describe, it, expect } from 'vitest'
-import { initialDraft, draftReducer, resolveBaseImage, parsePort, canAdvance, toSpec, basename, effectiveName } from '../../../src/renderer/wizard/draft'
+import { initialDraft, draftReducer, resolveBaseImage, parsePort, canAdvance, toSpec, draftFromSpec, basename, effectiveName } from '../../../src/renderer/wizard/draft'
+import type { DefinitionSpec } from '../../../src/shared/types'
+
+const storedSpec: DefinitionSpec = {
+  definition: { id: 'd1', name: 'Proj', description: 'desc', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'balanced', createdAt: 't' },
+  mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }, { hostPath: '/docs', mode: 'clone', isPrimary: false }],
+  domains: ['a.com'],
+  ports: [{ hostPort: 3000, containerPort: 8080, label: 'web' }],
+  credentials: [{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', store: 'sbx' }]
+}
+
+describe('draftFromSpec', () => {
+  it('seeds the wizard draft from a stored spec (known image)', () => {
+    const d = draftFromSpec(storedSpec)
+    expect(d).toMatchObject({
+      name: 'Proj', description: 'desc', imageChoice: 'claude-code', customImageRef: '',
+      workspace: '/w', workspaceMode: 'direct', tier: 'balanced', domains: ['a.com']
+    })
+    expect(d.extraFolders).toEqual([{ path: '/docs', mode: 'clone' }])
+    expect(d.ports).toEqual([{ hostPort: 3000, containerPort: 8080, label: 'web' }])
+    expect(d.credentials).toEqual([{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', value: '' }])
+  })
+  it('maps an unknown base image to the custom choice', () => {
+    const d = draftFromSpec({ ...storedSpec, definition: { ...storedSpec.definition, baseImage: 'my/custom:tag' } })
+    expect(d.imageChoice).toBe('custom')
+    expect(d.customImageRef).toBe('my/custom:tag')
+  })
+  it('round-trips through toSpec preserving id and createdAt', () => {
+    const back = toSpec(draftFromSpec(storedSpec), 'd1', 't')
+    expect(back.definition).toMatchObject({ id: 'd1', name: 'Proj', tier: 'balanced', createdAt: 't' })
+    expect(back.domains).toEqual(['a.com'])
+  })
+})
 
 describe('basename / effectiveName', () => {
   it('takes the last path segment, tolerating trailing slashes', () => {
@@ -66,8 +98,8 @@ describe('draftReducer', () => {
     expect(d.ports).toHaveLength(1)
     d = draftReducer(d, { type: 'removePort', index: 0 })
     expect(d.ports).toHaveLength(0)
-    d = draftReducer(d, { type: 'addCredential', label: 'gh', kind: 'git' })
-    expect(d.credentials).toEqual([{ label: 'gh', kind: 'git' }])
+    d = draftReducer(d, { type: 'addServiceCred', serviceId: 'github', envVar: 'GH_TOKEN', value: 'gho_x' })
+    expect(d.credentials).toEqual([{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', value: 'gho_x' }])
   })
   it('adds and removes extra folders', () => {
     let d = draftReducer(initialDraft, { type: 'addExtraFolder', path: '/lib', mode: 'clone' })
@@ -85,7 +117,7 @@ describe('toSpec', () => {
       extraFolders: [{ path: '/home/u/lib', mode: 'clone' as const }],
       tier: 'locked' as const, domains: ['api.github.com'],
       ports: [{ hostPort: 8080, containerPort: 3000, label: 'web' }],
-      credentials: [{ label: 'gh', kind: 'git' as const }]
+      credentials: [{ kind: 'service' as const, serviceId: 'github', envVar: 'GH_TOKEN', value: 'gho_x' }]
     }
     const spec = toSpec(d, 'id1', '2026-07-18T00:00:00Z')
     expect(spec.definition).toEqual({ id: 'id1', name: 'alpha', description: 'a', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' })
@@ -95,6 +127,6 @@ describe('toSpec', () => {
     ])
     expect(spec.domains).toEqual(['api.github.com'])
     expect(spec.ports).toEqual([{ hostPort: 8080, containerPort: 3000, label: 'web' }])
-    expect(spec.credentials).toEqual([{ label: 'gh', kind: 'git' }])
+    expect(spec.credentials).toEqual([{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', store: 'sbx' }])
   })
 })

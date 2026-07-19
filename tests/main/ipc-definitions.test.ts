@@ -10,7 +10,16 @@ import type { DefinitionSpec } from '@shared/types'
 
 const adapter: SbxAdapter = {
   runSbx: async () => ({ stdout: '', stderr: '', code: 0 }),
-  listSandboxes: async () => []
+  listSandboxes: async () => [],
+  createSandbox: async () => {},
+  applyPolicy: async () => {},
+  publishPorts: async () => {},
+  stopSandbox: async () => {},
+  removeSandbox: async () => {},
+  setSecret: async () => {},
+  removeSecret: async () => {},
+  setCustomSecret: async () => {},
+  removeCustomSecret: async () => {}
 }
 const probes: Probes = {
   dockerVersion: async () => 'Docker version 24.0.7', sbxVersion: async () => 'sbx 1.0', sbxAuthed: async () => true,
@@ -25,7 +34,7 @@ const spec: DefinitionSpec = {
 describe('definition IPC handlers', () => {
   it('def:create persists the spec and returns its id', async () => {
     const store = openStore(':memory:')
-    const h = buildHandlers({ adapter, store, probes })
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {} })
     const res = await h['def:create'](spec)
     expect(res).toEqual({ ok: true, data: { id: 'd1' } })
     expect(store.getDefinitionSpec('d1')).not.toBeNull()
@@ -33,16 +42,41 @@ describe('definition IPC handlers', () => {
 
   it('def:list returns the persisted definitions', async () => {
     const store = openStore(':memory:')
-    const h = buildHandlers({ adapter, store, probes })
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {} })
     await h['def:create'](spec)
     const res = await h['def:list']()
     expect(res.ok).toBe(true)
     if (res.ok) expect(res.data.map((d) => d.name)).toEqual(['prj-alpha'])
   })
 
+  it('def:getSpec returns the full spec, and def:update replaces it', async () => {
+    const store = openStore(':memory:')
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {} })
+    await h['def:create'](spec)
+
+    const got = await h['def:getSpec']('d1')
+    expect(got.ok && got.data?.definition.name).toBe('prj-alpha')
+
+    const updated = { ...spec, definition: { ...spec.definition, name: 'prj-beta', tier: 'open' as const }, domains: ['x.com'] }
+    const up = await h['def:update'](updated)
+    expect(up).toEqual({ ok: true, data: { id: 'd1' } })
+
+    const after = await h['def:getSpec']('d1')
+    expect(after.ok && after.data?.definition.name).toBe('prj-beta')
+    expect(after.ok && after.data?.definition.tier).toBe('open')
+    expect(after.ok && after.data?.domains).toEqual(['x.com'])
+  })
+
+  it('def:update wraps a missing definition as {ok:false}', async () => {
+    const store = openStore(':memory:')
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {} })
+    const res = await h['def:update'](spec) // never created
+    expect(res.ok).toBe(false)
+  })
+
   it('def:create wraps failures as {ok:false}', async () => {
     const store = openStore(':memory:')
-    const h = buildHandlers({ adapter, store, probes })
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {} })
     await h['def:create'](spec)
     const dup = await h['def:create'](spec) // duplicate primary key
     expect(dup.ok).toBe(false)
