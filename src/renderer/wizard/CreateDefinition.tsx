@@ -6,8 +6,6 @@ import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, resolveB
 import { CredentialsStep } from './CredentialsStep'
 import { PortsStep } from './PortsStep'
 import { TierBadge } from '../components/badges'
-
-const lblCell = { color: 'var(--text-muted)', width: '30%', verticalAlign: 'top' as const }
 import { useT } from '../i18n'
 
 const TIERS: { value: Tier; descKey: string }[] = [
@@ -212,19 +210,19 @@ export function CreateDefinition({
             <>
               <h3 style={{ fontSize: 15, marginBottom: 'var(--space-2)' }}>{t('wizard.review')}</h3>
               <p className="section-desc">{t('wizard.reviewSubtitle')}</p>
-              <table className="table">
+              <table className="review-table">
                 <tbody>
-                  <tr><td style={lblCell}>{t('wizard.reviewName')}</td><td><span className="code-inline">{effectiveName(draft)}</span></td></tr>
-                  {draft.description.trim() && <tr><td style={lblCell}>{t('wizard.reviewDescription')}</td><td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{draft.description.trim()}</td></tr>}
-                  <tr><td style={lblCell}>{t('wizard.reviewBase')}</td><td><span className="code-inline">{resolveBaseImage(draft)}</span></td></tr>
-                  <tr><td style={lblCell}>{t('wizard.reviewWorkspace')}</td><td><span className="code-inline">{draft.workspace}</span></td></tr>
-                  <tr><td style={lblCell}>{t('wizard.reviewMountMode')}</td><td><span className="code-inline">{draft.workspaceMode}</span> ({draft.workspaceMode === 'direct' ? t('wizard.modeReadWrite') : t('wizard.modeReadOnly')})</td></tr>
-                  <tr><td style={lblCell}>{t('wizard.reviewFolders')}</td><td>{draft.extraFolders.length === 0 ? '—' : draft.extraFolders.map((f, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{f.path}</span> ({f.mode})</span>))}</td></tr>
-                  <tr><td style={lblCell}>{t('wizard.reviewNetwork')}</td><td><TierBadge tier={draft.tier} /> — {t('wizard.reviewDomainsAllowlisted', { count: draft.domains.length })}</td></tr>
-                  <tr><td style={lblCell}>{t('wizard.reviewPorts')}</td><td>{draft.ports.length === 0 ? '—' : (<>{t('wizard.reviewPortRules', { count: draft.ports.length })}: {draft.ports.map((p, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{p.hostPort !== null ? p.hostPort : ''}→{p.containerPort}/{p.protocol}</span></span>))}</>)}</td></tr>
-                  {draft.hostServices.length > 0 && <tr><td style={lblCell}>{t('wizard.reviewHostServices')}</td><td>{draft.hostServices.map((h, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">host.docker.internal:{h.hostPort}</span></span>))}</td></tr>}
-                  <tr><td style={lblCell}>{t('wizard.reviewCredentials')}</td><td>{credentialsSummary(draft.credentials) ?? '—'}</td></tr>
-                  <tr><td style={lblCell}>{t('wizard.reviewAgent')}</td><td>Claude Code</td></tr>
+                  <tr><td>{t('wizard.reviewName')}</td><td><span className="code-inline">{effectiveName(draft)}</span></td></tr>
+                  {draft.description.trim() && <tr><td>{t('wizard.reviewDescription')}</td><td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{draft.description.trim()}</td></tr>}
+                  <tr><td>{t('wizard.reviewBase')}</td><td><span className="code-inline">{resolveBaseImage(draft)}</span></td></tr>
+                  <tr><td>{t('wizard.reviewWorkspace')}</td><td><span className="code-inline">{draft.workspace}</span></td></tr>
+                  <tr><td>{t('wizard.reviewMountMode')}</td><td><span className="code-inline">{draft.workspaceMode}</span> ({draft.workspaceMode === 'direct' ? t('wizard.modeReadWrite') : t('wizard.modeReadOnly')})</td></tr>
+                  <tr><td>{t('wizard.reviewFolders')}</td><td>{draft.extraFolders.length === 0 ? '—' : draft.extraFolders.map((f, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{f.path}</span> ({f.mode})</span>))}</td></tr>
+                  <tr><td>{t('wizard.reviewNetwork')}</td><td><TierBadge tier={draft.tier} /> — {t('wizard.reviewDomainsAllowlisted', { count: draft.domains.length })}</td></tr>
+                  <tr><td>{t('wizard.reviewPorts')}</td><td>{draft.ports.length === 0 ? '—' : (<>{t('wizard.reviewPortRules', { count: draft.ports.length })}: {draft.ports.map((p, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{p.hostPort !== null ? p.hostPort : ''}→{p.containerPort}/{p.protocol}</span></span>))}</>)}</td></tr>
+                  {draft.hostServices.length > 0 && <tr><td>{t('wizard.reviewHostServices')}</td><td>{draft.hostServices.map((h, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">host.docker.internal:{h.hostPort}</span></span>))}</td></tr>}
+                  <tr><td>{t('wizard.reviewCredentials')}</td><td>{credentialsSummary(draft.credentials) ?? '—'}</td></tr>
+                  <tr><td>{t('wizard.reviewAgent')}</td><td>Claude Code</td></tr>
                 </tbody>
               </table>
               {error && <p style={{ color: 'var(--danger)' }}>{t('wizard.error')}: {error}</p>}
