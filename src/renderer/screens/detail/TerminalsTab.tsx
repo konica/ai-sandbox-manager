@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { InstanceView, DefinitionSpec, CredentialRef } from '@shared/types'
 import { serviceById } from '@shared/services'
 import { TierBadge } from '../../components/badges'
@@ -14,16 +15,25 @@ function credName(c: CredentialRef): string {
  * sidebar (Network Policy, Credentials, Mounts) sourced from the definition spec.
  * No in-app terminals — matches the app's native-terminal architecture.
  */
-export function TerminalsTab({ instance, spec, onAttach, onShell }: {
+export function TerminalsTab({ instance, spec, onAttach, onShell, onAllowDomain, onDenyDomain }: {
   instance: InstanceView
   spec: DefinitionSpec | null
   onAttach: (name: string) => void
   onShell: (name: string) => void
+  onAllowDomain?: (domain: string) => void
+  onDenyDomain?: (domain: string) => void
 }): JSX.Element {
   const t = useT()
   const running = instance.status === 'running'
+  const [domainInput, setDomainInput] = useState('')
+  const editable = onAllowDomain !== undefined && onDenyDomain !== undefined
   const services = spec?.credentials.filter((c) => c.kind === 'service') ?? []
   const customs = spec?.credentials.filter((c) => c.kind === 'custom') ?? []
+
+  function addDomain(): void {
+    const d = domainInput.trim()
+    if (d) { onAllowDomain?.(d); setDomainInput('') }
+  }
 
   return (
     <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 'var(--space-5)', alignItems: 'start' }}>
@@ -46,7 +56,15 @@ export function TerminalsTab({ instance, spec, onAttach, onShell }: {
               <div style={{ marginBottom: 'var(--space-3)' }}><TierBadge tier={spec.definition.tier} /></div>
               {spec.domains.length === 0
                 ? <p className="section-desc" style={{ margin: 0, fontSize: 12 }}>—</p>
-                : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>{spec.domains.map((d) => (<span key={d} className="tag">{d}</span>))}</div>}
+                : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>{spec.domains.map((d) => (
+                  <span key={d} className="tag">{d}{editable && <button className="tag-remove" aria-label={`Deny ${d}`} onClick={() => onDenyDomain?.(d)}>✕</button>}</span>
+                ))}</div>}
+              {editable && (
+                <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
+                  <input aria-label="Add domain" className="input input-mono" style={{ flex: 1, fontSize: 12 }} placeholder={t('detail.domainPlaceholder')} value={domainInput} onChange={(e) => setDomainInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addDomain() }} />
+                  <button className="btn btn-secondary btn-sm" onClick={addDomain}>{t('detail.allow')}</button>
+                </div>
+              )}
             </div>
 
             <div className="card">

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { InstanceView, DefinitionSpec, LivePort } from '@shared/types'
+import type { InstanceView, DefinitionSpec, LivePort, PolicySummary } from '@shared/types'
 import { StatusBadge } from '../components/badges'
 import { api } from '../ipc/client'
 import { useT } from '../i18n'
 import { TerminalsTab } from './detail/TerminalsTab'
 import { PortsTab } from './detail/PortsTab'
+import { MonitoringTab } from './detail/MonitoringTab'
 
 export type DetailTab = 'terminals' | 'ports' | 'monitoring'
 
@@ -35,6 +36,7 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
   const [tab, setTab] = useState<DetailTab>('terminals')
   const [spec, setSpec] = useState<DefinitionSpec | null>(null)
   const [livePorts, setLivePorts] = useState<LivePort[]>([])
+  const [policy, setPolicy] = useState<PolicySummary>({ allowed: 0, blocked: 0, events: [] })
 
   const reloadSpec = useCallback(async () => {
     if (!instance.definitionId) { setSpec(null); return }
@@ -45,9 +47,20 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
     const r = await api.instancePortsList(instance.name)
     if (r.ok) setLivePorts(r.data)
   }, [instance.name])
+  const reloadPolicy = useCallback(async () => {
+    const r = await api.instancePolicyLog(instance.name)
+    if (r.ok) setPolicy(r.data)
+  }, [instance.name])
 
   useEffect(() => { void reloadSpec() }, [reloadSpec])
   useEffect(() => { if (tab === 'ports') void reloadPorts() }, [tab, reloadPorts])
+  // Poll the policy log while the Monitoring tab is open (sbx policy log has no stream).
+  useEffect(() => {
+    if (tab !== 'monitoring') return
+    void reloadPolicy()
+    const id = setInterval(() => void reloadPolicy(), 5000)
+    return () => clearInterval(id)
+  }, [tab, reloadPolicy])
 
   const running = instance.status === 'running'
 
@@ -74,10 +87,22 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
       <div role="tablist" className="tabs detail-tabs" style={{ display: 'flex', gap: 'var(--space-2)', borderBottom: '1px solid var(--border)', marginBottom: 'var(--space-5)' }}>
         <button role="tab" aria-selected={tab === 'terminals'} style={tabStyle(tab === 'terminals')} onClick={() => setTab('terminals')}>{t('detail.tabTerminals')}</button>
         <button role="tab" aria-selected={tab === 'ports'} style={tabStyle(tab === 'ports')} onClick={() => setTab('ports')}>{t('detail.tabPorts')}</button>
-        <button role="tab" aria-selected={tab === 'monitoring'} style={tabStyle(tab === 'monitoring')} onClick={() => setTab('monitoring')}>{t('detail.tabMonitoring')}</button>
+        <button role="tab" aria-selected={tab === 'monitoring'} style={tabStyle(tab === 'monitoring')} onClick={() => setTab('monitoring')}>
+          {t('detail.tabMonitoring')}
+          {policy.blocked > 0 && <span className="nav-badge" style={{ marginLeft: 'var(--space-1)', fontSize: 10, background: 'var(--danger)' }}>{policy.blocked}</span>}
+        </button>
       </div>
 
-      {tab === 'terminals' && <TerminalsTab instance={instance} spec={spec} onAttach={onAttach} onShell={onShell} />}
+      {tab === 'terminals' && (
+        <TerminalsTab
+          instance={instance}
+          spec={spec}
+          onAttach={onAttach}
+          onShell={onShell}
+          onAllowDomain={async (d) => { await api.instanceDomainAllow(instance.name, d); void reloadSpec() }}
+          onDenyDomain={async (d) => { await api.instanceDomainDeny(instance.name, d); void reloadSpec() }}
+        />
+      )}
       {tab === 'ports' && (
         <PortsTab
           instance={instance}
@@ -90,7 +115,12 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
           onRemoveHostService={async (port) => { await api.instanceHostServiceRemove(instance.name, port); void reloadSpec() }}
         />
       )}
-      {tab === 'monitoring' && <p className="section-desc">Monitoring —</p>}
+      {tab === 'monitoring' && (
+        <MonitoringTab
+          summary={policy}
+          onAllow={async (host) => { await api.instanceDomainAllow(instance.name, host); void reloadPolicy() }}
+        />
+      )}
     </section>
   )
 }

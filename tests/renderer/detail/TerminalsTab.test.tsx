@@ -32,4 +32,13 @@ describe('TerminalsTab', () => {
     render(<TerminalsTab instance={inst} spec={null} onAttach={vi.fn()} onShell={vi.fn()} />)
     expect(screen.getByText(/no linked definition/i)).toBeInTheDocument()
   })
+  it('allows and denies domains live when handlers are provided', () => {
+    const onAllowDomain = vi.fn(); const onDenyDomain = vi.fn()
+    render(<TerminalsTab instance={inst} spec={spec} onAttach={vi.fn()} onShell={vi.fn()} onAllowDomain={onAllowDomain} onDenyDomain={onDenyDomain} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Deny github.com' }))
+    expect(onDenyDomain).toHaveBeenCalledWith('github.com')
+    fireEvent.change(screen.getByLabelText('Add domain'), { target: { value: 'pypi.org' } })
+    fireEvent.click(screen.getByRole('button', { name: /allow/i }))
+    expect(onAllowDomain).toHaveBeenCalledWith('pypi.org')
+  })
 })
