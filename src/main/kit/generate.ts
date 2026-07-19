@@ -27,9 +27,12 @@ function serviceDomains(serviceId: string): string[] {
 
 function allowedDomains(spec: DefinitionSpec): string[] {
   const svc = spec.credentials.flatMap((c) => (c.kind === 'service' ? serviceDomains(c.serviceId) : c.domains))
+  // Host services are reached via host.docker.internal, which the proxy rewrites to
+  // localhost — so each one needs localhost:<port> in the allowlist to leave the sandbox.
+  const hostSvc = spec.hostServices.map((hs) => `localhost:${hs.hostPort}`)
   const tierBase = spec.definition.tier === 'balanced' ? BALANCED_BASELINE : []
   const open = spec.definition.tier === 'open'
-  const all = open ? ['**'] : [...tierBase, ...spec.domains, ...svc]
+  const all = open ? ['**'] : [...tierBase, ...spec.domains, ...svc, ...hostSvc]
   return [...new Set(all.filter((d) => d.trim().length > 0))]
 }
 

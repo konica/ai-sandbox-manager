@@ -7,6 +7,7 @@ function baseSpec(id: string): DefinitionSpec {
     definition: { id, name: 'Proj', description: '', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-07-19T00:00:00.000Z' },
     mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
     domains: [], ports: [],
+    hostServices: [],
     credentials: [
       { kind: 'service', serviceId: 'anthropic', envVar: 'ANTHROPIC_API_KEY', store: 'sbx' },
       { kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' }

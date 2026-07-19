@@ -15,8 +15,8 @@ const spec: DefinitionSpec = {
   definition: { id: 'd1', name: 'My Project', description: '', baseImage: 'img:tag', tier: 'balanced', createdAt: '2026-01-01T00:00:00.000Z' },
   mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
   domains: ['api.example.com'],
-  ports: [{ hostPort: 3000, containerPort: 8080, label: 'web' }],
-  credentials: []
+  ports: [{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }],
+  hostServices: [], credentials: []
 }
 
 describe('adapter lifecycle', () => {
@@ -41,7 +41,7 @@ describe('adapter lifecycle', () => {
   it('publishPorts publishes each intent', async () => {
     const { calls, spawn } = recorder()
     await createSbxAdapter(spawn).publishPorts('my-project', spec.ports)
-    expect(calls[0]).toEqual(['ports', 'my-project', '--publish', '3000:8080'])
+    expect(calls[0]).toEqual(['ports', 'my-project', '--publish', '3000:8080/tcp'])
   })
 
   it('stopSandbox and removeSandbox use the right verbs (rm is forced)', async () => {

@@ -37,14 +37,28 @@ describe('CreateDefinition wizard', () => {
     expect(arg.mounts[0]).toEqual({ hostPath: '/home/u/alpha', mode: 'direct', isPrimary: true })
   })
 
+  it('adds a port on the Ports step and summarises it in Review with protocol', async () => {
+    render(<CreateDefinition onDone={() => {}} onCancel={() => {}} createId={() => 'id1'} now={() => '2026-07-18T00:00:00Z'} />)
+    fireEvent.change(screen.getByLabelText(/workspace/i), { target: { value: '/home/u/alpha' } })
+    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: /next/i })) // -> 5 ports
+    fireEvent.change(screen.getByLabelText('Port mapping'), { target: { value: '8080:3000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 5 -> 6 review
+    expect(screen.getByText('8080→3000/tcp')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
+    await waitFor(() => expect(defCreate).toHaveBeenCalledOnce())
+    expect(defCreate.mock.calls[0][0].ports[0]).toEqual({ hostPort: 8080, containerPort: 3000, protocol: 'tcp', label: '' })
+  })
+
   it('stages an entered service credential value on submit', async () => {
     render(<CreateDefinition onDone={() => {}} onCancel={() => {}} createId={() => 'id1'} now={() => '2026-07-18T00:00:00Z'} />)
     fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'prj-alpha' } })
     fireEvent.change(screen.getByLabelText(/workspace/i), { target: { value: '/home/u/alpha' } })
-    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: /next/i })) // -> 5 credentials
+    for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole('button', { name: /next/i })) // -> 4 credentials
     fireEvent.change(screen.getByLabelText('Service'), { target: { value: 'anthropic' } })
     fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'sk-ant-xyz' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 4 -> 5 ports
     fireEvent.click(screen.getByRole('button', { name: /next/i })) // 5 -> 6 review
     expect(screen.getByText(/Anthropic/)).toBeInTheDocument() // review summarises credentials by name
     fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))

@@ -12,7 +12,8 @@ const spec: DefinitionSpec = {
     { hostPath: '/home/u/shared', mode: 'clone', isPrimary: false }
   ],
   domains: ['api.github.com', 'registry.npmjs.org'],
-  ports: [{ hostPort: 8080, containerPort: 3000, label: 'web' }],
+  ports: [{ hostPort: 8080, containerPort: 3000, protocol: 'tcp', label: 'web' }],
+  hostServices: [],
   credentials: [{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', store: 'sbx' }]
 }
 
@@ -35,7 +36,7 @@ describe('definition spec persistence', () => {
   it('persists an empty-children spec', () => {
     const bare: DefinitionSpec = {
       definition: { id: 'd2', name: 'bare', description: '', baseImage: 'docker/sandbox-templates:claude-code', tier: 'open', createdAt: '2026-07-18T00:00:00Z' },
-      mounts: [], domains: [], ports: [], credentials: []
+      mounts: [], domains: [], ports: [], hostServices: [], credentials: []
     }
     store.insertDefinitionSpec(bare)
     expect(store.getDefinitionSpec('d2')).toEqual(bare)

@@ -28,7 +28,7 @@ const probes: Probes = {
 
 const spec: DefinitionSpec = {
   definition: { id: 'd1', name: 'prj-alpha', description: '', baseImage: 'docker/sandbox-templates:claude-code-docker', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' },
-  mounts: [], domains: [], ports: [], credentials: []
+  mounts: [], domains: [], ports: [], hostServices: [], credentials: []
 }
 
 describe('definition IPC handlers', () => {

@@ -1,4 +1,4 @@
-import type { Tier, MountMode, CredentialRef, DefinitionSpec } from '@shared/types'
+import type { Tier, MountMode, CredentialRef, DefinitionSpec, PortProtocol } from '@shared/types'
 
 // Draft credentials carry a transient plaintext `value` that is NEVER persisted to
 // the spec — it is staged to the vault via IPC on submit (see App/CreateDefinition).
@@ -50,7 +50,8 @@ export interface Draft {
   extraFolders: { path: string; mode: MountMode }[]
   tier: Tier
   domains: string[]
-  ports: { hostPort: number; containerPort: number; label: string }[]
+  ports: { hostPort: number | null; containerPort: number; protocol: PortProtocol; label: string }[]
+  hostServices: { hostPort: number; label: string }[]
   credentials: DraftCred[]
 }
 
@@ -66,6 +67,7 @@ export const initialDraft: Draft = {
   tier: 'locked',
   domains: [],
   ports: [],
+  hostServices: [],
   credentials: []
 }
 
@@ -81,8 +83,10 @@ export type DraftAction =
   | { type: 'removeExtraFolder'; index: number }
   | { type: 'addDomain'; host: string }
   | { type: 'removeDomain'; host: string }
-  | { type: 'addPort'; hostPort: number; containerPort: number; label: string }
+  | { type: 'addPort'; hostPort: number | null; containerPort: number; protocol: PortProtocol; label: string }
   | { type: 'removePort'; index: number }
+  | { type: 'addHostService'; hostPort: number; label: string }
+  | { type: 'removeHostService'; index: number }
   | { type: 'addServiceCred'; serviceId: string; envVar: string; value: string; fromEnv?: boolean }
   | { type: 'addCustomCred'; cred: DraftCustomCred }
   | { type: 'removeCredential'; index: number }
@@ -100,8 +104,10 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'removeExtraFolder': return { ...d, extraFolders: d.extraFolders.filter((_, i) => i !== a.index) }
     case 'addDomain': return d.domains.includes(a.host) ? d : { ...d, domains: [...d.domains, a.host] }
     case 'removeDomain': return { ...d, domains: d.domains.filter((h) => h !== a.host) }
-    case 'addPort': return { ...d, ports: [...d.ports, { hostPort: a.hostPort, containerPort: a.containerPort, label: a.label }] }
+    case 'addPort': return { ...d, ports: [...d.ports, { hostPort: a.hostPort, containerPort: a.containerPort, protocol: a.protocol, label: a.label }] }
     case 'removePort': return { ...d, ports: d.ports.filter((_, i) => i !== a.index) }
+    case 'addHostService': return { ...d, hostServices: [...d.hostServices, { hostPort: a.hostPort, label: a.label }] }
+    case 'removeHostService': return { ...d, hostServices: d.hostServices.filter((_, i) => i !== a.index) }
     case 'addServiceCred': return { ...d, credentials: [...d.credentials, { kind: 'service', serviceId: a.serviceId, envVar: a.envVar, value: a.value, fromEnv: a.fromEnv }] }
     case 'addCustomCred': return { ...d, credentials: [...d.credentials, a.cred] }
     case 'removeCredential': return { ...d, credentials: d.credentials.filter((_, i) => i !== a.index) }
@@ -113,10 +119,13 @@ export function resolveBaseImage(d: Draft): string {
   return d.imageChoice === 'custom' ? d.customImageRef.trim() : `${TEMPLATE_REPO}:${d.imageChoice}`
 }
 
-export function parsePort(input: string): { hostPort: number; containerPort: number } | null {
-  const m = input.trim().match(/^(\d+):(\d+)$/)
-  if (!m) return null
-  return { hostPort: Number(m[1]), containerPort: Number(m[2]) }
+export function parsePort(input: string): { hostPort: number | null; containerPort: number } | null {
+  const t = input.trim()
+  const explicit = t.match(/^(\d+):(\d+)$/)
+  if (explicit) return { hostPort: Number(explicit[1]), containerPort: Number(explicit[2]) }
+  const bare = t.match(/^(\d+)$/)
+  if (bare) return { hostPort: null, containerPort: Number(bare[1]) }
+  return null
 }
 
 // Basename of a path, tolerating trailing slashes and both separators.
@@ -155,7 +164,8 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
     extraFolders: extras.map((m) => ({ path: m.hostPath, mode: m.mode })),
     tier: spec.definition.tier,
     domains: [...spec.domains],
-    ports: spec.ports.map((p) => ({ hostPort: p.hostPort, containerPort: p.containerPort, label: p.label })),
+    ports: spec.ports.map((p) => ({ ...p })),
+    hostServices: spec.hostServices.map((hs) => ({ ...hs })),
     credentials: spec.credentials.map((c): DraftCred =>
       c.kind === 'service'
         ? { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, value: '' }
@@ -172,6 +182,7 @@ export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec 
     ],
     domains: d.domains,
     ports: d.ports,
+    hostServices: d.hostServices,
     credentials: d.credentials.map((c): CredentialRef =>
       c.kind === 'service'
         ? { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, store: 'sbx' }

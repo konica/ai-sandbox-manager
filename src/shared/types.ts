@@ -34,9 +34,18 @@ export interface MountIntent {
   isPrimary: boolean
 }
 
+export type PortProtocol = 'tcp' | 'tcp4' | 'tcp6'
+
 export interface PortIntent {
-  hostPort: number
+  hostPort: number | null // null = ephemeral (OS allocates the host port)
   containerPort: number
+  protocol: PortProtocol
+  label: string
+}
+
+/** A service on the host the sandbox should reach via host.docker.internal:<port>. */
+export interface HostServiceIntent {
+  hostPort: number
   label: string
 }
 
@@ -89,6 +98,7 @@ export interface DefinitionSpec {
   mounts: MountIntent[]
   domains: string[]
   ports: PortIntent[]
+  hostServices: HostServiceIntent[]
   credentials: CredentialRef[]
 }
 

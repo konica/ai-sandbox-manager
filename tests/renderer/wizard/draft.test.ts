@@ -6,8 +6,8 @@ const storedSpec: DefinitionSpec = {
   definition: { id: 'd1', name: 'Proj', description: 'desc', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'balanced', createdAt: 't' },
   mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }, { hostPath: '/docs', mode: 'clone', isPrimary: false }],
   domains: ['a.com'],
-  ports: [{ hostPort: 3000, containerPort: 8080, label: 'web' }],
-  credentials: [{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', store: 'sbx' }]
+  ports: [{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }],
+  hostServices: [], credentials: [{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', store: 'sbx' }]
 }
 
 describe('draftFromSpec', () => {
@@ -18,7 +18,7 @@ describe('draftFromSpec', () => {
       workspace: '/w', workspaceMode: 'direct', tier: 'balanced', domains: ['a.com']
     })
     expect(d.extraFolders).toEqual([{ path: '/docs', mode: 'clone' }])
-    expect(d.ports).toEqual([{ hostPort: 3000, containerPort: 8080, label: 'web' }])
+    expect(d.ports).toEqual([{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }])
     expect(d.credentials).toEqual([{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', value: '' }])
   })
   it('maps an unknown base image to the custom choice', () => {
@@ -47,8 +47,8 @@ describe('basename / effectiveName', () => {
 
 describe('parsePort', () => {
   it('parses host:container', () => { expect(parsePort('8080:3000')).toEqual({ hostPort: 8080, containerPort: 3000 }) })
+  it('parses a bare port as ephemeral (null host port)', () => { expect(parsePort('8080')).toEqual({ hostPort: null, containerPort: 8080 }) })
   it('rejects malformed input', () => {
-    expect(parsePort('8080')).toBeNull()
     expect(parsePort('a:b')).toBeNull()
     expect(parsePort('')).toBeNull()
   })
@@ -94,7 +94,7 @@ describe('draftReducer', () => {
     expect(d.domains).toEqual([])
   })
   it('adds and removes ports and credentials', () => {
-    let d = draftReducer(initialDraft, { type: 'addPort', hostPort: 8080, containerPort: 3000, label: 'web' })
+    let d = draftReducer(initialDraft, { type: 'addPort', hostPort: 8080, containerPort: 3000, protocol: 'tcp', label: 'web' })
     expect(d.ports).toHaveLength(1)
     d = draftReducer(d, { type: 'removePort', index: 0 })
     expect(d.ports).toHaveLength(0)
@@ -116,8 +116,8 @@ describe('toSpec', () => {
       workspace: '/home/u/alpha', workspaceMode: 'direct' as const,
       extraFolders: [{ path: '/home/u/lib', mode: 'clone' as const }],
       tier: 'locked' as const, domains: ['api.github.com'],
-      ports: [{ hostPort: 8080, containerPort: 3000, label: 'web' }],
-      credentials: [{ kind: 'service' as const, serviceId: 'github', envVar: 'GH_TOKEN', value: 'gho_x' }]
+      ports: [{ hostPort: 8080, containerPort: 3000, protocol: 'tcp' as const, label: 'web' }],
+      hostServices: [], credentials: [{ kind: 'service' as const, serviceId: 'github', envVar: 'GH_TOKEN', value: 'gho_x' }]
     }
     const spec = toSpec(d, 'id1', '2026-07-18T00:00:00Z')
     expect(spec.definition).toEqual({ id: 'id1', name: 'alpha', description: 'a', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' })
@@ -126,7 +126,7 @@ describe('toSpec', () => {
       { hostPath: '/home/u/lib', mode: 'clone', isPrimary: false }
     ])
     expect(spec.domains).toEqual(['api.github.com'])
-    expect(spec.ports).toEqual([{ hostPort: 8080, containerPort: 3000, label: 'web' }])
+    expect(spec.ports).toEqual([{ hostPort: 8080, containerPort: 3000, protocol: 'tcp', label: 'web' }])
     expect(spec.credentials).toEqual([{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', store: 'sbx' }])
   })
 })

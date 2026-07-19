@@ -2,8 +2,10 @@ import { useEffect, useReducer, useState } from 'react'
 import type { Tier, DefinitionSpec } from '@shared/types'
 import { serviceById } from '@shared/services'
 import { api } from '../ipc/client'
-import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, parsePort, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
+import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
 import { CredentialsStep } from './CredentialsStep'
+import { PortsStep } from './PortsStep'
+import { TierBadge } from '../components/badges'
 import { useT } from '../i18n'
 
 const TIERS: { value: Tier; descKey: string }[] = [
@@ -23,6 +25,7 @@ function credentialsSummary(creds: { kind: 'service' | 'custom'; serviceId?: str
   if (customCount > 0) parts.push(`${customCount} custom`)
   return parts.join(' + ')
 }
+
 
 function Chip({ text, onRemove }: { text: string; onRemove: () => void }): JSX.Element {
   return (
@@ -47,15 +50,13 @@ export function CreateDefinition({
   const isEdit = initial !== undefined
   const [draft, dispatch] = useReducer(draftReducer, initial ? draftFromSpec(initial) : initialDraft)
   const [domainInput, setDomainInput] = useState('')
-  const [portInput, setPortInput] = useState('')
-  const [portLabel, setPortLabel] = useState('')
   const [folderInput, setFolderInput] = useState('')
   const [envHits, setEnvHits] = useState<EnvHit[]>([])
   const [error, setError] = useState<string | null>(null)
 
   // Scan the host environment for known service API keys when the Credentials step opens.
   useEffect(() => {
-    if (draft.step !== 5) return
+    if (draft.step !== 4) return
     let alive = true
     void api.credScanEnv().then((r) => { if (alive && r.ok) setEnvHits(r.data) })
     return () => { alive = false }
@@ -86,7 +87,7 @@ export function CreateDefinition({
   }
 
   const row = { display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' } as const
-  const stepKeys = ['workspace', 'baseImage', 'network', 'ports', 'credentials', 'review']
+  const stepKeys = ['workspace', 'baseImage', 'network', 'credentials', 'ports', 'review']
 
   return (
     <section className="screen active">
@@ -179,20 +180,18 @@ export function CreateDefinition({
             </>
           )}
 
-          {draft.step === 4 && (
-            <>
-              <label>{t('wizard.steps.ports')}</label>
-              <p className="section-desc" style={{ marginTop: 0 }}>{t('wizard.portsHelp')}</p>
-              <div style={row}>
-                <input aria-label="Port mapping" className="input input-mono" placeholder={t('wizard.portPlaceholder')} value={portInput} onChange={(e) => setPortInput(e.target.value)} />
-                <input aria-label="Port label" className="input" placeholder={t('wizard.portLabelPlaceholder')} value={portLabel} onChange={(e) => setPortLabel(e.target.value)} />
-                <button className="btn btn-secondary btn-sm" onClick={() => { const p = parsePort(portInput); if (p) { dispatch({ type: 'addPort', hostPort: p.hostPort, containerPort: p.containerPort, label: portLabel.trim() }); setPortInput(''); setPortLabel('') } }}>{t('wizard.addPort')}</button>
-              </div>
-              <div>{draft.ports.map((p, i) => (<Chip key={i} text={`${p.hostPort}:${p.containerPort}${p.label ? ` ${p.label}` : ''}`} onRemove={() => dispatch({ type: 'removePort', index: i })} />))}</div>
-            </>
+          {draft.step === 5 && (
+            <PortsStep
+              ports={draft.ports}
+              hostServices={draft.hostServices}
+              onAddPort={(hostPort, containerPort, protocol, label) => dispatch({ type: 'addPort', hostPort, containerPort, protocol, label })}
+              onRemovePort={(index) => dispatch({ type: 'removePort', index })}
+              onAddHostService={(hostPort, label) => dispatch({ type: 'addHostService', hostPort, label })}
+              onRemoveHostService={(index) => dispatch({ type: 'removeHostService', index })}
+            />
           )}
 
-          {draft.step === 5 && (
+          {draft.step === 4 && (
             <CredentialsStep
               credentials={draft.credentials}
               envHits={envHits}
@@ -209,16 +208,21 @@ export function CreateDefinition({
 
           {draft.step === 6 && (
             <>
-              <h3 style={{ fontSize: 15, marginBottom: 'var(--space-3)' }}>{t('wizard.review')}</h3>
-              <table className="table">
+              <h3 style={{ fontSize: 15, marginBottom: 'var(--space-2)' }}>{t('wizard.review')}</h3>
+              <p className="section-desc">{t('wizard.reviewSubtitle')}</p>
+              <table className="review-table">
                 <tbody>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewName')}</td><td>{effectiveName(draft)}</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewBase')}</td><td><span className="code-inline">{resolveBaseImage(draft)}</span></td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewWorkspace')}</td><td><span className="code-inline">{draft.workspace}</span> ({draft.workspaceMode})</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewFolders')}</td><td>{draft.extraFolders.length}</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewNetwork')}</td><td>{t(`tier.${draft.tier}`)} · {draft.domains.length}</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewPorts')}</td><td>{draft.ports.length}</td></tr>
-                  <tr><td style={{ color: 'var(--text-muted)' }}>{t('wizard.reviewCredentials')}</td><td>{credentialsSummary(draft.credentials) ?? '—'}</td></tr>
+                  <tr><td>{t('wizard.reviewName')}</td><td><span className="code-inline">{effectiveName(draft)}</span></td></tr>
+                  {draft.description.trim() && <tr><td>{t('wizard.reviewDescription')}</td><td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{draft.description.trim()}</td></tr>}
+                  <tr><td>{t('wizard.reviewBase')}</td><td><span className="code-inline">{resolveBaseImage(draft)}</span></td></tr>
+                  <tr><td>{t('wizard.reviewWorkspace')}</td><td><span className="code-inline">{draft.workspace}</span></td></tr>
+                  <tr><td>{t('wizard.reviewMountMode')}</td><td><span className="code-inline">{draft.workspaceMode}</span> ({draft.workspaceMode === 'direct' ? t('wizard.modeReadWrite') : t('wizard.modeReadOnly')})</td></tr>
+                  <tr><td>{t('wizard.reviewFolders')}</td><td>{draft.extraFolders.length === 0 ? '—' : draft.extraFolders.map((f, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{f.path}</span> ({f.mode})</span>))}</td></tr>
+                  <tr><td>{t('wizard.reviewNetwork')}</td><td><TierBadge tier={draft.tier} /> — {t('wizard.reviewDomainsAllowlisted', { count: draft.domains.length })}</td></tr>
+                  <tr><td>{t('wizard.reviewPorts')}</td><td>{draft.ports.length === 0 ? '—' : (<>{t('wizard.reviewPortRules', { count: draft.ports.length })}: {draft.ports.map((p, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{p.hostPort !== null ? p.hostPort : ''}→{p.containerPort}/{p.protocol}</span></span>))}</>)}</td></tr>
+                  {draft.hostServices.length > 0 && <tr><td>{t('wizard.reviewHostServices')}</td><td>{draft.hostServices.map((h, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">host.docker.internal:{h.hostPort}</span></span>))}</td></tr>}
+                  <tr><td>{t('wizard.reviewCredentials')}</td><td>{credentialsSummary(draft.credentials) ?? '—'}</td></tr>
+                  <tr><td>{t('wizard.reviewAgent')}</td><td>Claude Code</td></tr>
                 </tbody>
               </table>
               {error && <p style={{ color: 'var(--danger)' }}>{t('wizard.error')}: {error}</p>}

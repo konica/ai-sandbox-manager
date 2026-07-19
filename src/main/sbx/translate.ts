@@ -52,8 +52,11 @@ export function specToCreateArgs(spec: DefinitionSpec, name: string = resolveSan
   return args
 }
 
+// sbx port spec: [[HOST_IP:]HOST_PORT:]SANDBOX_PORT[/PROTOCOL]. Omit the host port for
+// an ephemeral (OS-allocated) host port; PROTOCOL is one of tcp/tcp4/tcp6.
 export function portIntentToPublishSpec(p: PortIntent): string {
-  return `${p.hostPort}:${p.containerPort}`
+  const host = p.hostPort !== null ? `${p.hostPort}:` : ''
+  return `${host}${p.containerPort}/${p.protocol}`
 }
 
 /** Single-quote a string for safe embedding in a POSIX shell command. */
