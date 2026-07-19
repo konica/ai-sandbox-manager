@@ -37,13 +37,27 @@ export function TerminalsTab({ instance, spec, onAttach, onShell, onAllowDomain,
 
   return (
     <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 'var(--space-5)', alignItems: 'start' }}>
-      <div className="card">
-        <div className="card-header"><div className="card-title">{t('detail.terminals')}</div></div>
-        <p className="section-desc" style={{ marginTop: 0 }}>{t('detail.nativeNote')} <span className="os-tag" style={{ fontSize: 10 }}>macOS</span></p>
-        <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-3)' }}>
-          <button className="btn btn-primary btn-sm" disabled={!running} onClick={() => onAttach(instance.name)}>{t('detail.openAgent')}</button>
-          <button className="btn btn-secondary btn-sm" disabled={!running} onClick={() => onShell(instance.name)}>{t('detail.openShell')}</button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+        <div className="card">
+          <div className="card-header"><div className="card-title">{t('detail.terminals')}</div></div>
+          <p className="section-desc" style={{ marginTop: 0 }}>{t('detail.nativeNote')} <span className="os-tag" style={{ fontSize: 10 }}>macOS</span></p>
+          <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-3)' }}>
+            <button className="btn btn-primary btn-sm" disabled={!running} onClick={() => onAttach(instance.name)}>{t('detail.openAgent')}</button>
+            <button className="btn btn-secondary btn-sm" disabled={!running} onClick={() => onShell(instance.name)}>{t('detail.openShell')}</button>
+          </div>
         </div>
+
+        {spec && (
+          <div className="card">
+            <div className="card-header"><div className="card-title">{t('detail.mounts')}</div></div>
+            {spec.mounts.map((m, i) => (
+              <div key={i} className="mount-row">
+                <span className="mount-path">{m.hostPath}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.mode === 'clone' ? `${m.mode} (${t('detail.readonly')})` : m.mode}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
@@ -82,16 +96,6 @@ export function TerminalsTab({ instance, spec, onAttach, onShell, onAllowDomain,
                   {customs.map((c, i) => (<div key={i} className="secret-row" style={{ background: 'transparent', border: 'none', padding: '2px 0' }}><div className="secret-info"><span className="secret-name">{credName(c)}</span><span className="secret-value">{(c as { envVar: string }).envVar} = {MASK}</span></div></div>))}
                 </div>
               )}
-            </div>
-
-            <div className="card">
-              <div className="card-header"><div className="card-title">{t('detail.mounts')}</div></div>
-              {spec.mounts.map((m, i) => (
-                <div key={i} className="mount-row">
-                  <span className="mount-path">{m.hostPath}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.mode === 'clone' ? `${m.mode} (${t('detail.readonly')})` : m.mode}</span>
-                </div>
-              ))}
             </div>
           </>
         )}
