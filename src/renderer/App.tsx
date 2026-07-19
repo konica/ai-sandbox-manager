@@ -50,6 +50,14 @@ export default function App(): JSX.Element {
 
   useEffect(() => { void runGate() }, [runGate])
 
+  // Poll instances while viewing them so status changes (e.g. a sandbox finishing
+  // provisioning → running) surface in the list and the detail view without a manual refresh.
+  useEffect(() => {
+    if (screen !== 'instances') return
+    const id = setInterval(() => void loadInstances(), 4000)
+    return () => clearInterval(id)
+  }, [screen, loadInstances])
+
   function navigate(s: NavScreen): void {
     setWizard(null)
     setDetailName(null)
