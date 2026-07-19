@@ -65,7 +65,7 @@ export function CreateDefinition({
 
   // Scan the host environment for known service API keys when the Credentials step opens.
   useEffect(() => {
-    if (draft.step !== 5) return
+    if (draft.step !== 4) return
     let alive = true
     void api.credScanEnv().then((r) => { if (alive && r.ok) setEnvHits(r.data) })
     return () => { alive = false }
@@ -96,7 +96,7 @@ export function CreateDefinition({
   }
 
   const row = { display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' } as const
-  const stepKeys = ['workspace', 'baseImage', 'network', 'ports', 'credentials', 'review']
+  const stepKeys = ['workspace', 'baseImage', 'network', 'credentials', 'ports', 'review']
 
   return (
     <section className="screen active">
@@ -189,7 +189,7 @@ export function CreateDefinition({
             </>
           )}
 
-          {draft.step === 4 && (
+          {draft.step === 5 && (
             <PortsStep
               ports={draft.ports}
               hostServices={draft.hostServices}
@@ -200,7 +200,7 @@ export function CreateDefinition({
             />
           )}
 
-          {draft.step === 5 && (
+          {draft.step === 4 && (
             <CredentialsStep
               credentials={draft.credentials}
               envHits={envHits}
