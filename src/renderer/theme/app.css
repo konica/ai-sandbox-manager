@@ -1080,3 +1080,6 @@ label {
 .cred-type-group { margin-bottom: var(--space-3); }
 .cred-type-group:last-child { margin-bottom: 0; }
 .cred-type-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: var(--space-1); }
+
+/* Detail: port protocol suffix */
+.port-proto { color: var(--text-muted); font-size: 11px; }

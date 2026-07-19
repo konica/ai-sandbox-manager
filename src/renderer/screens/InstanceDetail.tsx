@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
-import type { InstanceView, DefinitionSpec } from '@shared/types'
+import { useCallback, useEffect, useState } from 'react'
+import type { InstanceView, DefinitionSpec, LivePort } from '@shared/types'
 import { StatusBadge } from '../components/badges'
 import { api } from '../ipc/client'
 import { useT } from '../i18n'
 import { TerminalsTab } from './detail/TerminalsTab'
+import { PortsTab } from './detail/PortsTab'
 
 export type DetailTab = 'terminals' | 'ports' | 'monitoring'
 
@@ -33,13 +34,20 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
   const t = useT()
   const [tab, setTab] = useState<DetailTab>('terminals')
   const [spec, setSpec] = useState<DefinitionSpec | null>(null)
+  const [livePorts, setLivePorts] = useState<LivePort[]>([])
 
-  useEffect(() => {
-    let alive = true
+  const reloadSpec = useCallback(async () => {
     if (!instance.definitionId) { setSpec(null); return }
-    void api.defGetSpec(instance.definitionId).then((r) => { if (alive && r.ok) setSpec(r.data) })
-    return () => { alive = false }
+    const r = await api.defGetSpec(instance.definitionId)
+    if (r.ok) setSpec(r.data)
   }, [instance.definitionId])
+  const reloadPorts = useCallback(async () => {
+    const r = await api.instancePortsList(instance.name)
+    if (r.ok) setLivePorts(r.data)
+  }, [instance.name])
+
+  useEffect(() => { void reloadSpec() }, [reloadSpec])
+  useEffect(() => { if (tab === 'ports') void reloadPorts() }, [tab, reloadPorts])
 
   const running = instance.status === 'running'
 
@@ -70,7 +78,18 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
       </div>
 
       {tab === 'terminals' && <TerminalsTab instance={instance} spec={spec} onAttach={onAttach} onShell={onShell} />}
-      {tab === 'ports' && <p className="section-desc">Ports —</p>}
+      {tab === 'ports' && (
+        <PortsTab
+          instance={instance}
+          ports={livePorts}
+          hostServices={spec?.hostServices ?? []}
+          linked={instance.definitionId !== null}
+          onPublish={async (p) => { await api.instancePortsPublish(instance.name, p); void reloadPorts() }}
+          onUnpublish={async (p) => { await api.instancePortsUnpublish(instance.name, p); void reloadPorts() }}
+          onAddHostService={async (port, label) => { await api.instanceHostServiceAdd(instance.name, port, label); void reloadSpec() }}
+          onRemoveHostService={async (port) => { await api.instanceHostServiceRemove(instance.name, port); void reloadSpec() }}
+        />
+      )}
       {tab === 'monitoring' && <p className="section-desc">Monitoring —</p>}
     </section>
   )
