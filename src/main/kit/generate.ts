@@ -1,23 +1,23 @@
-// Pure generator: DefinitionSpec -> mixin kit spec.yaml + the list of host secret
-// files the writer must create (0600). Custom credentials become the serviceAuth
-// four-block (serviceDomains + serviceAuth + credentials.sources.file + proxyManaged);
-// their values arrive host-side via file: sources so they never enter the VM.
-import type { DefinitionSpec, CustomCredentialRef } from '@shared/types'
+// Pure generator: DefinitionSpec -> a network-allowlist mixin kit spec.yaml.
+//
+// The Phase 0 spike proved that mixin-kit `serviceAuth` header injection does NOT
+// fire for custom domains (the proxy tunnels them `forward-bypass`). So the kit's
+// only job is reachability — `network.allowedDomains` — covering the tier baseline,
+// user domains, built-in-service domains, and custom-credential hosts. Credential
+// INJECTION happens at launch via `sbx secret set` / `sbx secret set-custom`
+// (see Task 11), not through the kit. No secret ever enters the kit.
+import type { DefinitionSpec } from '@shared/types'
 import { serviceById } from '@shared/services'
 import { BALANCED_BASELINE } from '../sbx/translate'
 
 export interface GeneratedKit {
   name: string
   specYaml: string
-  secretFiles: { relPath: string; envVar: string; credId: string }[]
+  secretFiles: { relPath: string; envVar: string; credId: string }[] // always [] now; kept for writeKit compat
 }
 
 function q(s: string): string {
   return JSON.stringify(s) // YAML-safe double-quoted scalar
-}
-
-function customCreds(spec: DefinitionSpec): CustomCredentialRef[] {
-  return spec.credentials.filter((c): c is CustomCredentialRef => c.kind === 'custom')
 }
 
 function serviceDomains(serviceId: string): string[] {
@@ -35,41 +35,13 @@ function allowedDomains(spec: DefinitionSpec): string[] {
 
 export function buildKitSpec(spec: DefinitionSpec): GeneratedKit {
   const name = 'ai-sandbox-' + spec.definition.id.slice(0, 8)
-  const customs = customCreds(spec)
   const domains = allowedDomains(spec)
   const lines: string[] = ['schemaVersion: "1"', 'kind: mixin', `name: ${name}`, `displayName: ${q(spec.definition.name)}`]
 
-  const net: string[] = []
   if (domains.length) {
-    net.push('  allowedDomains:')
-    for (const d of domains) net.push(`    - ${q(d)}`)
-  }
-  if (customs.length) {
-    net.push('  serviceDomains:')
-    for (const c of customs) for (const d of c.domains) net.push(`    ${d}: ${c.id}`)
-    net.push('  serviceAuth:')
-    for (const c of customs) {
-      net.push(`    ${c.id}:`)
-      const h = c.headers[0] ?? { name: 'Authorization', format: 'Bearer %s' }
-      net.push(`      headerName: ${q(h.name)}`)
-      net.push(`      valueFormat: ${q(h.format)}`)
-    }
-  }
-  if (net.length) {
-    lines.push('network:')
-    lines.push(...net)
+    lines.push('network:', '  allowedDomains:')
+    for (const d of domains) lines.push(`    - ${q(d)}`)
   }
 
-  if (customs.length) {
-    lines.push('credentials:', '  sources:')
-    for (const c of customs) lines.push(`    ${c.id}:`, '      file:', `        path: ${q('secrets/' + c.id)}`)
-    lines.push('environment:', '  proxyManaged:')
-    for (const c of customs) lines.push(`    - ${c.envVar}`)
-  }
-
-  return {
-    name,
-    specYaml: lines.join('\n') + '\n',
-    secretFiles: customs.map((c) => ({ relPath: 'secrets/' + c.id, envVar: c.envVar, credId: c.id }))
-  }
+  return { name, specYaml: lines.join('\n') + '\n', secretFiles: [] }
 }

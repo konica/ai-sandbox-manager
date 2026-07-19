@@ -14,7 +14,6 @@ export interface DraftCustomCred {
   label: string
   envVar: string
   domains: string[]
-  headers: { name: string; format: string }[]
   value: string
 }
 export type DraftCred = DraftServiceCred | DraftCustomCred
@@ -159,7 +158,7 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
     credentials: spec.credentials.map((c): DraftCred =>
       c.kind === 'service'
         ? { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, value: '' }
-        : { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: [...c.domains], headers: c.headers.map((h) => ({ ...h })), value: '' })
+        : { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: [...c.domains], value: '' })
   }
 }
 
@@ -175,6 +174,6 @@ export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec 
     credentials: d.credentials.map((c): CredentialRef =>
       c.kind === 'service'
         ? { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, store: 'sbx' }
-        : { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: c.domains, headers: c.headers, store: 'encrypted' })
+        : { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: c.domains, store: 'encrypted' })
   }
 }

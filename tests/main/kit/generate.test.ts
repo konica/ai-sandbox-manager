@@ -16,20 +16,19 @@ describe('buildKitSpec', () => {
     expect(k.specYaml).toContain('schemaVersion: "1"')
     expect(k.specYaml).toContain('kind: mixin')
   })
-  it('includes the custom four-block for a custom credential', () => {
-    const k = buildKitSpec(spec([{ kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], headers: [{ name: 'Authorization', format: 'Bearer %s' }], store: 'encrypted' }]))
-    expect(k.specYaml).toContain('serviceDomains:')
-    expect(k.specYaml).toContain('api.acme.com: acme')
-    expect(k.specYaml).toContain('headerName: "Authorization"')
-    expect(k.specYaml).toContain('valueFormat: "Bearer %s"')
-    expect(k.specYaml).toContain('proxyManaged:')
-    expect(k.specYaml).toContain('ACME_KEY')
-    expect(k.secretFiles).toEqual([{ relPath: 'secrets/acme', envVar: 'ACME_KEY', credId: 'acme' }])
+  it('is allowlist-only — no serviceAuth/credentials/proxyManaged and no secret files (injection is via set-custom)', () => {
+    const k = buildKitSpec(spec([{ kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' }]))
+    expect(k.specYaml).not.toContain('serviceAuth')
+    expect(k.specYaml).not.toContain('serviceDomains')
+    expect(k.specYaml).not.toContain('proxyManaged')
+    expect(k.specYaml).not.toContain('credentials:')
+    expect(k.specYaml).toContain('api.acme.com') // custom host still allowlisted for reachability
+    expect(k.secretFiles).toEqual([])
   })
   it('adds service + custom + tier domains to allowedDomains, deduped', () => {
     const k = buildKitSpec(spec(
       [{ kind: 'service', serviceId: 'anthropic', envVar: 'ANTHROPIC_API_KEY', store: 'sbx' },
-       { kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], headers: [{ name: 'X-Key', format: '%s' }], store: 'encrypted' }],
+       { kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' }],
       'balanced', ['example.com']))
     expect(k.specYaml).toContain('api.anthropic.com')
     expect(k.specYaml).toContain('api.acme.com')
@@ -37,7 +36,7 @@ describe('buildKitSpec', () => {
     const anthropicCount = (k.specYaml.match(/api\.anthropic\.com/g) || []).length
     expect(anthropicCount).toBe(1)
   })
-  it('emits no secretFiles when there are no custom credentials', () => {
+  it('emits no secretFiles ever (kit carries no secrets)', () => {
     const k = buildKitSpec(spec([{ kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', store: 'sbx' }]))
     expect(k.secretFiles).toEqual([])
   })

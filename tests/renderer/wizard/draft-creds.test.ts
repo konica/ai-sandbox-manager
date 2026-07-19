@@ -12,7 +12,7 @@ describe('draft credentials', () => {
     expect(JSON.stringify(spec.credentials[0])).not.toContain('sk-ant')
   })
   it('adds a custom credential with headers', () => {
-    const d = draftReducer(base, { type: 'addCustomCred', cred: { kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], headers: [{ name: 'Authorization', format: 'Bearer %s' }], value: 'v' } })
+    const d = draftReducer(base, { type: 'addCustomCred', cred: { kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], value: 'v' } })
     const spec = toSpec(d, 'id1', '2026-07-19T00:00:00.000Z')
     expect(spec.credentials[0]).toMatchObject({ kind: 'custom', id: 'acme', domains: ['api.acme.com'] })
   })

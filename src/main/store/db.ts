@@ -107,7 +107,7 @@ export function openStore(filename: string): Store {
       if (c.kind === 'service') {
         cIns.run(s.definition.id, 'service', c.serviceId, null, '', c.envVar, '[]', '[]', c.store)
       } else {
-        cIns.run(s.definition.id, 'custom', null, c.id, c.label, c.envVar, JSON.stringify(c.domains), JSON.stringify(c.headers), c.store)
+        cIns.run(s.definition.id, 'custom', null, c.id, c.label, c.envVar, JSON.stringify(c.domains), '[]', c.store)
       }
     }
   }
@@ -162,13 +162,13 @@ export function openStore(filename: string): Store {
       const ports = (db.prepare(`SELECT host_port AS hostPort, container_port AS containerPort, label FROM port_intent WHERE definition_id = ? ORDER BY id`).all(id) as Array<Record<string, unknown>>)
         .map((r) => ({ hostPort: Number(r.hostPort), containerPort: Number(r.containerPort), label: String(r.label) }))
       const credentials = (db.prepare(
-        `SELECT kind, service_id AS serviceId, cred_id AS credId, label, env_var AS envVar, domains, headers, store
+        `SELECT kind, service_id AS serviceId, cred_id AS credId, label, env_var AS envVar, domains, store
          FROM credential_ref WHERE definition_id = ? ORDER BY id`
-      ).all(id) as Array<{ kind: string; serviceId: string | null; credId: string | null; label: string; envVar: string; domains: string; headers: string; store: string }>)
+      ).all(id) as Array<{ kind: string; serviceId: string | null; credId: string | null; label: string; envVar: string; domains: string; store: string }>)
         .map((r): CredentialRef =>
           r.kind === 'service'
             ? { kind: 'service', serviceId: r.serviceId!, envVar: r.envVar, store: r.store as CredentialStore }
-            : { kind: 'custom', id: r.credId!, label: r.label, envVar: r.envVar, domains: JSON.parse(r.domains), headers: JSON.parse(r.headers), store: r.store as CredentialStore })
+            : { kind: 'custom', id: r.credId!, label: r.label, envVar: r.envVar, domains: JSON.parse(r.domains), store: r.store as CredentialStore })
       return { definition: def, mounts, domains, ports, credentials }
     },
     upsertInstanceMeta(m) {

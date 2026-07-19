@@ -50,20 +50,18 @@ export interface ServiceCredentialRef {
   store: CredentialStore
 }
 
-/** One proxy-rewritten header. `format` contains %s where the secret is substituted, e.g. "Bearer %s". */
-export interface CustomHeader {
-  name: string
-  format: string
-}
-
-/** An arbitrary service. Injected via an app-generated mixin kit (serviceAuth four-block). */
+/**
+ * An arbitrary service. Injected at runtime via `sbx secret set-custom` (verified in the
+ * Phase 0 spike): the proxy substitutes a generated placeholder for the real value in any
+ * outbound request to a matching host. The agent chooses which header carries the env var —
+ * so there is no app-supplied header name / value format.
+ */
 export interface CustomCredentialRef {
   kind: 'custom'
-  id: string // kit service id — lowercase/alnum/hyphen, unique within a definition
+  id: string // slug — lowercase/alnum/hyphen, unique within a definition
   label: string
-  envVar: string // proxyManaged env var name inside the sandbox
-  domains: string[] // serviceDomains keys; wildcards *. / **. allowed
-  headers: CustomHeader[]
+  envVar: string // in-VM env var set to the placeholder (--env)
+  domains: string[] // target hosts (--host); wildcards *. / **. allowed
   store: CredentialStore
 }
 

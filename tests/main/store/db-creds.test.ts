@@ -9,7 +9,7 @@ function baseSpec(id: string): DefinitionSpec {
     domains: [], ports: [],
     credentials: [
       { kind: 'service', serviceId: 'anthropic', envVar: 'ANTHROPIC_API_KEY', store: 'sbx' },
-      { kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], headers: [{ name: 'Authorization', format: 'Bearer %s' }], store: 'encrypted' }
+      { kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' }
     ]
   }
 }
@@ -26,8 +26,7 @@ describe('credential_ref round-trip', () => {
     const svc = back!.credentials.find((c) => c.kind === 'service')
     expect(svc).toMatchObject({ serviceId: 'anthropic', envVar: 'ANTHROPIC_API_KEY', store: 'sbx' })
     const cust = back!.credentials.find((c) => c.kind === 'custom')
-    expect(cust).toMatchObject({ id: 'acme', domains: ['api.acme.com'] })
-    expect(cust && cust.kind === 'custom' && cust.headers[0]).toEqual({ name: 'Authorization', format: 'Bearer %s' })
+    expect(cust).toMatchObject({ id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' })
   })
 })
 

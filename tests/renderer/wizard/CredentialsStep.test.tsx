@@ -17,9 +17,11 @@ describe('CredentialsStep', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(p.onAddService).toHaveBeenCalledWith('anthropic', 'ANTHROPIC_API_KEY', 'sk-ant-xyz')
   })
-  it('switches to the Custom tab and adds a custom credential with a header', () => {
+  it('switches to the Custom tab and adds a custom credential (host + env var + value, no header fields)', () => {
     const p = setup()
     fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    expect(screen.queryByLabelText('Header Name')).toBeNull() // v7: header fields removed
+    expect(screen.queryByLabelText('Value Format')).toBeNull()
     fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'api.acme.com' } })
     fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'ACME_KEY' } })
     fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v' } })

@@ -35,8 +35,6 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
   const [svcValue, setSvcValue] = useState('')
   const [host, setHost] = useState('')
   const [envVar, setEnvVar] = useState('')
-  const [headerName, setHeaderName] = useState('Authorization')
-  const [valueFormat, setValueFormat] = useState('Bearer %s')
   const [customValue, setCustomValue] = useState('')
   const [importOpen, setImportOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -56,15 +54,11 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
   }
   function addCustom(): void {
     if (!host.trim() || !envVar.trim()) return
-    onAddCustom({
-      kind: 'custom', id: toSbxName(host.trim()), label: host.trim(), envVar: envVar.trim(),
-      domains: [host.trim()], headers: [{ name: headerName.trim() || 'Authorization', format: valueFormat.trim() || '%s' }], value: customValue
-    })
+    onAddCustom({ kind: 'custom', id: toSbxName(host.trim()), label: host.trim(), envVar: envVar.trim(), domains: [host.trim()], value: customValue })
     setHost(''); setEnvVar(''); setCustomValue('')
   }
   function editCustom(c: DraftCustomCred, i: number): void {
-    setTab('custom'); setHost(c.domains[0] ?? ''); setEnvVar(c.envVar)
-    setHeaderName(c.headers[0]?.name ?? 'Authorization'); setValueFormat(c.headers[0]?.format ?? 'Bearer %s'); setCustomValue(c.value); onRemove(i)
+    setTab('custom'); setHost(c.domains[0] ?? ''); setEnvVar(c.envVar); setCustomValue(c.value); onRemove(i)
   }
   function toggleSel(id: string): void {
     setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
@@ -164,16 +158,6 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
               <span style={lbl}>{t('credentials.value')}</span>
               <input aria-label="Value" type="password" className="input" placeholder="secret" value={customValue} onChange={(e) => setCustomValue(e.target.value)} />
             </div>
-          </div>
-          <div style={rowStyle}>
-            <div style={{ ...field, flex: '1 1 180px' }}>
-              <span style={lbl}>{t('credentials.headerName')}</span>
-              <input aria-label="Header Name" className="input" value={headerName} onChange={(e) => setHeaderName(e.target.value)} />
-            </div>
-            <div style={{ ...field, flex: '1 1 180px' }}>
-              <span style={lbl}>{t('credentials.valueFormat')}</span>
-              <input aria-label="Value Format" className="input" value={valueFormat} onChange={(e) => setValueFormat(e.target.value)} />
-            </div>
             <button className="btn btn-primary btn-sm" onClick={addCustom}>{t('credentials.add')}</button>
           </div>
           <p style={hint}>{t('credentials.wildcardHint')}</p>
@@ -207,7 +191,7 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
             <div key={i} style={credRow}>
               <span>
                 <strong style={{ fontSize: 13 }}>{c.domains.join(', ')}</strong>
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{c.headers[0]?.name}: {c.headers[0]?.format} ← {c.envVar} = {mask(c.value)}</span>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{c.envVar} = {mask(c.value)}</span>
               </span>
               <span style={{ display: 'flex', gap: 'var(--space-3)', flexShrink: 0 }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => editCustom(c, i)}>{t('credentials.edit')}</button>
