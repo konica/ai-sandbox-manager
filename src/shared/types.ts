@@ -40,11 +40,42 @@ export interface PortIntent {
   label: string
 }
 
-export type CredentialKind = 'git' | 'api-key' | 'claude-auth'
+export type CredentialStore = 'sbx' | 'encrypted'
 
-export interface CredentialRef {
+/** A built-in service (anthropic, openai, …). Value lives in sbx keychain; base kit owns serviceAuth. */
+export interface ServiceCredentialRef {
+  kind: 'service'
+  serviceId: string
+  envVar: string
+  store: CredentialStore
+}
+
+/** One proxy-rewritten header. `format` contains %s where the secret is substituted, e.g. "Bearer %s". */
+export interface CustomHeader {
+  name: string
+  format: string
+}
+
+/** An arbitrary service. Injected via an app-generated mixin kit (serviceAuth four-block). */
+export interface CustomCredentialRef {
+  kind: 'custom'
+  id: string // kit service id — lowercase/alnum/hyphen, unique within a definition
   label: string
-  kind: CredentialKind
+  envVar: string // proxyManaged env var name inside the sandbox
+  domains: string[] // serviceDomains keys; wildcards *. / **. allowed
+  headers: CustomHeader[]
+  store: CredentialStore
+}
+
+export type CredentialRef = ServiceCredentialRef | CustomCredentialRef
+
+/** A reusable secret managed in Settings (sbx `-g`). Metadata only — never the value. */
+export interface GlobalSecretMeta {
+  id: string // service id, or a custom slug
+  label: string
+  envVar: string
+  store: CredentialStore
+  createdAt: string
 }
 
 export interface DefinitionSpec {
