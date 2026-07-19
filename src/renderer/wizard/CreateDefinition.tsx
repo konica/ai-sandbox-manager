@@ -72,7 +72,8 @@ export function CreateDefinition({
     for (const c of draft.credentials) {
       if (!c.value.trim()) continue
       const sub = c.kind === 'service' ? `service:${c.serviceId}` : `custom:${c.id}`
-      await api.credStageValue(`${spec.definition.id}:${sub}`, c.value)
+      const staged = await api.credStageValue(`${spec.definition.id}:${sub}`, c.value)
+      if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return }
     }
     onDone()
   }

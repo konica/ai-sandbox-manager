@@ -75,11 +75,12 @@ describe('launchDefinition', () => {
     expect(cmd).not.toContain('acme-secret')
   })
 
-  it('skips a credential with no staged value (e.g. edit without re-entering it)', async () => {
+  it('skips a credential with no staged value and logs a clear warning', async () => {
     const credSpec: DefinitionSpec = { ...spec, credentials: [{ kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', store: 'sbx' }] }
     const d = deps(() => credSpec) // nothing staged
     await launchDefinition(d as never, 'd1')
     expect(d.setSecret).not.toHaveBeenCalled()
+    expect(d.infos.some((l) => /no stored value/i.test(l))).toBe(true)
   })
 
   it('picks a unique name when the base collides with an existing sandbox', async () => {

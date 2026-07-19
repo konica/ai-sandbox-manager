@@ -56,16 +56,34 @@ export async function launchDefinition(
   if (name !== base) deps.log?.info(`Name "${base}" is already in use; using "${name}" instead.`)
 
   // Register secrets scoped to <name>, pre-create, from this process (never in the terminal).
+  if (spec.credentials.length > 0) {
+    deps.log?.info(`Registering ${spec.credentials.length} credential(s) scoped to "${name}" before provisioning…`)
+  }
+  let registered = 0
+  let skipped = 0
   for (const c of spec.credentials) {
+    const label = c.kind === 'service' ? `service "${c.serviceId}" (${c.envVar})` : `custom "${c.domains.join(', ')}" (${c.envVar})`
     const value = deps.creds.getStaged(stageKey(definitionId, c))
-    if (!value) continue
-    if (c.kind === 'service') {
-      deps.log?.command(['secret', 'set', name, c.serviceId])
-      await deps.adapter.setSecret(c.serviceId, value, { sandbox: name })
-    } else {
-      deps.log?.command(['secret', 'set-custom', name, '--host', c.domains.join(','), '--env', c.envVar])
-      await deps.adapter.setCustomSecret(c.domains, c.envVar, value, { sandbox: name })
+    if (!value) {
+      deps.log?.info(`  ⚠ ${label}: no stored value found — NOT registered. Open the definition's Credentials step and re-enter the value, then relaunch.`)
+      skipped++
+      continue
     }
+    try {
+      if (c.kind === 'service') {
+        deps.log?.info(`  ${label}: sbx secret set ${name} ${c.serviceId} (value via stdin)`)
+        await deps.adapter.setSecret(c.serviceId, value, { sandbox: name })
+      } else {
+        deps.log?.info(`  ${label}: sbx secret set-custom ${name} --host ${c.domains.join(' --host ')} --env ${c.envVar}`)
+        await deps.adapter.setCustomSecret(c.domains, c.envVar, value, { sandbox: name })
+      }
+      registered++
+    } catch (e) {
+      deps.log?.error(`  ✗ ${label}: registration failed — the agent may launch unauthenticated: ${(e as Error).message}`)
+    }
+  }
+  if (spec.credentials.length > 0) {
+    deps.log?.info(`Credentials registered: ${registered}${skipped ? `, skipped (no stored value): ${skipped}` : ''}.`)
   }
 
   const kitDir = deps.materializeKit(spec, name)

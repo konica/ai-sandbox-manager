@@ -168,7 +168,8 @@ export const de: Dict = {
     reviewNetwork: 'Netzwerk',
     reviewPorts: 'Ports',
     reviewCredentials: 'Anmeldedaten',
-    error: 'Fehler'
+    error: 'Fehler',
+    stageFailed: 'Definition gespeichert, aber ein Anmeldedaten-Wert konnte nicht gespeichert werden: {message}'
   },
   tier: { open: 'Offen', balanced: 'Ausgewogen', locked: 'Abgeschottet', custom: 'Benutzerdefiniert' },
   status: { running: 'Läuft', stopped: 'Gestoppt', error: 'Fehler', unknown: 'Unbekannt' }

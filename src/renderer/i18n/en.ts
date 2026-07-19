@@ -166,7 +166,8 @@ export const en = {
     reviewNetwork: 'Network',
     reviewPorts: 'Ports',
     reviewCredentials: 'Credentials',
-    error: 'Error'
+    error: 'Error',
+    stageFailed: 'Definition saved, but a credential value could not be stored: {message}'
   },
   tier: { open: 'Open', balanced: 'Balanced', locked: 'Locked Down', custom: 'Custom' },
   status: { running: 'Running', stopped: 'Stopped', error: 'Error', unknown: 'Unknown' }
