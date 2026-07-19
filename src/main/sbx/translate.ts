@@ -40,7 +40,7 @@ function dedup(xs: string[]): string[] {
   return [...new Set(xs.filter((x) => x.trim().length > 0))]
 }
 
-export function specToCreateArgs(spec: DefinitionSpec, name: string = resolveSandboxName(spec)): string[] {
+export function specToCreateArgs(spec: DefinitionSpec, name: string = resolveSandboxName(spec), kitDir?: string): string[] {
   const primary = spec.mounts.find((m) => m.isPrimary) ?? spec.mounts[0]
   const extras = spec.mounts.filter((m) => m !== primary)
   const args = ['create', AGENT_KEYWORD, primary.hostPath]
@@ -48,6 +48,7 @@ export function specToCreateArgs(spec: DefinitionSpec, name: string = resolveSan
   args.push('--name', name)
   if (spec.definition.baseImage.trim().length > 0) args.push('--template', spec.definition.baseImage)
   if (primary.mode === 'clone') args.push('--clone')
+  if (kitDir) args.push('--kit', kitDir)
   return args
 }
 
@@ -84,11 +85,14 @@ export function shellCommand(argv: string[]): string {
  *   create (provision) → apply network tier → publish ports → run (attach agent).
  * Chained with `&&` so a failed step stops the sequence and stays visible.
  */
-export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string): string {
-  const steps: string[] = [shellCommand(['sbx', ...specToCreateArgs(spec, name)])]
-  const resources = tierToAllowlist(spec.definition.tier, spec.domains)
-  if (resources.length > 0) {
-    steps.push(shellCommand(['sbx', 'policy', 'allow', 'network', '--sandbox', name, resources.join(',')]))
+export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string): string {
+  const steps: string[] = [shellCommand(['sbx', ...specToCreateArgs(spec, name, kitDir)])]
+  if (!kitDir) {
+    // A generated kit owns `allowedDomains`; only apply standalone policy without one.
+    const resources = tierToAllowlist(spec.definition.tier, spec.domains)
+    if (resources.length > 0) {
+      steps.push(shellCommand(['sbx', 'policy', 'allow', 'network', '--sandbox', name, resources.join(',')]))
+    }
   }
   for (const p of spec.ports) {
     steps.push(shellCommand(['sbx', 'ports', name, '--publish', portIntentToPublishSpec(p)]))
