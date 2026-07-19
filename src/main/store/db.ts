@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import type { Definition, InstanceMeta, DefinitionSpec, MountMode, CredentialKind } from '@shared/types'
+import type { Definition, InstanceMeta, DefinitionSpec, MountMode, CredentialRef, CredentialStore, GlobalSecretMeta } from '@shared/types'
 
 export interface Store {
   insertDefinition(d: Definition): void
@@ -11,6 +11,9 @@ export interface Store {
   upsertInstanceMeta(m: InstanceMeta): void
   listInstanceMeta(): InstanceMeta[]
   deleteInstanceMeta(sbxName: string): void
+  listGlobalSecrets(): GlobalSecretMeta[]
+  upsertGlobalSecret(g: GlobalSecretMeta): void
+  deleteGlobalSecret(id: string): void
   close(): void
 }
 
@@ -56,17 +59,38 @@ CREATE TABLE IF NOT EXISTS port_intent (
 CREATE TABLE IF NOT EXISTS credential_ref (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   definition_id TEXT NOT NULL,
-  label TEXT NOT NULL,
-  kind TEXT NOT NULL,
+  kind TEXT NOT NULL,              -- 'service' | 'custom'
+  service_id TEXT,                 -- service kind
+  cred_id TEXT,                    -- custom kind (kit service id)
+  label TEXT NOT NULL DEFAULT '',
+  env_var TEXT NOT NULL,
+  domains TEXT NOT NULL DEFAULT '[]',   -- JSON array (custom)
+  headers TEXT NOT NULL DEFAULT '[]',   -- JSON array of {name,format} (custom)
+  store TEXT NOT NULL DEFAULT 'sbx',
   FOREIGN KEY (definition_id) REFERENCES definition(id) ON DELETE CASCADE
 );
-PRAGMA user_version = 2;
+CREATE TABLE IF NOT EXISTS global_secret (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  env_var TEXT NOT NULL,
+  store TEXT NOT NULL DEFAULT 'sbx',
+  created_at TEXT NOT NULL
+);
+PRAGMA user_version = 3;
 `
 
 export function openStore(filename: string): Store {
   const db = new Database(filename)
   db.pragma('journal_mode = WAL')
   db.exec(SCHEMA)
+
+  // Migrate pre-v3 credential_ref (old shape: label, kind) → new shape. Old rows held no
+  // secret value and only throwaway metadata, so a drop+recreate is safe pre-release.
+  const cols = (db.prepare(`PRAGMA table_info(credential_ref)`).all() as { name: string }[]).map((c) => c.name)
+  if (!cols.includes('env_var')) {
+    db.exec(`DROP TABLE IF EXISTS credential_ref;`)
+    db.exec(SCHEMA) // re-creates credential_ref (new shape) + global_secret
+  }
 
   function insertChildren(s: DefinitionSpec): void {
     const mIns = db.prepare(`INSERT INTO mount_intent (definition_id, host_path, mode, is_primary) VALUES (?, ?, ?, ?)`)
@@ -75,8 +99,17 @@ export function openStore(filename: string): Store {
     for (const host of s.domains) dIns.run(s.definition.id, host)
     const pIns = db.prepare(`INSERT INTO port_intent (definition_id, host_port, container_port, label) VALUES (?, ?, ?, ?)`)
     for (const p of s.ports) pIns.run(s.definition.id, p.hostPort, p.containerPort, p.label)
-    const cIns = db.prepare(`INSERT INTO credential_ref (definition_id, label, kind) VALUES (?, ?, ?)`)
-    for (const c of s.credentials) cIns.run(s.definition.id, c.label, c.kind)
+    const cIns = db.prepare(
+      `INSERT INTO credential_ref (definition_id, kind, service_id, cred_id, label, env_var, domains, headers, store)
+       VALUES (?,?,?,?,?,?,?,?,?)`
+    )
+    for (const c of s.credentials) {
+      if (c.kind === 'service') {
+        cIns.run(s.definition.id, 'service', c.serviceId, null, '', c.envVar, '[]', '[]', c.store)
+      } else {
+        cIns.run(s.definition.id, 'custom', null, c.id, c.label, c.envVar, JSON.stringify(c.domains), JSON.stringify(c.headers), c.store)
+      }
+    }
   }
 
   function deleteChildren(definitionId: string): void {
@@ -128,8 +161,14 @@ export function openStore(filename: string): Store {
       const domains = (db.prepare(`SELECT host FROM policy_domain WHERE definition_id = ? ORDER BY id`).all(id) as Array<{ host: string }>).map((r) => r.host)
       const ports = (db.prepare(`SELECT host_port AS hostPort, container_port AS containerPort, label FROM port_intent WHERE definition_id = ? ORDER BY id`).all(id) as Array<Record<string, unknown>>)
         .map((r) => ({ hostPort: Number(r.hostPort), containerPort: Number(r.containerPort), label: String(r.label) }))
-      const credentials = (db.prepare(`SELECT label, kind FROM credential_ref WHERE definition_id = ? ORDER BY id`).all(id) as Array<Record<string, unknown>>)
-        .map((r) => ({ label: String(r.label), kind: String(r.kind) as CredentialKind }))
+      const credentials = (db.prepare(
+        `SELECT kind, service_id AS serviceId, cred_id AS credId, label, env_var AS envVar, domains, headers, store
+         FROM credential_ref WHERE definition_id = ? ORDER BY id`
+      ).all(id) as Array<{ kind: string; serviceId: string | null; credId: string | null; label: string; envVar: string; domains: string; headers: string; store: string }>)
+        .map((r): CredentialRef =>
+          r.kind === 'service'
+            ? { kind: 'service', serviceId: r.serviceId!, envVar: r.envVar, store: r.store as CredentialStore }
+            : { kind: 'custom', id: r.credId!, label: r.label, envVar: r.envVar, domains: JSON.parse(r.domains), headers: JSON.parse(r.headers), store: r.store as CredentialStore })
       return { definition: def, mounts, domains, ports, credentials }
     },
     upsertInstanceMeta(m) {
@@ -148,6 +187,18 @@ export function openStore(filename: string): Store {
     },
     deleteInstanceMeta(sbxName) {
       db.prepare(`DELETE FROM instance_meta WHERE sbx_name = ?`).run(sbxName)
+    },
+    listGlobalSecrets(): GlobalSecretMeta[] {
+      return db.prepare(`SELECT id, label, env_var AS envVar, store, created_at AS createdAt FROM global_secret ORDER BY created_at`).all() as GlobalSecretMeta[]
+    },
+    upsertGlobalSecret(g: GlobalSecretMeta) {
+      db.prepare(
+        `INSERT INTO global_secret (id, label, env_var, store, created_at) VALUES (@id,@label,@envVar,@store,@createdAt)
+         ON CONFLICT(id) DO UPDATE SET label=@label, env_var=@envVar, store=@store`
+      ).run(g)
+    },
+    deleteGlobalSecret(id: string) {
+      db.prepare(`DELETE FROM global_secret WHERE id = ?`).run(id)
     },
     close() { db.close() }
   }

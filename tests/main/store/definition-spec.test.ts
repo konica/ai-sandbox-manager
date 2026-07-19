@@ -13,7 +13,7 @@ const spec: DefinitionSpec = {
   ],
   domains: ['api.github.com', 'registry.npmjs.org'],
   ports: [{ hostPort: 8080, containerPort: 3000, label: 'web' }],
-  credentials: [{ label: 'GitHub token', kind: 'git' }]
+  credentials: [{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', store: 'sbx' }]
 }
 
 describe('definition spec persistence', () => {
