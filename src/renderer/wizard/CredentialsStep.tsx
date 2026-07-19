@@ -11,6 +11,17 @@ const hint = { fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }
 const sectionLbl = { fontSize: 13, fontWeight: 600, margin: 'var(--space-4) 0 var(--space-2)' }
 const credRow = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', padding: '10px 12px', background: 'var(--surface-2, rgba(127,127,127,.06))', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', marginBottom: 6 } as const
 
+// Text-style credential-type tab, matching the v7 mockup (.cred-type-tab).
+function credTabStyle(active: boolean, disabled = false) {
+  return {
+    padding: 'var(--space-1) var(--space-3)', fontSize: 12, fontWeight: 600, border: 'none',
+    borderRadius: 'var(--radius-sm)', fontFamily: 'inherit',
+    background: active ? 'var(--bg-hover)' : 'transparent',
+    color: active ? 'var(--accent)' : 'var(--text-muted)',
+    cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1
+  } as const
+}
+
 function mask(value: string): string {
   return value.trim().length >= 4 ? '••••••••••••••••' + value.trim().slice(-4) : '••••••••••••••••'
 }
@@ -73,10 +84,10 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
       <label>{t('wizard.steps.credentials')}</label>
       <p className="section-desc" style={{ marginTop: 0 }}>{t('credentials.subtitle')}</p>
 
-      <div role="tablist" style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-        <button role="tab" aria-selected={tab === 'service'} className={`btn btn-sm ${tab === 'service' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('service')}>{t('credentials.tabService')}</button>
-        <button role="tab" aria-selected={tab === 'custom'} className={`btn btn-sm ${tab === 'custom' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('custom')}>{t('credentials.tabCustom')}</button>
-        <button role="tab" aria-selected={false} aria-disabled className="btn btn-sm btn-secondary" disabled title={t('credentials.registrySoon')} style={{ opacity: 0.5 }}>{t('credentials.tabRegistry')}</button>
+      <div role="tablist" style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 'var(--space-5)', borderBottom: '1px solid var(--border)', paddingBottom: 'var(--space-2)' }}>
+        <button role="tab" aria-selected={tab === 'service'} style={credTabStyle(tab === 'service')} onClick={() => setTab('service')}>{t('credentials.tabService')}</button>
+        <button role="tab" aria-selected={tab === 'custom'} style={credTabStyle(tab === 'custom')} onClick={() => setTab('custom')}>{t('credentials.tabCustom')}</button>
+        <button role="tab" aria-selected={false} aria-disabled disabled title={t('credentials.registrySoon')} style={credTabStyle(false, true)}>{t('credentials.tabRegistry')}</button>
       </div>
 
       {tab === 'service' && (
