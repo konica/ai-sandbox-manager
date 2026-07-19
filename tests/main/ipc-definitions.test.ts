@@ -15,7 +15,9 @@ const adapter: SbxAdapter = {
   applyPolicy: async () => {},
   publishPorts: async () => {},
   stopSandbox: async () => {},
-  removeSandbox: async () => {}
+  removeSandbox: async () => {},
+  setSecret: async () => {},
+  removeSecret: async () => {}
 }
 const probes: Probes = {
   dockerVersion: async () => 'Docker version 24.0.7', sbxVersion: async () => 'sbx 1.0', sbxAuthed: async () => true,

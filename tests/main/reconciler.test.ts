@@ -11,7 +11,9 @@ function fakeAdapter(names: string[]): SbxAdapter {
     applyPolicy: async () => {},
     publishPorts: async () => {},
     stopSandbox: async () => {},
-    removeSandbox: async () => {}
+    removeSandbox: async () => {},
+    setSecret: async () => {},
+    removeSecret: async () => {}
   }
 }
 

@@ -17,6 +17,8 @@ export interface SbxAdapter {
   publishPorts(name: string, ports: PortIntent[]): Promise<void>
   stopSandbox(name: string): Promise<void>
   removeSandbox(name: string): Promise<void>
+  setSecret(service: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
+  removeSecret(service: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
 }
 
 export const defaultSpawn: SpawnFn = (cmd, args, opts) =>
@@ -79,5 +81,15 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     await runSbx(['rm', name, '--force'])
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox }
+  async function setSecret(service: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void> {
+    const scope = opts.global ? ['-g'] : opts.sandbox ? [opts.sandbox] : []
+    await runSbx(['secret', 'set', ...scope, service], { stdin: value })
+  }
+
+  async function removeSecret(service: string, opts: { global?: boolean; sandbox?: string }): Promise<void> {
+    const scope = opts.global ? ['-g'] : opts.sandbox ? [opts.sandbox] : []
+    await runSbx(['secret', 'rm', ...scope, service, '-f'])
+  }
+
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret }
 }
