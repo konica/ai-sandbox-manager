@@ -41,6 +41,16 @@ sbx ports <s> --json                         # inspect the JSON list shape
 
 Record: does `--publish`/`--unpublish` work post-run without recreating? What is the **exact `--unpublish` spec** it accepts (does it need the full `host:container/proto`, or just the host port)? What does `sbx ports <s> --json` return (field names)?
 
+Then confirm the **host-service live-allow** (needed for the dual-write host-service add):
+
+```bash
+sbx policy allow network --sandbox <s> localhost:19999   # allow a host-service port live
+sbx exec <s> -- sh -lc 'curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://host.docker.internal:19999 || true'
+sbx policy inspect <s> 2>/dev/null | grep -i localhost    # or sbx policy check — confirm the rule is present live
+```
+
+Record: does `sbx policy allow network --sandbox <s> localhost:<port>` take effect on the **running** sandbox (host.docker.internal:<port> reachable)? Is there any **granular remove** for a single allow rule (checked so Phase 3 can confirm host-service removal really is persist-only)?
+
 - [ ] **Step 2: Confirm `sbx policy log` output + JSON.** Run:
 
 ```bash
@@ -64,9 +74,10 @@ _(fill in after running Task 0)_
 - Live publish/unpublish post-run: …
 - Exact `--unpublish` spec accepted: …
 - `sbx ports --json` shape: …
+- Host-service live-allow (`sbx policy allow network --sandbox <s> localhost:<port>`) takes effect on running sandbox; granular allow-remove exists?: …
 - `sbx policy log`: per-sandbox vs global; `--json` fields; poll vs follow: …
 
-**Assumptions Phases 3–4 proceed on (correct if the spike disproves them):** `sbx ports <name> --publish <spec>` / `--unpublish <spec>` work on a running sandbox with the full `[host:]container/proto` spec; `sbx policy log` is pollable and parseable (JSON preferred, text table fallback) with allowed/blocked rows carrying host + reason.
+**Assumptions Phases 3–4 proceed on (correct if the spike disproves them):** `sbx ports <name> --publish <spec>` / `--unpublish <spec>` work on a running sandbox with the full `[host:]container/proto` spec; `sbx policy allow network --sandbox <name> localhost:<port>` allows a host service live; there is **no** granular live allow-remove, so host-service removal is persist-only (applies next launch); `sbx policy log` is pollable and parseable (JSON preferred, text table fallback) with allowed/blocked rows carrying host + reason.
 
 ---
 
@@ -270,19 +281,30 @@ git commit -m "feat(detail): Terminals tab — native launch buttons + info side
 
 ---
 
-## Phase 3 — Ports tab (live forwards)
+## Phase 3 — Ports tab (live forwards + host services, dual-write)
 
-> **Depends on Phase 0 spike** (Step 1). If `--unpublish` needs a different spec than `[host:]container/proto`, adjust Task 4's spec builder.
+> **Depends on Phase 0 spike** (Steps 1 & 3). If `--unpublish` needs a different spec than `[host:]container/proto`, adjust Task 4's spec builder.
 >
-> **Scope:** port **forwards** are live (add/remove on a running sandbox). **Host services** are shown **read-only** from the spec with a note that changing them needs recreate (they're kit/allowlist config applied at create, not a live `sbx` op).
+> **Dual-write model (decided):** every add/remove of a **port forward** or a **host service** in this tab does two things — (1) apply it **live** to the running `sbx` sandbox where the runtime allows, and (2) write it back to the **associated definition** (`updateDefinitionSpec`), so the next launch/re-attach regenerates the kit with the change.
+>
+> **Live-apply matrix:**
+> | Op | Live on running sandbox | Definition persist |
+> |----|----|----|
+> | Port forward **add** | `sbx ports <name> --publish <spec>` ✓ | add `PortIntent` |
+> | Port forward **remove** | `sbx ports <name> --unpublish <spec>` ✓ | remove `PortIntent` |
+> | Host service **add** | `sbx policy allow network --sandbox <name> localhost:<port>` ✓ | add `HostServiceIntent` |
+> | Host service **remove** | **not live** (no granular allow-remove; `policy reset` is FORBIDDEN) → persist only, takes effect **next launch** | remove `HostServiceIntent` |
+>
+> **No linked definition** (`definitionId === null`): apply the live op only, **skip** the definition write; the UI shows a subtle "not linked to a definition — changes won't persist" note.
 
-### Task 4: Adapter + IPC for live ports
+### Task 4: Live-ports + host-service adapter, dual-write persist, IPC
 
 **Files:**
-- Modify: `src/main/sbx/adapter.ts` (add `listPorts`, `publishPort`, `unpublishPort`)
+- Modify: `src/main/sbx/adapter.ts` (add `listPorts`, `publishPort`, `unpublishPort`, `allowHostService`)
+- Modify: `src/main/sbx/parse.ts` (add `parsePortsJson`) — or inline in adapter
+- Create: `src/main/detail/persist.ts` (dual-write definition helpers)
 - Modify: `src/main/ipc.ts`, `src/preload/index.ts`, `src/renderer/ipc/client.ts` (new channels)
-- Modify: `src/main/sbx/parse.ts` (add `parsePortsJson`) — or inline in adapter if simpler
-- Test: `tests/main/sbx/adapter-ports.test.ts`, `tests/main/ipc-ports.test.ts`
+- Test: `tests/main/sbx/adapter-ports.test.ts`, `tests/main/detail/persist.test.ts`, `tests/main/ipc-ports.test.ts`
 
 **Interfaces:**
 - Produces on `SbxAdapter`:
@@ -290,11 +312,27 @@ git commit -m "feat(detail): Terminals tab — native launch buttons + info side
 listPorts(name: string): Promise<LivePort[]>
 publishPort(name: string, port: LivePort): Promise<void>
 unpublishPort(name: string, port: LivePort): Promise<void>
-// where (add to @shared/types):
+allowHostService(name: string, hostPort: number): Promise<void>  // sbx policy allow network --sandbox <name> localhost:<port>
+// add to @shared/types:
 export interface LivePort { hostPort: number | null; containerPort: number; protocol: string }
 ```
-`listPorts` runs `sbx ports <name> --json` and parses to `LivePort[]` (field names per the spike). `publishPort`/`unpublishPort` build the spec with `portIntentToPublishSpec({ ...port, label: '' })` and run `sbx ports <name> --publish|--unpublish <spec>`.
-- IPC channels (all `Result<T>`): `'instance:ports:list' (name) → LivePort[]`, `'instance:ports:publish' (name, port) → null`, `'instance:ports:unpublish' (name, port) → null`.
+`listPorts` runs `sbx ports <name> --json` → `parsePortsJson` (field names per spike). `publishPort`/`unpublishPort` build the spec with `portIntentToPublishSpec({ ...port, label: '' })`. `allowHostService` runs `['policy','allow','network','--sandbox',name,'localhost:'+hostPort]`.
+- Produces in `src/main/detail/persist.ts` (pure over injected `store`, so unit-testable):
+```ts
+// Load the instance's definition spec, mutate, save. No-op (returns false) when the
+// instance has no linked definition. Matching is by value so an unpublished port /
+// removed host service is dropped.
+export function applyPortEdit(store: Store, sbxName: string, port: LivePort, op: 'add' | 'remove'): boolean
+export function applyHostServiceEdit(store: Store, sbxName: string, hs: HostServiceIntent, op: 'add' | 'remove'): boolean
+```
+- IPC channels (all `Result<T>`) — each mutating one is **dual-write** (live sbx op, then persist to the definition; persist is best-effort and logged):
+```
+'instance:ports:list'          (name)                    → LivePort[]
+'instance:ports:publish'       (name, port: LivePort)    → null   // publishPort + applyPortEdit(add)
+'instance:ports:unpublish'     (name, port: LivePort)    → null   // unpublishPort + applyPortEdit(remove)
+'instance:hostService:add'     (name, hostPort, label)   → null   // allowHostService + applyHostServiceEdit(add)
+'instance:hostService:remove'  (name, hostPort)          → null   // persist only (not live) + applyHostServiceEdit(remove)
+```
 
 - [ ] **Step 1: Add the `LivePort` type** to `src/shared/types.ts` and a test `tests/shared/types-liveport.test.ts` asserting it accepts `{ hostPort: null, containerPort: 3000, protocol: 'tcp' }`. Run `npm test -- types-liveport` (fails → add type → passes).
 
@@ -311,7 +349,7 @@ function fake(stdout = '') {
   return { spawn, calls }
 }
 
-describe('adapter live ports', () => {
+describe('adapter live ports + host service', () => {
   it('publishes a port with the full spec', async () => {
     const { spawn, calls } = fake()
     await createSbxAdapter(spawn).publishPort('box', { hostPort: 8080, containerPort: 3000, protocol: 'tcp' })
@@ -322,49 +360,98 @@ describe('adapter live ports', () => {
     await createSbxAdapter(spawn).unpublishPort('box', { hostPort: 8080, containerPort: 3000, protocol: 'tcp' })
     expect(calls[0]).toEqual(['ports', 'box', '--unpublish', '8080:3000/tcp'])
   })
+  it('allows a host service localhost port live', async () => {
+    const { spawn, calls } = fake()
+    await createSbxAdapter(spawn).allowHostService('box', 11434)
+    expect(calls[0]).toEqual(['policy', 'allow', 'network', '--sandbox', 'box', 'localhost:11434'])
+  })
   it('lists ports from --json', async () => {
-    // adjust the JSON shape to the spike finding
-    const { spawn } = fake(JSON.stringify({ ports: [{ host_port: 8080, sandbox_port: 3000, protocol: 'tcp' }] }))
-    const ports = await createSbxAdapter(spawn).listPorts('box')
-    expect(ports).toEqual([{ hostPort: 8080, containerPort: 3000, protocol: 'tcp' }])
+    const { spawn } = fake(JSON.stringify({ ports: [{ host_port: 8080, sandbox_port: 3000, protocol: 'tcp' }] })) // adjust to spike shape
+    expect(await createSbxAdapter(spawn).listPorts('box')).toEqual([{ hostPort: 8080, containerPort: 3000, protocol: 'tcp' }])
   })
 })
 ```
 
-- [ ] **Step 3: Run → FAIL** (`npm test -- adapter-ports`). **Step 4: Implement** the three adapter methods + a `parsePortsJson(stdout): LivePort[]` (tolerate the `{ports:[…]}` envelope and a bare array, mirroring `parseSbxLsJson`; map field names per the spike). Add the three methods to the `SbxAdapter` interface and returned object.
+- [ ] **Step 3: Run → FAIL** (`npm test -- adapter-ports`). **Step 4: Implement** the four adapter methods + `parsePortsJson(stdout): LivePort[]` (tolerate `{ports:[…]}` envelope + bare array, mirroring `parseSbxLsJson`; map fields per spike). Add all four to the `SbxAdapter` interface and returned object.
 
-- [ ] **Step 5: Fix widened-interface mocks.** Adding to `SbxAdapter` breaks partial mocks. Add stub methods `listPorts: async () => [], publishPort: async () => {}, unpublishPort: async () => {}` to the adapter mocks in `tests/main/ipc.test.ts`, `tests/main/ipc-definitions.test.ts`, `tests/main/ipc-lifecycle.test.ts`, `tests/main/reconciler.test.ts` (same pattern used when `setSecret`/`setCustomSecret` were added).
+- [ ] **Step 5: Write the failing persist test**
 
-- [ ] **Step 6: Write the failing IPC test** (`tests/main/ipc-ports.test.ts`) exercising the three handlers with a fake adapter, then **implement** the handlers in `buildHandlers` (`wrap(async () => deps.adapter.listPorts(name))`, etc.), register them in `registerIpc`, add to preload (`instancePortsList/Publish/Unpublish`) and the client `Api` interface + fallback. Run `npm test -- ipc-ports` → PASS.
+```ts
+// tests/main/detail/persist.test.ts
+import { describe, it, expect, beforeEach } from 'vitest'
+import { openStore, type Store } from '../../../src/main/store/db'
+import { applyPortEdit, applyHostServiceEdit } from '../../../src/main/detail/persist'
+import type { DefinitionSpec } from '../../../src/shared/types'
 
-- [ ] **Step 7: Commit**
+function seed(store: Store): DefinitionSpec {
+  const spec: DefinitionSpec = {
+    definition: { id: 'd1', name: 'P', description: '', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
+    mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+  }
+  store.insertDefinitionSpec(spec)
+  store.upsertInstanceMeta({ sbxName: 'box', definitionId: 'd1', createdByApp: true, createdAt: 't' })
+  return spec
+}
 
-```bash
-git add src/shared/types.ts src/main/sbx/adapter.ts src/main/sbx/parse.ts src/main/ipc.ts src/preload/index.ts src/renderer/ipc/client.ts tests/
-git commit -m "feat(detail): sbx live port list/publish/unpublish via adapter + IPC"
+let store: Store
+beforeEach(() => { store = openStore(':memory:'); seed(store) })
+
+describe('dual-write persist', () => {
+  it('adds then removes a port on the definition', () => {
+    expect(applyPortEdit(store, 'box', { hostPort: 8080, containerPort: 3000, protocol: 'tcp' }, 'add')).toBe(true)
+    expect(store.getDefinitionSpec('d1')!.ports).toEqual([{ hostPort: 8080, containerPort: 3000, protocol: 'tcp', label: '' }])
+    applyPortEdit(store, 'box', { hostPort: 8080, containerPort: 3000, protocol: 'tcp' }, 'remove')
+    expect(store.getDefinitionSpec('d1')!.ports).toEqual([])
+  })
+  it('adds then removes a host service', () => {
+    applyHostServiceEdit(store, 'box', { hostPort: 11434, label: 'Ollama' }, 'add')
+    expect(store.getDefinitionSpec('d1')!.hostServices).toEqual([{ hostPort: 11434, label: 'Ollama' }])
+    applyHostServiceEdit(store, 'box', { hostPort: 11434, label: '' }, 'remove')
+    expect(store.getDefinitionSpec('d1')!.hostServices).toEqual([])
+  })
+  it('is a no-op (returns false) for an instance with no linked definition', () => {
+    store.upsertInstanceMeta({ sbxName: 'orphan', definitionId: null, createdByApp: false, createdAt: 't' })
+    expect(applyPortEdit(store, 'orphan', { hostPort: 1, containerPort: 1, protocol: 'tcp' }, 'add')).toBe(false)
+  })
+})
 ```
 
-### Task 5: `PortsTab` — live forwards + read-only host services
+- [ ] **Step 6: Run → FAIL** (`npm test -- detail/persist`). **Step 7: Implement `src/main/detail/persist.ts`**: resolve `definitionId` from `store.listInstanceMeta().find(m => m.sbxName === sbxName)`; if null/no-spec return `false`; load spec, add (dedupe by value) or remove (filter by `hostPort+containerPort+protocol` for ports, `hostPort` for host services), `store.updateDefinitionSpec(spec)`, return `true`. Port add uses `label: ''` (live edits carry no label). `npm test -- detail/persist` → PASS.
+
+- [ ] **Step 8: Fix widened-interface mocks.** Add stub methods `listPorts: async () => [], publishPort: async () => {}, unpublishPort: async () => {}, allowHostService: async () => {}` to the adapter mocks in `tests/main/ipc.test.ts`, `tests/main/ipc-definitions.test.ts`, `tests/main/ipc-lifecycle.test.ts`, `tests/main/reconciler.test.ts` (same pattern as the credentials work).
+
+- [ ] **Step 9: Write the failing IPC test** (`tests/main/ipc-ports.test.ts`) with a fake adapter + real `:memory:` store seeded like the persist test; assert each handler calls the adapter live op AND mutates the definition (e.g. after `instance:ports:publish`, `store.getDefinitionSpec` shows the port). Then **implement** the dual-write handlers in `buildHandlers` — each does the live adapter call, then `applyPortEdit`/`applyHostServiceEdit(deps.store, name, …)` wrapped in try/catch with `deps.log?.error` on persist failure (live already applied). `instance:hostService:remove` skips the live op (persist only). Register all in `registerIpc`; add preload methods (`instancePortsList/Publish/Unpublish`, `instanceHostServiceAdd/Remove`) + client `Api` + fallback. Run `npm test -- ipc-ports` → PASS.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add src/shared/types.ts src/main/sbx/adapter.ts src/main/sbx/parse.ts src/main/detail/persist.ts src/main/ipc.ts src/preload/index.ts src/renderer/ipc/client.ts tests/
+git commit -m "feat(detail): live ports + host-service edits, dual-written to the definition"
+```
+
+### Task 5: `PortsTab` — live forwards + editable host services
 
 **Files:**
 - Create: `src/renderer/screens/detail/PortsTab.tsx`
 - Modify: `src/renderer/screens/InstanceDetail.tsx` (render `<PortsTab>` on the ports tab)
+- Modify: `src/renderer/theme/app.css` (add `.port-proto` if still missing — confirmed absent)
 - Test: `tests/renderer/detail/PortsTab.test.tsx`
 
 **Interfaces:**
 ```ts
-export function PortsTab({ instance, spec, ports, onPublish, onUnpublish }: {
+export function PortsTab({ instance, ports, hostServices, linked, onPublish, onUnpublish, onAddHostService, onRemoveHostService }: {
   instance: InstanceView
-  spec: DefinitionSpec | null           // for read-only host services
-  ports: LivePort[]                     // live forwards (from api.instancePortsList)
+  ports: LivePort[]                              // live forwards (from api.instancePortsList)
+  hostServices: HostServiceIntent[]              // from the definition spec (spec.hostServices), or []
+  linked: boolean                                // instance.definitionId !== null
   onPublish: (port: LivePort) => void
   onUnpublish: (port: LivePort) => void
+  onAddHostService: (hostPort: number, label: string) => void
+  onRemoveHostService: (hostPort: number) => void
 }): JSX.Element
 ```
-**Port Forwarding card:** the `ports` list (each `host→container/proto` + a ✕ → `onUnpublish(port)`), an add form (mono port input + protocol select TCP/TCP4/TCP6 + label + **Forward** → `parsePort` the input → `onPublish({ hostPort, containerPort, protocol })`), and the "forwarded to 127.0.0.1 … post-run operation" helper. Empty-state when no forwards. **Access Host Services card (read-only):** each `spec.hostServices` row (`host.docker.internal:<port>` + `Allowlist: localhost:<port>`) + a muted note "Host services are set on the definition; recreate the sandbox to change them." (No live add/remove — out of scope.)
-- Consumes: `LivePort`, `parsePort` (`@shared/…` — export from `draft.ts` or move to `@shared`), `PortProtocol`.
-
-> Note: `parsePort` currently lives in `src/renderer/wizard/draft.ts`. Import it from there (renderer→renderer is fine), or lift it to a shared util if preferred.
+**Port Forwarding card:** the `ports` list (each `host→container/proto` + ✕ `aria-label="Remove forward"` → `onUnpublish(port)`); add form (mono port input `aria-label="Port mapping"` + protocol select `aria-label="Protocol"` TCP/TCP4/TCP6 + label + **Forward** → `parsePort` → `onPublish({ hostPort, containerPort, protocol })`); "forwarded to 127.0.0.1 … post-run operation" helper; empty-state when none. **Access Host Services card (editable):** the `hostServices` list (each `host.docker.internal:<port>` + `Allowlist: localhost:<port>` + ✕ `aria-label="Remove host service"` → `onRemoveHostService(hostPort)`); add form (numeric `aria-label="Host port"` + name + **Add** → `onAddHostService(port, name)`); a muted note: **removal** applies on the next launch (stays reachable on the running instance until recreate). **When `linked === false`:** show a subtle "This instance isn't linked to a definition — changes apply live but won't persist" banner above both cards (edits still fire the callbacks; the main process no-ops the persist).
+- Consumes: `LivePort`, `HostServiceIntent`, `parsePort` + `PortProtocol` (import `parsePort` from `src/renderer/wizard/draft.ts`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -373,37 +460,55 @@ export function PortsTab({ instance, spec, ports, onPublish, onUnpublish }: {
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { PortsTab } from '../../../src/renderer/screens/detail/PortsTab'
-import type { InstanceView, DefinitionSpec, LivePort } from '../../../src/shared/types'
+import type { InstanceView, LivePort, HostServiceIntent } from '../../../src/shared/types'
 
 const inst: InstanceView = { name: 'box', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'p', tier: 'locked' }
 const ports: LivePort[] = [{ hostPort: 8080, containerPort: 3000, protocol: 'tcp' }]
+const hs: HostServiceIntent[] = [{ hostPort: 11434, label: 'Ollama' }]
+
+function props(over = {}) {
+  return { instance: inst, ports: [], hostServices: [], linked: true, onPublish: vi.fn(), onUnpublish: vi.fn(), onAddHostService: vi.fn(), onRemoveHostService: vi.fn(), ...over }
+}
 
 describe('PortsTab', () => {
   it('lists a forward and removes it', () => {
-    const onUnpublish = vi.fn()
-    render(<PortsTab instance={inst} spec={null} ports={ports} onPublish={vi.fn()} onUnpublish={onUnpublish} />)
-    expect(screen.getByText(/8080/)).toBeInTheDocument()
+    const p = props({ ports }); render(<PortsTab {...p} />)
     fireEvent.click(screen.getByRole('button', { name: /remove forward/i }))
-    expect(onUnpublish).toHaveBeenCalledWith(ports[0])
+    expect(p.onUnpublish).toHaveBeenCalledWith(ports[0])
   })
   it('adds a forward from the input + protocol', () => {
-    const onPublish = vi.fn()
-    render(<PortsTab instance={inst} spec={null} ports={[]} onPublish={onPublish} onUnpublish={vi.fn()} />)
+    const p = props(); render(<PortsTab {...p} />)
     fireEvent.change(screen.getByLabelText('Port mapping'), { target: { value: '9229:9229' } })
     fireEvent.change(screen.getByLabelText('Protocol'), { target: { value: 'tcp6' } })
-    fireEvent.click(screen.getByRole('button', { name: /forward/i }))
-    expect(onPublish).toHaveBeenCalledWith({ hostPort: 9229, containerPort: 9229, protocol: 'tcp6' })
+    fireEvent.click(screen.getByRole('button', { name: 'Forward' }))
+    expect(p.onPublish).toHaveBeenCalledWith({ hostPort: 9229, containerPort: 9229, protocol: 'tcp6' })
+  })
+  it('adds and removes a host service', () => {
+    const p = props({ hostServices: hs }); render(<PortsTab {...p} />)
+    fireEvent.click(screen.getByRole('button', { name: /remove host service/i }))
+    expect(p.onRemoveHostService).toHaveBeenCalledWith(11434)
+    fireEvent.change(screen.getByLabelText('Host port'), { target: { value: '5432' } })
+    fireEvent.click(screen.getByRole('button', { name: /add host service/i }))
+    expect(p.onAddHostService).toHaveBeenCalledWith(5432, '')
+  })
+  it('warns when the instance is not linked to a definition', () => {
+    render(<PortsTab {...props({ linked: false })} />)
+    expect(screen.getByText(/won't persist/i)).toBeInTheDocument()
   })
 })
 ```
 
-- [ ] **Step 2: Run → FAIL. Step 3: Implement `PortsTab`** (reuse the `.port-row`/`.port-proto`/`.port-status` CSS; add `.port-proto` to app.css if the ports work didn't — confirmed missing). **Step 4:** wire into `InstanceDetail`: hold `const [livePorts, setLivePorts] = useState<LivePort[]>([])`, load via `api.instancePortsList(instance.name)` when the tab opens and after each publish/unpublish; `onPublish`/`onUnpublish` call the IPC then reload. **Step 5:** `npm test -- PortsTab InstanceDetail` → PASS.
+- [ ] **Step 2: Run → FAIL** (`npm test -- PortsTab`). **Step 3: Implement `PortsTab`** (reuse `.port-row`/`.port-proto`/`.port-status`/`.card`/`.card-header`). Give the two Add buttons distinct accessible names: forward = `Forward`, host-service = `Add host service`.
+
+- [ ] **Step 4: Wire into `InstanceDetail`.** Hold `const [livePorts, setLivePorts] = useState<LivePort[]>([])`; load `api.instancePortsList(instance.name)` when the ports tab opens and after every edit. Pass `hostServices={spec?.hostServices ?? []}` (from the already-fetched spec) and `linked={instance.definitionId !== null}`. Handlers call the IPC then reload: `onPublish` → `api.instancePortsPublish(name, port)` → reload; `onUnpublish` → `api.instancePortsUnpublish`; `onAddHostService` → `api.instanceHostServiceAdd(name, port, label)` → reload spec; `onRemoveHostService` → `api.instanceHostServiceRemove(name, port)` → reload spec. (Reload the spec after host-service edits so the list reflects the persisted change.)
+
+- [ ] **Step 5: Run** `npm test -- PortsTab InstanceDetail` → PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add src/renderer/screens/detail/PortsTab.tsx src/renderer/screens/InstanceDetail.tsx src/renderer/theme/app.css tests/renderer/detail/PortsTab.test.tsx
-git commit -m "feat(detail): Ports tab — live forwards (add/remove) + read-only host services"
+git commit -m "feat(detail): Ports tab — live forwards + editable host services (dual-write)"
 ```
 
 ---
@@ -519,7 +624,7 @@ git commit -m "feat(detail): Monitoring tab — allowed/blocked counters + traff
 
 **Files:** Modify `src/renderer/i18n/en.ts`, `src/renderer/i18n/de.ts`
 
-Add a `detail` namespace covering every visible string across the shell + three tabs: `back`, `stop`, `remove`, `fromDefinition`, tab labels (`tabTerminals`/`tabPorts`/`tabMonitoring`), Terminals (`openAgent`, `openShell`, `nativeNote`, `networkPolicy`, `credentials`, `mounts`, `noDefinition`), Ports (`portForwarding`, `addForward`, `postRunNote`, `hostServices`, `hostServicesReadonly`, `noForwards`), Monitoring (`allowedRequests`, `blockedRequests`, `domainsAllowlisted`, `liveTraffic`, `noTraffic`). Keep `de: Dict` parity (typecheck enforces it). Replace the literal strings in the four detail components with `t('detail.*')`, keeping `aria-label`s literal where tests assert them.
+Add a `detail` namespace covering every visible string across the shell + three tabs: `back`, `stop`, `remove`, `fromDefinition`, tab labels (`tabTerminals`/`tabPorts`/`tabMonitoring`), Terminals (`openAgent`, `openShell`, `nativeNote`, `networkPolicy`, `credentials`, `mounts`, `noDefinition`), Ports (`portForwarding`, `addForward`, `forward`, `postRunNote`, `hostServices`, `addHostService`, `hostServiceRemoveNote`, `notLinkedNote`, `noForwards`), Monitoring (`allowedRequests`, `blockedRequests`, `domainsAllowlisted`, `liveTraffic`, `noTraffic`). Keep `de: Dict` parity (typecheck enforces it). Replace the literal strings in the four detail components with `t('detail.*')`, keeping `aria-label`s literal where tests assert them.
 
 - [ ] **Step 1:** Add keys to `en.ts`, translate in `de.ts`, wire `t()` into the components. **Step 2:** `npm run typecheck` (Dict parity) → clean. **Step 3:** `npm test` → all PASS. **Step 4: Commit**
 
@@ -531,7 +636,7 @@ git commit -m "i18n(detail): sandbox instance detail strings (en/de)"
 ### Task 9: Green suite + build + manual check
 
 - [ ] **Step 1:** `npm test` → all PASS (fix any partial-mock adapter still missing the new methods). **Step 2:** `npm run typecheck && npm run build` → clean + build succeeds.
-- [ ] **Step 3: Manual check** — `npm run dev` (full restart, main changed). From Instances, click an instance name → detail opens. Terminals: Open Agent / Open Shell launch native terminals; sidebar shows the definition's policy/credentials/mounts. Ports: add `18080:18080` → appears + `sbx ports <name>` confirms; remove it → gone. Monitoring: run some traffic in the sandbox, confirm allowed/blocked counters + rows update on the poll; the Monitoring tab shows a blocked badge. Back returns to the list.
+- [ ] **Step 3: Manual check** — `npm run dev` (full restart, main changed). From Instances, click an instance name → detail opens. Terminals: Open Agent / Open Shell launch native terminals; sidebar shows the definition's policy/credentials/mounts. Ports: add `18080:18080` → appears + `sbx ports <name>` confirms live AND the linked definition's Ports step now shows it (edit the definition to verify persist); remove it → gone live + dropped from the definition. Add a host service `11434` → `sbx policy` shows `localhost:11434` allowed live AND the definition's Host services now lists it; remove it → definition updated (note: still live on the current instance until recreate). Monitoring: run some traffic in the sandbox, confirm allowed/blocked counters + rows update on the poll; the Monitoring tab shows a blocked badge. Back returns to the list.
 - [ ] **Step 4:** Use superpowers:finishing-a-development-branch to complete.
 
 ---
@@ -542,7 +647,7 @@ git commit -m "i18n(detail): sandbox instance detail strings (en/de)"
 - Header (name, status, workspace, base, from-definition link, Stop/Remove) → Task 2. ✓
 - Three tabs (Terminals/Ports/Monitoring) → Task 2 shell; Tasks 3/5/7 bodies. ✓
 - Terminals: native launch (Agent/Shell/host) + Network Policy / Credentials / Mounts sidebar → Task 3. ✓ (In-app terminals intentionally **out** per scope decision — replaced by native launch buttons.)
-- Ports: live Port Forwarding add/remove → Tasks 4–5. ✓ Host services shown **read-only** (live change out of scope — noted). ✓
+- Ports: live Port Forwarding add/remove → Tasks 4–5. ✓ Host services **editable, dual-write** (live `sbx policy allow` for adds; removal persist-only, applies next launch) → Tasks 4–5. ✓ Every port/host-service edit is written back to the definition via `applyPortEdit`/`applyHostServiceEdit` so the next kit regen includes it; skipped for unlinked instances. ✓
 - Monitoring: allowed/blocked counters + live traffic log + blocked badge → Tasks 6–7. ✓
 - Drill-in from Instances list → Task 1. ✓
 - i18n → Task 8. ✓
