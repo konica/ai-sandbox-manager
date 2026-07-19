@@ -180,7 +180,10 @@ export const en = {
     allow: 'Allow',
     deny: 'Deny',
     addDomain: 'Add domain',
-    domainPlaceholder: 'api.example.com'
+    domainPlaceholder: 'api.example.com',
+    colTime: 'Time',
+    colHost: 'Host',
+    colReason: 'Reason'
   },
   wizard: {
     stepOf: 'Step {n} of {total}',

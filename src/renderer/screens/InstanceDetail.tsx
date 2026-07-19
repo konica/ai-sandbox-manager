@@ -37,9 +37,9 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
   const [spec, setSpec] = useState<DefinitionSpec | null>(null)
   const [livePorts, setLivePorts] = useState<LivePort[]>([])
   const [policy, setPolicy] = useState<PolicySummary>({ allowed: 0, blocked: 0, events: [] })
-  // Hosts allowed this session — suppress their stale blocked rows immediately, since
-  // sbx keeps the historical blocked entry until a new request re-classifies it.
-  const [justAllowed, setJustAllowed] = useState<Set<string>>(new Set())
+  // Optimistic per-host state after an Allow/Deny click — sbx keeps the historical log
+  // row until a new request re-classifies it, so we reflect the intent immediately.
+  const [override, setOverride] = useState<Record<string, 'allow' | 'deny'>>({})
 
   const reloadSpec = useCallback(async () => {
     if (!instance.definitionId) { setSpec(null); return }
@@ -67,6 +67,17 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
 
   const running = instance.status === 'running'
 
+  // One row per host (most recent), with any optimistic Allow/Deny applied.
+  const seenHosts = new Set<string>()
+  const trafficEvents = policy.events
+    .map((e) => { const o = override[e.host]; return o ? { ...e, allowed: o === 'allow' } : e })
+    .filter((e) => { if (seenHosts.has(e.host)) return false; seenHosts.add(e.host); return true })
+  const blockedHosts = trafficEvents.filter((e) => !e.allowed).length
+
+  function setHostOverride(host: string, state: 'allow' | 'deny'): void {
+    setOverride((prev) => ({ ...prev, [host]: state }))
+  }
+
   return (
     <section className="screen active">
       <button className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: 'var(--space-3)' }}>← {t('detail.back')}</button>
@@ -92,7 +103,7 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
         <button role="tab" aria-selected={tab === 'ports'} style={tabStyle(tab === 'ports')} onClick={() => setTab('ports')}>{t('detail.tabPorts')}</button>
         <button role="tab" aria-selected={tab === 'monitoring'} style={tabStyle(tab === 'monitoring')} onClick={() => setTab('monitoring')}>
           {t('detail.tabMonitoring')}
-          {policy.blocked > 0 && <span className="nav-badge" style={{ marginLeft: 'var(--space-1)', fontSize: 10, background: 'var(--danger)' }}>{policy.blocked}</span>}
+          {blockedHosts > 0 && <span className="nav-badge" style={{ marginLeft: 'var(--space-1)', fontSize: 10, background: 'var(--danger)' }}>{blockedHosts}</span>}
         </button>
       </div>
 
@@ -120,14 +131,15 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
       )}
       {tab === 'monitoring' && (
         <MonitoringTab
-          summary={{
-            allowed: policy.allowed,
-            blocked: policy.events.filter((e) => !e.allowed && !justAllowed.has(e.host)).length,
-            events: policy.events.filter((e) => !(justAllowed.has(e.host) && !e.allowed))
-          }}
+          summary={{ allowed: policy.allowed, blocked: policy.blocked, events: trafficEvents }}
           onAllow={async (host) => {
-            setJustAllowed((prev) => new Set(prev).add(host)) // hide the stale blocked row immediately
+            setHostOverride(host, 'allow') // reflect immediately (log keeps the stale row until next request)
             await api.instanceDomainAllow(instance.name, host)
+            void reloadPolicy()
+          }}
+          onDeny={async (host) => {
+            setHostOverride(host, 'deny')
+            await api.instanceDomainDeny(instance.name, host)
             void reloadPolicy()
           }}
         />

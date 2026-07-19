@@ -182,7 +182,10 @@ export const de: Dict = {
     allow: 'Erlauben',
     deny: 'Verweigern',
     addDomain: 'Domain hinzufügen',
-    domainPlaceholder: 'api.example.com'
+    domainPlaceholder: 'api.example.com',
+    colTime: 'Zeit',
+    colHost: 'Host',
+    colReason: 'Grund'
   },
   wizard: {
     stepOf: 'Schritt {n} von {total}',
