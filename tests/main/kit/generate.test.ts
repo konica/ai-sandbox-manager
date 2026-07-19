@@ -36,6 +36,12 @@ describe('buildKitSpec', () => {
     const anthropicCount = (k.specYaml.match(/api\.anthropic\.com/g) || []).length
     expect(anthropicCount).toBe(1)
   })
+  it('allowlists localhost:<port> for each host service', () => {
+    const s = spec([], 'locked', [])
+    s.hostServices = [{ hostPort: 11434, label: 'Ollama' }]
+    const k = buildKitSpec(s)
+    expect(k.specYaml).toContain('localhost:11434')
+  })
   it('emits no secretFiles ever (kit carries no secrets)', () => {
     const k = buildKitSpec(spec([{ kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', store: 'sbx' }]))
     expect(k.secretFiles).toEqual([])

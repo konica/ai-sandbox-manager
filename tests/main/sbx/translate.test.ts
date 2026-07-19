@@ -108,7 +108,7 @@ describe('specToCreateArgs', () => {
 
 describe('portIntentToPublishSpec', () => {
   it('formats host:container', () => {
-    expect(portIntentToPublishSpec({ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' })).toBe('3000:8080')
+    expect(portIntentToPublishSpec({ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' })).toBe('3000:8080/tcp')
   })
 })
 
@@ -138,7 +138,7 @@ describe('launchCommand', () => {
   })
   it('adds a ports step per intent', () => {
     const cmd = launchCommand(spec({ ports: [{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }] }))
-    expect(cmd).toContain('sbx ports my-project --publish 3000:8080')
+    expect(cmd).toContain('sbx ports my-project --publish 3000:8080/tcp')
     expect(cmd).toMatch(/&& sbx run --name my-project$/)
   })
   it('uses an explicit name override throughout the chain', () => {
