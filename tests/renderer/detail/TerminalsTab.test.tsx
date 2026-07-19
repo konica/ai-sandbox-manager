@@ -24,9 +24,14 @@ describe('TerminalsTab', () => {
     expect(screen.getByText(/ANTHROPIC_API_KEY/)).toBeInTheDocument()
     expect(screen.getByText('/shared')).toBeInTheDocument()
   })
-  it('disables launch buttons when not running', () => {
-    render(<TerminalsTab instance={{ ...inst, status: 'stopped' }} spec={spec} onAttach={vi.fn()} onShell={vi.fn()} />)
-    expect(screen.getByRole('button', { name: /agent/i })).toBeDisabled()
+  it('keeps the Agent button enabled when stopped (it re-runs the sandbox) but disables Shell', () => {
+    const onAttach = vi.fn()
+    render(<TerminalsTab instance={{ ...inst, status: 'stopped' }} spec={spec} onAttach={onAttach} onShell={vi.fn()} />)
+    const agent = screen.getByRole('button', { name: /agent/i })
+    expect(agent).not.toBeDisabled()
+    fireEvent.click(agent)
+    expect(onAttach).toHaveBeenCalledWith('sbx-a')
+    expect(screen.getByRole('button', { name: /shell/i })).toBeDisabled()
   })
   it('degrades when there is no linked definition', () => {
     render(<TerminalsTab instance={inst} spec={null} onAttach={vi.fn()} onShell={vi.fn()} />)

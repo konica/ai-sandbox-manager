@@ -42,9 +42,12 @@ export function TerminalsTab({ instance, spec, onAttach, onShell, onAllowDomain,
           <div className="card-header"><div className="card-title">{t('detail.terminals')}</div></div>
           <p className="section-desc" style={{ marginTop: 0 }}>{t('detail.nativeNote')} <span className="os-tag" style={{ fontSize: 10 }}>macOS</span></p>
           <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-3)' }}>
-            <button className="btn btn-primary btn-sm" disabled={!running} onClick={() => onAttach(instance.name)}>{t('detail.openAgent')}</button>
+            {/* Agent uses `sbx run --name … -- --continue`, which starts a stopped sandbox → always enabled. */}
+            <button className="btn btn-primary btn-sm" onClick={() => onAttach(instance.name)}>{running ? t('detail.openAgent') : t('detail.startAgent')}</button>
+            {/* Shell uses `sbx exec`, which needs a running VM → disabled until running. */}
             <button className="btn btn-secondary btn-sm" disabled={!running} onClick={() => onShell(instance.name)}>{t('detail.openShell')}</button>
           </div>
+          {!running && <p className="section-desc" style={{ fontSize: 11, margin: 'var(--space-2) 0 0' }}>{t('detail.stoppedHint')}</p>}
         </div>
 
         {spec && (
