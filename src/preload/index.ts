@@ -26,7 +26,8 @@ const api = {
   instanceHostServiceAdd: (name: string, hostPort: number, label: string) => ipcRenderer.invoke('instance:hostService:add', name, hostPort, label),
   instanceHostServiceRemove: (name: string, hostPort: number) => ipcRenderer.invoke('instance:hostService:remove', name, hostPort),
   instanceDomainAllow: (name: string, domain: string) => ipcRenderer.invoke('instance:domain:allow', name, domain),
-  instanceDomainDeny: (name: string, domain: string) => ipcRenderer.invoke('instance:domain:deny', name, domain)
+  instanceDomainDeny: (name: string, domain: string) => ipcRenderer.invoke('instance:domain:deny', name, domain),
+  instancePolicyLog: (name: string) => ipcRenderer.invoke('instance:policyLog', name)
 }
 
 contextBridge.exposeInMainWorld('api', api)

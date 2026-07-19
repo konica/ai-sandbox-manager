@@ -56,6 +56,21 @@ export interface LivePort {
   protocol: string
 }
 
+/** One row of `sbx policy log` (allowed or blocked outbound request). */
+export interface PolicyEvent {
+  at: string
+  host: string
+  allowed: boolean
+  reason: string
+}
+
+/** Parsed `sbx policy log` — request counts + recent events. */
+export interface PolicySummary {
+  allowed: number
+  blocked: number
+  events: PolicyEvent[]
+}
+
 export type CredentialStore = 'sbx' | 'encrypted'
 
 /** A built-in service (anthropic, openai, …). Value lives in sbx keychain; base kit owns serviceAuth. */

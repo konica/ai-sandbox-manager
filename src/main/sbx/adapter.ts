@@ -1,7 +1,8 @@
 import { spawn } from 'child_process'
-import type { SbxInstance, DefinitionSpec, PortIntent, Tier, LivePort } from '@shared/types'
+import type { SbxInstance, DefinitionSpec, PortIntent, Tier, LivePort, PolicySummary } from '@shared/types'
 import { SbxError, classifySbxError } from '@shared/errors'
 import { parseSbxLsJson, parseSbxLsText, parsePortsJson } from './parse'
+import { parsePolicyLog } from './policy-log'
 import { specToCreateArgs, tierToAllowlist, portIntentToPublishSpec } from './translate'
 import type { Logger } from '../log'
 
@@ -24,6 +25,7 @@ export interface SbxAdapter {
   unpublishPort(name: string, port: LivePort): Promise<void>
   allowNetwork(name: string, resource: string): Promise<void>
   removeNetwork(name: string, resource: string): Promise<void>
+  policyLog(name: string): Promise<PolicySummary>
   setCustomSecret(hosts: string[], env: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   removeCustomSecret(hosts: string[], opts: { global?: boolean; sandbox?: string }): Promise<void>
 }
@@ -131,6 +133,10 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
   async function removeNetwork(name: string, resource: string): Promise<void> {
     await runSbx(['policy', 'rm', 'network', '--sandbox', name, '--resource', resource])
   }
+  async function policyLog(name: string): Promise<PolicySummary> {
+    const res = await runSbx(['policy', 'log', name, '--json'])
+    return parsePolicyLog(res.stdout)
+  }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, setCustomSecret, removeCustomSecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork }
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, setCustomSecret, removeCustomSecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog }
 }

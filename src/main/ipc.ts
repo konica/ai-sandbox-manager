@@ -1,5 +1,5 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary } from '@shared/types'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
@@ -62,6 +62,7 @@ export function buildHandlers(deps: Deps): {
   'instance:hostService:remove': (name: string, hostPort: number) => Promise<Result<null>>
   'instance:domain:allow': (name: string, domain: string) => Promise<Result<null>>
   'instance:domain:deny': (name: string, domain: string) => Promise<Result<null>>
+  'instance:policyLog': (name: string) => Promise<Result<PolicySummary>>
 } {
   return {
     'prereq:check': () => wrap(() => checkPrereqs(deps.probes)),
@@ -157,7 +158,8 @@ export function buildHandlers(deps: Deps): {
       await deps.adapter.removeNetwork(name, domain)
       persist(deps, () => applyDomainEdit(deps.store, name, domain, 'remove'), name)
       return null
-    })
+    }),
+    'instance:policyLog': (name) => wrap(async () => deps.adapter.policyLog(name))
   }
 }
 
@@ -192,6 +194,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instance:hostService:remove', (_e, name: string, hostPort: number) => handlers['instance:hostService:remove'](name, hostPort))
   ipcMain.handle('instance:domain:allow', (_e, name: string, domain: string) => handlers['instance:domain:allow'](name, domain))
   ipcMain.handle('instance:domain:deny', (_e, name: string, domain: string) => handlers['instance:domain:deny'](name, domain))
+  ipcMain.handle('instance:policyLog', (_e, name: string) => handlers['instance:policyLog'](name))
   ipcMain.handle('dialog:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }

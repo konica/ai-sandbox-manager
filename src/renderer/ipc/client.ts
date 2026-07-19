@@ -1,4 +1,4 @@
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary } from '@shared/types'
 
 interface Api {
   prereqCheck(): Promise<Result<PrereqResult>>
@@ -26,6 +26,7 @@ interface Api {
   instanceHostServiceRemove(name: string, hostPort: number): Promise<Result<null>>
   instanceDomainAllow(name: string, domain: string): Promise<Result<null>>
   instanceDomainDeny(name: string, domain: string): Promise<Result<null>>
+  instancePolicyLog(name: string): Promise<Result<PolicySummary>>
 }
 
 export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
@@ -53,5 +54,6 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   instanceHostServiceAdd: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceHostServiceRemove: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceDomainAllow: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
-  instanceDomainDeny: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } })
+  instanceDomainDeny: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instancePolicyLog: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } })
 }
