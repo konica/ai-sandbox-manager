@@ -47,8 +47,8 @@ describe('basename / effectiveName', () => {
 
 describe('parsePort', () => {
   it('parses host:container', () => { expect(parsePort('8080:3000')).toEqual({ hostPort: 8080, containerPort: 3000 }) })
+  it('parses a bare port as ephemeral (null host port)', () => { expect(parsePort('8080')).toEqual({ hostPort: null, containerPort: 8080 }) })
   it('rejects malformed input', () => {
-    expect(parsePort('8080')).toBeNull()
     expect(parsePort('a:b')).toBeNull()
     expect(parsePort('')).toBeNull()
   })
@@ -116,7 +116,7 @@ describe('toSpec', () => {
       workspace: '/home/u/alpha', workspaceMode: 'direct' as const,
       extraFolders: [{ path: '/home/u/lib', mode: 'clone' as const }],
       tier: 'locked' as const, domains: ['api.github.com'],
-      ports: [{ hostPort: 8080, containerPort: 3000, protocol: 'tcp', label: 'web' }],
+      ports: [{ hostPort: 8080, containerPort: 3000, protocol: 'tcp' as const, label: 'web' }],
       hostServices: [], credentials: [{ kind: 'service' as const, serviceId: 'github', envVar: 'GH_TOKEN', value: 'gho_x' }]
     }
     const spec = toSpec(d, 'id1', '2026-07-18T00:00:00Z')
