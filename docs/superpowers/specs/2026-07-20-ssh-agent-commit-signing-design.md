@@ -30,6 +30,71 @@ the app neither surfaces it nor lets the user configure commit signing.
 - **Outbound SSH is still subject to network policy** (informational; no change here —
   Git hosts like github.com are already reachable via the balanced tier / user domains).
 
+## Concept & flow (SSH agent)
+
+**What an SSH agent is.** A background program on the host that holds the user's
+**decrypted SSH private keys in memory** and performs signing *on behalf of* other
+programs. Programs never read the key directly — they hand the agent data and say
+"sign this"; the agent returns **only the signature**, so the key never leaves the
+agent. Tools reach it over a Unix socket whose path is in **`SSH_AUTH_SOCK`**.
+
+**Why forward it into the sandbox.** The sandbox isolates untrusted agent code from
+the host, yet still needs Git over SSH (`git clone git@…`, `git push`) and commit
+signing (`git commit -S`). Copying the private key into the VM would let buggy or
+malicious code exfiltrate it. Forwarding gives the sandbox the agent **socket**, not
+the key — only signature requests/responses cross the boundary (same trust model as
+proxy-injected API credentials).
+
+```mermaid
+flowchart LR
+    subgraph Bad["❌ Copy the private key into the sandbox"]
+        direction TB
+        b1["Private key file sits inside the VM"] --> b2["Untrusted agent code can<br/>read and exfiltrate it"]
+    end
+    subgraph Good["✅ Forward the SSH agent"]
+        direction TB
+        g1["Only the agent socket is forwarded"] --> g2["Sandbox asks the host to sign;<br/>key never enters the VM"]
+    end
+```
+
+**How it protects the key (signing flow).**
+
+```mermaid
+sequenceDiagram
+    participant K as 🔑 Host SSH Agent
+    participant S as 📦 Sandbox (git / ssh)
+    participant R as ☁️ github.com
+
+    Note over S,R: git push over SSH, or git commit -S
+    S->>R: connect as git@github.com
+    R-->>S: challenge ("prove it's you")
+    S->>K: "sign this" via forwarded SSH_AUTH_SOCK
+    Note over K: signs with the private key<br/>key NEVER leaves the host
+    K-->>S: signature only
+    S->>R: signature
+    R-->>S: authenticated ✓
+```
+
+**How to use it (host setup → launch → in-sandbox).** `sbx` forwards automatically
+when `SSH_AUTH_SOCK` is set; the app surfaces the toggles and optionally configures
+commit signing.
+
+```mermaid
+flowchart TD
+    A["Load your key on the host<br/>ssh-add ~/.ssh/id_ed25519"] --> B{"SSH_AUTH_SOCK set?"}
+    B -- no --> B1["Start/refresh the agent, re-run ssh-add"] --> B
+    B -- yes --> C["Wizard: Credentials → SSH Agent tab<br/>green dot = agent detected"]
+    C --> D{"Forward SSH Agent?"}
+    D -- "off" --> D1["Launch prepends 'unset SSH_AUTH_SOCK'<br/>agent NOT forwarded"]
+    D -- "on (default)" --> E{"Automatic Commit Signing?"}
+    E -- "yes" --> F["After 'sbx create', app runs in-sandbox:<br/>git config gpg.format ssh<br/>git config user.signingkey key::…"]
+    E -- "no" --> G["Launch normally"]
+    F --> G
+    G --> H["Inside the sandbox:<br/>git clone/push git@github.com…<br/>git commit -S"]
+    H --> I["Signing performed by the host agent<br/>🔑 private key stays on the host"]
+    D1 --> J["Git over SSH won't authenticate<br/>(use HTTPS + a token instead)"]
+```
+
 ## Non-goals (YAGNI)
 
 - Choosing *which* key — uses the host agent's first key (`ssh-add -L | head -n 1`), per docs.
