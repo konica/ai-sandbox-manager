@@ -1,4 +1,5 @@
 import type { DefinitionSpec, PortIntent, Tier } from '@shared/types'
+import { DEFAULT_SSH } from '@shared/types'
 import { toSbxName } from '@shared/names'
 
 export { toSbxName }
@@ -113,5 +114,17 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
   const runArgs = ['sbx', 'run', '--name', name]
   if (sessionName && sessionName.trim()) runArgs.push('--', '--name', sessionName.trim())
   steps.push(shellCommand(runArgs))
-  return steps.join(' && ')
+
+  // SSH: commit-signing setup runs inside the sandbox right after create; forward opt-out
+  // strips SSH_AUTH_SOCK from the launching shell so sbx doesn't forward the agent.
+  const ssh = spec.ssh ?? DEFAULT_SSH
+  if (ssh.forwardAgent && ssh.commitSigning) steps.splice(1, 0, commitSigningExecCommand(name))
+  const chain = steps.join(' && ')
+  return ssh.forwardAgent ? chain : `unset SSH_AUTH_SOCK ; ${chain}`
+}
+
+// SSH-based commit signing setup, run INSIDE the sandbox against the forwarded agent.
+// The body is single-quoted so `$( )` executes in the sandbox, not on the host.
+export function commitSigningExecCommand(name: string): string {
+  return `sbx exec ${name} bash -lc 'git config --global gpg.format ssh && git config --global user.signingkey "key::$(ssh-add -L | head -n 1)"'`
 }
