@@ -8,7 +8,7 @@ import { toSbxName } from '@shared/names'
 import { SbxError } from '@shared/errors'
 
 export interface LaunchDeps {
-  adapter: Pick<SbxAdapter, 'listSandboxes' | 'setSecret' | 'setCustomSecret'>
+  adapter: Pick<SbxAdapter, 'listSandboxes' | 'setSecret' | 'setCustomSecret' | 'setRegistrySecret'>
   store: Store
   creds: Pick<CredentialManager, 'getStaged'>
   /** Writes the definition's allowlist kit to disk and returns its dir (or undefined to launch kit-less). */
@@ -19,7 +19,16 @@ export interface LaunchDeps {
 
 /** Vault key for a credential's staged value — must match the renderer's submit staging. */
 function stageKey(defId: string, c: DefinitionSpec['credentials'][number]): string {
-  return c.kind === 'service' ? `${defId}:service:${c.serviceId}` : `${defId}:custom:${c.id}`
+  if (c.kind === 'service') return `${defId}:service:${c.serviceId}`
+  if (c.kind === 'registry') return `${defId}:registry:${c.id}`
+  return `${defId}:custom:${c.id}`
+}
+
+/** Scope flags for a registry credential — sandbox-scoped uses the launched name. */
+function registryScopeOpts(scope: 'host' | 'global' | 'sandbox', name: string): { global?: boolean; sandbox?: string } {
+  if (scope === 'global') return { global: true }
+  if (scope === 'sandbox') return { sandbox: name }
+  return {} // host-only
 }
 
 /**
@@ -62,7 +71,11 @@ export async function launchDefinition(
   let registered = 0
   let skipped = 0
   for (const c of spec.credentials) {
-    const label = c.kind === 'service' ? `service "${c.serviceId}" (${c.envVar})` : `custom "${c.domains.join(', ')}" (${c.envVar})`
+    const label = c.kind === 'service'
+      ? `service "${c.serviceId}" (${c.envVar})`
+      : c.kind === 'registry'
+        ? `registry "${c.host}" (${c.scope})`
+        : `custom "${c.domains.join(', ')}" (${c.envVar})`
     const value = deps.creds.getStaged(stageKey(definitionId, c))
     if (!value) {
       deps.log?.info(`  ⚠ ${label}: no stored value found — NOT registered. Open the definition's Credentials step and re-enter the value, then relaunch.`)
@@ -73,6 +86,11 @@ export async function launchDefinition(
       if (c.kind === 'service') {
         deps.log?.info(`  ${label}: sbx secret set ${name} ${c.serviceId} (value via stdin)`)
         await deps.adapter.setSecret(c.serviceId, value, { sandbox: name })
+      } else if (c.kind === 'registry') {
+        const opts = registryScopeOpts(c.scope, name)
+        const scopeArg = c.scope === 'global' ? '-g' : c.scope === 'sandbox' ? name : '(host-only)'
+        deps.log?.info(`  ${label}: sbx secret set ${scopeArg} --registry ${c.host}${c.username ? ` --username ${c.username}` : ''} --password-stdin`)
+        await deps.adapter.setRegistrySecret(c.host, c.username, value, opts)
       } else {
         deps.log?.info(`  ${label}: sbx secret set-custom ${name} --host ${c.domains.join(' --host ')} --env ${c.envVar}`)
         await deps.adapter.setCustomSecret(c.domains, c.envVar, value, { sandbox: name })

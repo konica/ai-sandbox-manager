@@ -26,7 +26,14 @@ function serviceDomains(serviceId: string): string[] {
 }
 
 function allowedDomains(spec: DefinitionSpec): string[] {
-  const svc = spec.credentials.flatMap((c) => (c.kind === 'service' ? serviceDomains(c.serviceId) : c.domains))
+  // service → its domains; custom → its target hosts; registry → the registry host, but only
+  // when the credential is injected into the sandbox (global/sandbox scope) so the agent can
+  // pull/push. Host-only registry creds pull on the host, so they need no in-VM reachability.
+  const svc = spec.credentials.flatMap((c) => {
+    if (c.kind === 'service') return serviceDomains(c.serviceId)
+    if (c.kind === 'registry') return c.scope === 'host' ? [] : [c.host]
+    return c.domains
+  })
   // Host services are reached via host.docker.internal, which the proxy rewrites to
   // localhost — so each one needs localhost:<port> in the allowlist to leave the sandbox.
   const hostSvc = spec.hostServices.map((hs) => `localhost:${hs.hostPort}`)

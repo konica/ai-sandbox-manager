@@ -20,6 +20,8 @@ const adapter: SbxAdapter = {
   removeSecret: async () => {},
   setCustomSecret: async () => {},
   removeCustomSecret: async () => {},
+  setRegistrySecret: async () => {},
+  removeRegistrySecret: async () => {},
     listPorts: async () => [], publishPort: async () => {}, unpublishPort: async () => {}, allowNetwork: async () => {}, removeNetwork: async () => {}, policyLog: async () => ({ allowed: 0, blocked: 0, events: [] })
 }
 const probes: Probes = {

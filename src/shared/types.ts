@@ -97,7 +97,26 @@ export interface CustomCredentialRef {
   store: CredentialStore
 }
 
-export type CredentialRef = ServiceCredentialRef | CustomCredentialRef
+/** Scope for a registry pull credential — maps to sbx secret set flags. */
+export type RegistryScope = 'host' | 'global' | 'sandbox'
+
+/**
+ * Pull credential for a private OCI registry (verified in the Phase 0 spike):
+ * `sbx secret set [-g | <SANDBOX>] --registry <host> [--username <u>] --password-stdin`.
+ * The token never enters the sandbox filesystem — the proxy injects it into the registry
+ * login. Scope decides where it applies: host-only (host pulls), global (`-g`, every
+ * sandbox), or sandbox (`<name>` arg, one sandbox). Overwrite needs `-f`.
+ */
+export interface RegistryCredentialRef {
+  kind: 'registry'
+  id: string // slug from host — lowercase/alnum/hyphen, unique within a definition
+  host: string // registry hostname, e.g. ghcr.io
+  username?: string // optional; omit for token-only auth
+  scope: RegistryScope
+  store: CredentialStore
+}
+
+export type CredentialRef = ServiceCredentialRef | CustomCredentialRef | RegistryCredentialRef
 
 /** A host env var found for a known service during import scanning. Value is masked. */
 export interface EnvHit {

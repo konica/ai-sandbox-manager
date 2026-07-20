@@ -16,6 +16,24 @@ describe('draft credentials', () => {
     const spec = toSpec(d, 'id1', '2026-07-19T00:00:00.000Z')
     expect(spec.credentials[0]).toMatchObject({ kind: 'custom', id: 'acme', domains: ['api.acme.com'] })
   })
+  it('adds a registry credential and maps to a CredentialRef without the token', () => {
+    const d = draftReducer(base, { type: 'addRegistryCred', cred: { kind: 'registry', id: 'ghcr-io', host: 'ghcr.io', username: 'me', scope: 'global', value: 'ghp_secret' } })
+    expect(d.credentials).toHaveLength(1)
+    const spec = toSpec(d, 'id1', '2026-07-19T00:00:00.000Z')
+    expect(spec.credentials[0]).toEqual({ kind: 'registry', id: 'ghcr-io', host: 'ghcr.io', username: 'me', scope: 'global', store: 'sbx' })
+    expect(JSON.stringify(spec.credentials[0])).not.toContain('ghp_secret')
+  })
+  it('drops an empty registry username to undefined (token-only auth)', () => {
+    const d = draftReducer(base, { type: 'addRegistryCred', cred: { kind: 'registry', id: 'reg', host: 'reg.io', username: '  ', scope: 'host', value: 't' } })
+    const spec = toSpec(d, 'id1', '2026-07-19T00:00:00.000Z')
+    expect(spec.credentials[0]).toEqual({ kind: 'registry', id: 'reg', host: 'reg.io', username: undefined, scope: 'host', store: 'sbx' })
+  })
+  it('round-trips a registry credential through draftFromSpec with empty token', () => {
+    const d = draftReducer(base, { type: 'addRegistryCred', cred: { kind: 'registry', id: 'ghcr-io', host: 'ghcr.io', username: 'me', scope: 'sandbox', value: 'ghp_secret' } })
+    const spec = toSpec(d, 'id1', '2026-07-19T00:00:00.000Z')
+    const d2 = draftFromSpec(spec)
+    expect(d2.credentials[0]).toMatchObject({ kind: 'registry', host: 'ghcr.io', username: 'me', scope: 'sandbox', value: '' })
+  })
   it('removes a credential by index', () => {
     let d = draftReducer(base, { type: 'addServiceCred', serviceId: 'openai', envVar: 'OPENAI_API_KEY', value: 'x' })
     d = draftReducer(d, { type: 'removeCredential', index: 0 })

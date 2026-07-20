@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { KNOWN_SERVICES, serviceById } from '@shared/services'
 import { toSbxName } from '@shared/names'
+import type { RegistryScope } from '@shared/types'
 import { useT } from '../i18n'
-import type { DraftCred, DraftCustomCred, DraftServiceCred } from './draft'
+import type { DraftCred, DraftCustomCred, DraftRegistryCred, DraftServiceCred } from './draft'
 
 const rowStyle = { display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' as const, marginBottom: 'var(--space-2)' }
 const field = { display: 'flex', flexDirection: 'column' as const, gap: 4 }
@@ -32,21 +33,26 @@ function mask(value: string): string {
  * values go to `sbx secret set`; custom secrets become a generated mixin-kit
  * serviceAuth four-block. Values are staged host-side on submit.
  */
-export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemove, envHits, onImport }: {
+export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddRegistry, onRemove, envHits, onImport }: {
   credentials: DraftCred[]
   onAddService: (serviceId: string, envVar: string, value: string) => void
   onAddCustom: (cred: DraftCustomCred) => void
+  onAddRegistry: (cred: DraftRegistryCred) => void
   onRemove: (index: number) => void
   envHits: { serviceId: string; label: string; envVar: string; masked: string }[]
   onImport: (serviceId: string, scope: 'sandbox' | 'global') => void
 }): JSX.Element {
   const t = useT()
-  const [tab, setTab] = useState<'service' | 'custom'>('service')
+  const [tab, setTab] = useState<'service' | 'custom' | 'registry'>('service')
   const [serviceId, setServiceId] = useState(KNOWN_SERVICES[0].id)
   const [svcValue, setSvcValue] = useState('')
   const [host, setHost] = useState('')
   const [envVar, setEnvVar] = useState('')
   const [customValue, setCustomValue] = useState('')
+  const [regHost, setRegHost] = useState('')
+  const [regUser, setRegUser] = useState('')
+  const [regToken, setRegToken] = useState('')
+  const [regScope, setRegScope] = useState<RegistryScope>('host')
   const [importOpen, setImportOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [importScope, setImportScope] = useState<'sandbox' | 'global'>('sandbox')
@@ -54,6 +60,7 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
   const selectedSvc = serviceById(serviceId)
   const services = credentials.map((c, i) => ({ c, i })).filter((x): x is { c: DraftServiceCred; i: number } => x.c.kind === 'service')
   const customs = credentials.map((c, i) => ({ c, i })).filter((x): x is { c: DraftCustomCred; i: number } => x.c.kind === 'custom')
+  const registries = credentials.map((c, i) => ({ c, i })).filter((x): x is { c: DraftRegistryCred; i: number } => x.c.kind === 'registry')
 
   function addService(): void {
     if (!selectedSvc || !svcValue.trim()) return
@@ -71,6 +78,15 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
   function editCustom(c: DraftCustomCred, i: number): void {
     setTab('custom'); setHost(c.domains[0] ?? ''); setEnvVar(c.envVar); setCustomValue(c.value); onRemove(i)
   }
+  function addRegistry(): void {
+    const h = regHost.trim()
+    if (!h || !regToken.trim()) return
+    onAddRegistry({ kind: 'registry', id: toSbxName(h), host: h, username: regUser.trim(), scope: regScope, value: regToken })
+    setRegHost(''); setRegUser(''); setRegToken(''); setRegScope('host')
+  }
+  function editRegistry(c: DraftRegistryCred, i: number): void {
+    setTab('registry'); setRegHost(c.host); setRegUser(c.username); setRegToken(c.value); setRegScope(c.scope); onRemove(i)
+  }
   function toggleSel(id: string): void {
     setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
@@ -87,7 +103,7 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
       <div role="tablist" style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 'var(--space-5)', borderBottom: '1px solid var(--border)', paddingBottom: 'var(--space-2)' }}>
         <button role="tab" aria-selected={tab === 'service'} style={credTabStyle(tab === 'service')} onClick={() => setTab('service')}>{t('credentials.tabService')}</button>
         <button role="tab" aria-selected={tab === 'custom'} style={credTabStyle(tab === 'custom')} onClick={() => setTab('custom')}>{t('credentials.tabCustom')}</button>
-        <button role="tab" aria-selected={false} aria-disabled disabled title={t('credentials.registrySoon')} style={credTabStyle(false, true)}>{t('credentials.tabRegistry')}</button>
+        <button role="tab" aria-selected={tab === 'registry'} style={credTabStyle(tab === 'registry')} onClick={() => setTab('registry')}>{t('credentials.tabRegistry')}</button>
       </div>
 
       {tab === 'service' && (
@@ -198,6 +214,51 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onRemo
                 </span>
                 <span style={{ display: 'flex', gap: 'var(--space-3)', flexShrink: 0 }}>
                   <button className="btn btn-ghost btn-sm" onClick={() => editCustom(c, i)}>{t('credentials.edit')}</button>
+                  <button className="btn btn-ghost btn-sm" aria-label="Remove" style={{ color: 'var(--danger)' }} onClick={() => onRemove(i)}>{t('credentials.remove')}</button>
+                </span>
+              </div>
+            ))}
+        </>
+      )}
+
+      {tab === 'registry' && (
+        <>
+          <p style={hint}>{t('credentials.registryHint')}</p>
+          <div style={rowStyle}>
+            <div style={{ ...field, flex: '1 1 180px' }}>
+              <span style={lbl}>{t('credentials.registryHost')}</span>
+              <input aria-label="Registry Host" className="input" placeholder="ghcr.io" value={regHost} onChange={(e) => setRegHost(e.target.value)} />
+            </div>
+            <div style={{ ...field, flex: '1 1 140px' }}>
+              <span style={lbl}>{t('credentials.registryUser')}</span>
+              <input aria-label="Username (optional)" className="input" placeholder="myuser" value={regUser} onChange={(e) => setRegUser(e.target.value)} />
+            </div>
+            <div style={{ ...field, flex: '1 1 160px' }}>
+              <span style={lbl}>{t('credentials.registryToken')}</span>
+              <input aria-label="Token / Password" type="password" className="input" placeholder="ghp_········" value={regToken} onChange={(e) => setRegToken(e.target.value)} />
+            </div>
+            <div style={{ ...field, flex: '1 1 160px' }}>
+              <span style={lbl}>{t('credentials.registryScope')}</span>
+              <select aria-label="Scope" className="input" value={regScope} onChange={(e) => setRegScope(e.target.value as RegistryScope)}>
+                <option value="host">{t('credentials.scope.host')}</option>
+                <option value="global">{t('credentials.scope.global')}</option>
+                <option value="sandbox">{t('credentials.scope.sandbox')}</option>
+              </select>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={addRegistry}>{t('credentials.add')}</button>
+          </div>
+          <p style={hint}>{t('credentials.registryScopeHint')}</p>
+          <p style={sectionLbl}>{t('credentials.addedRegistry')}</p>
+          {registries.length === 0
+            ? <p style={hint}>{t('credentials.none')}</p>
+            : registries.map(({ c, i }) => (
+              <div key={i} style={credRow}>
+                <span>
+                  <strong style={{ fontSize: 13 }}>{c.host}</strong>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{t(`credentials.scope.${c.scope}`)} · {c.username.trim() ? c.username : t('credentials.registryTokenOnly')} · {mask(c.value)}</span>
+                </span>
+                <span style={{ display: 'flex', gap: 'var(--space-3)', flexShrink: 0 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => editRegistry(c, i)}>{t('credentials.edit')}</button>
                   <button className="btn btn-ghost btn-sm" aria-label="Remove" style={{ color: 'var(--danger)' }} onClick={() => onRemove(i)}>{t('credentials.remove')}</button>
                 </span>
               </div>

@@ -92,7 +92,19 @@ export const de: Dict = {
     tabService: 'Dienst-Anmeldedaten',
     tabCustom: 'Benutzerdefiniertes Geheimnis',
     tabRegistry: 'Registry-Anmeldedaten',
-    registrySoon: 'Demnächst',
+    registryHint: 'Authentifizierung an privaten OCI-Registries zum Abrufen von Vorlagen, Kits und Images. Auf dem Host gespeichert und optional zur Nutzung durch den Agenten in die Sandbox eingefügt.',
+    registryHost: 'Registry-Host',
+    registryUser: 'Benutzername (optional)',
+    registryToken: 'Token / Passwort',
+    registryScope: 'Bereich',
+    registryScopeHint: 'Host-only-Anmeldedaten rufen Vorlagen auf dem Host ab und gelangen nie in eine Sandbox. Globale und Sandbox-bezogene Anmeldedaten werden in den Registry-Login der Sandbox eingefügt (das Token landet nie auf deren Dateisystem).',
+    registryTokenOnly: 'nur Token',
+    addedRegistry: 'Hinzugefügte Registry-Anmeldedaten',
+    scope: {
+      host: 'Nur Host (Vorlagen abrufen)',
+      global: 'Global (Agent Push/Pull)',
+      sandbox: 'Sandbox-bezogen'
+    },
     serviceHint: 'Der Proxy fügt API-Schlüssel in Anfragen an die passende Dienst-Domäne ein. Speichern Sie einen Wert auf dem Host — die Sandbox sieht nur proxy-managed.',
     service: 'Dienst',
     value: 'Wert',
@@ -118,7 +130,7 @@ export const de: Dict = {
     scopeGlobal: 'Global (alle Sandboxes)',
     import: 'Importieren',
     securityLabel: 'Sicherheit:',
-    securityNote: 'Dienst-Anmeldedaten werden per Proxy eingefügt — der echte Wert gelangt nie in die VM. Gespeichert im Betriebssystem-Schlüsselbund (macOS Keychain / GNOME Keyring / Windows Credential Manager) mit verschlüsseltem Datei-Fallback unter Headless-Linux.'
+    securityNote: 'Dienst-Anmeldedaten werden per Proxy eingefügt — der echte Wert gelangt nie in die VM. Als Global oder Sandbox-bezogen markierte Registry-Anmeldedaten werden vom Proxy in den Registry-Login der Sandbox eingefügt (das Token landet nie auf deren Dateisystem). Gespeichert im Betriebssystem-Schlüsselbund (macOS Keychain / GNOME Keyring / Windows Credential Manager) mit verschlüsseltem Datei-Fallback unter Headless-Linux.'
   },
   secrets: {
     title: 'Globale Geheimnisse',

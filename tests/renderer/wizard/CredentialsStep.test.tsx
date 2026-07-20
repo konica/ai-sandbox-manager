@@ -4,7 +4,7 @@ import { CredentialsStep } from '../../../src/renderer/wizard/CredentialsStep'
 
 type Props = Parameters<typeof CredentialsStep>[0]
 function setup(over: Partial<Props> = {}) {
-  const props: Props = { credentials: [], onAddService: vi.fn(), onAddCustom: vi.fn(), onRemove: vi.fn(), envHits: [], onImport: vi.fn(), ...over }
+  const props: Props = { credentials: [], onAddService: vi.fn(), onAddCustom: vi.fn(), onAddRegistry: vi.fn(), onRemove: vi.fn(), envHits: [], onImport: vi.fn(), ...over }
   render(<CredentialsStep {...props} />)
   return props
 }
@@ -55,6 +55,25 @@ describe('CredentialsStep', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
     expect(screen.getByText('Added custom secrets')).toBeInTheDocument()
     expect(screen.queryByText('Added service credentials')).toBeNull()
+  })
+
+  it('adds a registry credential from the Registry tab (host + username + token + scope)', () => {
+    const p = setup()
+    fireEvent.click(screen.getByRole('tab', { name: 'Registry Credential' }))
+    fireEvent.change(screen.getByLabelText('Registry Host'), { target: { value: 'ghcr.io' } })
+    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: 'me' } })
+    fireEvent.change(screen.getByLabelText(/token/i), { target: { value: 'ghp_secret' } })
+    fireEvent.change(screen.getByLabelText('Scope'), { target: { value: 'global' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(p.onAddRegistry).toHaveBeenCalledWith(expect.objectContaining({ kind: 'registry', host: 'ghcr.io', username: 'me', scope: 'global', value: 'ghp_secret' }))
+  })
+  it('shows registry list only on the Registry tab and masks the token', () => {
+    setup({ credentials: [{ kind: 'registry', id: 'ghcr-io', host: 'ghcr.io', username: 'me', scope: 'global', value: '' }] })
+    // default (Service) tab: registry list hidden
+    expect(screen.queryByText('Added registry credentials')).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Registry Credential' }))
+    expect(screen.getByText('Added registry credentials')).toBeInTheDocument()
+    expect(screen.getByText('ghcr.io')).toBeInTheDocument()
   })
 
   it('shows an empty-state when no env vars are detected', () => {

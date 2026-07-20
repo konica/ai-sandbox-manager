@@ -90,7 +90,19 @@ export const en = {
     tabService: 'Service Credentials',
     tabCustom: 'Custom Secret',
     tabRegistry: 'Registry Credential',
-    registrySoon: 'Coming soon',
+    registryHint: 'Authenticate to private OCI registries for pulling templates, kits, and images. Stored on the host and optionally injected into the sandbox for agent pull/push.',
+    registryHost: 'Registry Host',
+    registryUser: 'Username (optional)',
+    registryToken: 'Token / Password',
+    registryScope: 'Scope',
+    registryScopeHint: 'Host-only credentials pull templates on the host and never enter a sandbox. Global and Sandbox-scoped credentials are injected into the registry login of the sandbox (the token never lands on its filesystem).',
+    registryTokenOnly: 'token-only',
+    addedRegistry: 'Added registry credentials',
+    scope: {
+      host: 'Host-only (pull templates)',
+      global: 'Global (agent push/pull)',
+      sandbox: 'Sandbox-scoped'
+    },
     serviceHint: 'The proxy injects API keys into requests to the matching service domain. Store a value on the host — the sandbox sees only proxy-managed.',
     service: 'Service',
     value: 'Value',
@@ -116,7 +128,7 @@ export const en = {
     scopeGlobal: 'Global (all sandboxes)',
     import: 'Import',
     securityLabel: 'Security:',
-    securityNote: 'Service credentials are proxy-injected — the real value never enters the VM. Stored in your OS keychain (macOS Keychain / GNOME Keyring / Windows Credential Manager) with an encrypted file fallback on headless Linux.'
+    securityNote: 'Service credentials are proxy-injected — the real value never enters the VM. Registry credentials marked Global or Sandbox-scoped are injected into the sandbox’s registry login by the proxy (the token never lands on its filesystem). Stored in your OS keychain (macOS Keychain / GNOME Keyring / Windows Credential Manager) with an encrypted file fallback on headless Linux.'
   },
   secrets: {
     title: 'Global secrets',

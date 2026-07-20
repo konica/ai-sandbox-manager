@@ -36,6 +36,16 @@ describe('buildKitSpec', () => {
     const anthropicCount = (k.specYaml.match(/api\.anthropic\.com/g) || []).length
     expect(anthropicCount).toBe(1)
   })
+  it('allowlists a registry host only when the credential is injected into the sandbox (global/sandbox), not host-only', () => {
+    const k = buildKitSpec(spec([
+      { kind: 'registry', id: 'ghcr', host: 'ghcr.io', username: 'me', scope: 'global', store: 'sbx' },
+      { kind: 'registry', id: 'reg', host: 'reg.local', scope: 'sandbox', store: 'sbx' },
+      { kind: 'registry', id: 'hub', host: 'private.hub', scope: 'host', store: 'sbx' }
+    ]))
+    expect(k.specYaml).toContain('ghcr.io')     // global → injected → reachable
+    expect(k.specYaml).toContain('reg.local')   // sandbox → injected → reachable
+    expect(k.specYaml).not.toContain('private.hub') // host-only → host pull, not in-VM
+  })
   it('allowlists localhost:<port> for each host service', () => {
     const s = spec([], 'locked', [])
     s.hostServices = [{ hostPort: 11434, label: 'Ollama' }]

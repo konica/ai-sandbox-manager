@@ -7,7 +7,9 @@ import { useT } from '../../i18n'
 const MASK = '••••••••'
 
 function credName(c: CredentialRef): string {
-  return c.kind === 'service' ? serviceById(c.serviceId)?.label ?? c.serviceId : c.domains[0] ?? c.label
+  if (c.kind === 'service') return serviceById(c.serviceId)?.label ?? c.serviceId
+  if (c.kind === 'registry') return c.host
+  return c.domains[0] ?? c.label
 }
 
 /**
@@ -29,6 +31,7 @@ export function TerminalsTab({ instance, spec, onAttach, onShell, onAllowDomain,
   const editable = onAllowDomain !== undefined && onDenyDomain !== undefined
   const services = spec?.credentials.filter((c) => c.kind === 'service') ?? []
   const customs = spec?.credentials.filter((c) => c.kind === 'custom') ?? []
+  const registries = spec?.credentials.filter((c) => c.kind === 'registry') ?? []
 
   function addDomain(): void {
     const d = domainInput.trim()
@@ -97,6 +100,12 @@ export function TerminalsTab({ instance, spec, onAttach, onShell, onAllowDomain,
                 <div className="cred-type-group">
                   <div className="cred-type-label">{t('credentials.tabCustom')}</div>
                   {customs.map((c, i) => (<div key={i} className="secret-row" style={{ background: 'transparent', border: 'none', padding: '2px 0' }}><div className="secret-info"><span className="secret-name">{credName(c)}</span><span className="secret-value">{(c as { envVar: string }).envVar} = {MASK}</span></div></div>))}
+                </div>
+              )}
+              {registries.length > 0 && (
+                <div className="cred-type-group">
+                  <div className="cred-type-label">{t('credentials.tabRegistry')}</div>
+                  {registries.map((c, i) => c.kind === 'registry' && (<div key={i} className="secret-row" style={{ background: 'transparent', border: 'none', padding: '2px 0' }}><div className="secret-info"><span className="secret-name">{credName(c)}</span><span className="secret-value">{t(`credentials.scope.${c.scope}`)} · token = {MASK}</span></div></div>))}
                 </div>
               )}
             </div>

@@ -28,6 +28,8 @@ export interface SbxAdapter {
   policyLog(name: string): Promise<PolicySummary>
   setCustomSecret(hosts: string[], env: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   removeCustomSecret(hosts: string[], opts: { global?: boolean; sandbox?: string }): Promise<void>
+  setRegistrySecret(host: string, username: string | undefined, token: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
+  removeRegistrySecret(host: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
 }
 
 export const defaultSpawn: SpawnFn = (cmd, args, opts) =>
@@ -115,6 +117,17 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     await runSbx(['secret', 'rm', ...scopeArgs(opts), ...hostArgs, '-f'])
   }
 
+  // Registry pull credential (Phase 0 spike). Token via --password-stdin (never on argv);
+  // scope decides where it applies (host-only / global / sandbox). Overwrite needs -f — the
+  // spike showed stdin re-writes still error without it — so always pass -f for idempotent relaunch.
+  async function setRegistrySecret(host: string, username: string | undefined, token: string, opts: { global?: boolean; sandbox?: string }): Promise<void> {
+    const userArgs = username && username.trim() ? ['--username', username.trim()] : []
+    await runSbx(['secret', 'set', ...scopeArgs(opts), '-f', '--registry', host, ...userArgs, '--password-stdin'], { stdin: token })
+  }
+  async function removeRegistrySecret(host: string, opts: { global?: boolean; sandbox?: string }): Promise<void> {
+    await runSbx(['secret', 'rm', ...scopeArgs(opts), '--registry', host, '-f'])
+  }
+
   // Live port + network-policy edits on a RUNNING sandbox (Phase 0 spike-verified).
   async function listPorts(name: string): Promise<LivePort[]> {
     const res = await runSbx(['ports', name, '--json'])
@@ -138,5 +151,5 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     return parsePolicyLog(res.stdout)
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, setCustomSecret, removeCustomSecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog }
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog }
 }

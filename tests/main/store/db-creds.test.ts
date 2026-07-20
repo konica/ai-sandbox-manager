@@ -29,6 +29,18 @@ describe('credential_ref round-trip', () => {
     const cust = back!.credentials.find((c) => c.kind === 'custom')
     expect(cust).toMatchObject({ id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' })
   })
+  it('persists and reloads registry credentials (with and without username)', () => {
+    const spec = baseSpec('d2')
+    spec.credentials = [
+      { kind: 'registry', id: 'ghcr-io', host: 'ghcr.io', username: 'me', scope: 'global', store: 'sbx' },
+      { kind: 'registry', id: 'reg-local', host: 'reg.local', scope: 'host', store: 'sbx' }
+    ]
+    store.insertDefinitionSpec(spec)
+    const back = store.getDefinitionSpec('d2')
+    expect(back?.credentials).toHaveLength(2)
+    expect(back!.credentials[0]).toEqual({ kind: 'registry', id: 'ghcr-io', host: 'ghcr.io', username: 'me', scope: 'global', store: 'sbx' })
+    expect(back!.credentials[1]).toEqual({ kind: 'registry', id: 'reg-local', host: 'reg.local', username: undefined, scope: 'host', store: 'sbx' })
+  })
 })
 
 describe('global_secret CRUD', () => {

@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import type { Definition, InstanceMeta, DefinitionSpec, MountMode, CredentialRef, CredentialStore, GlobalSecretMeta, PortProtocol } from '@shared/types'
+import type { Definition, InstanceMeta, DefinitionSpec, MountMode, CredentialRef, CredentialStore, GlobalSecretMeta, PortProtocol, RegistryScope } from '@shared/types'
 
 export interface Store {
   insertDefinition(d: Definition): void
@@ -67,14 +67,17 @@ CREATE TABLE IF NOT EXISTS host_service (
 CREATE TABLE IF NOT EXISTS credential_ref (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   definition_id TEXT NOT NULL,
-  kind TEXT NOT NULL,              -- 'service' | 'custom'
+  kind TEXT NOT NULL,              -- 'service' | 'custom' | 'registry'
   service_id TEXT,                 -- service kind
-  cred_id TEXT,                    -- custom kind (kit service id)
+  cred_id TEXT,                    -- custom / registry kind (slug)
   label TEXT NOT NULL DEFAULT '',
   env_var TEXT NOT NULL,
   domains TEXT NOT NULL DEFAULT '[]',   -- JSON array (custom)
   headers TEXT NOT NULL DEFAULT '[]',   -- JSON array of {name,format} (custom)
   store TEXT NOT NULL DEFAULT 'sbx',
+  host TEXT,                       -- registry kind: hostname
+  username TEXT,                   -- registry kind: optional username
+  scope TEXT,                      -- registry kind: 'host' | 'global' | 'sandbox'
   FOREIGN KEY (definition_id) REFERENCES definition(id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS global_secret (
@@ -84,7 +87,7 @@ CREATE TABLE IF NOT EXISTS global_secret (
   store TEXT NOT NULL DEFAULT 'sbx',
   created_at TEXT NOT NULL
 );
-PRAGMA user_version = 4;
+PRAGMA user_version = 5;
 `
 
 export function openStore(filename: string): Store {
@@ -98,6 +101,13 @@ export function openStore(filename: string): Store {
   if (!cols.includes('env_var')) {
     db.exec(`DROP TABLE IF EXISTS credential_ref;`)
     db.exec(SCHEMA) // re-creates credential_ref (new shape) + global_secret
+  }
+  // v4 → v5: registry credentials add host/username/scope. Non-destructive ADD COLUMN
+  // preserves existing service/custom refs.
+  if (!cols.includes('host')) {
+    for (const col of ['host TEXT', 'username TEXT', 'scope TEXT']) {
+      db.exec(`ALTER TABLE credential_ref ADD COLUMN ${col};`)
+    }
   }
 
   // v3 → v4: port_intent gains `protocol` + nullable host_port; add host_service. Recreate
@@ -118,14 +128,16 @@ export function openStore(filename: string): Store {
     const hsIns = db.prepare(`INSERT INTO host_service (definition_id, host_port, label) VALUES (?, ?, ?)`)
     for (const hs of s.hostServices) hsIns.run(s.definition.id, hs.hostPort, hs.label)
     const cIns = db.prepare(
-      `INSERT INTO credential_ref (definition_id, kind, service_id, cred_id, label, env_var, domains, headers, store)
-       VALUES (?,?,?,?,?,?,?,?,?)`
+      `INSERT INTO credential_ref (definition_id, kind, service_id, cred_id, label, env_var, domains, headers, store, host, username, scope)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     for (const c of s.credentials) {
       if (c.kind === 'service') {
-        cIns.run(s.definition.id, 'service', c.serviceId, null, '', c.envVar, '[]', '[]', c.store)
+        cIns.run(s.definition.id, 'service', c.serviceId, null, '', c.envVar, '[]', '[]', c.store, null, null, null)
+      } else if (c.kind === 'registry') {
+        cIns.run(s.definition.id, 'registry', null, c.id, '', '', '[]', '[]', c.store, c.host, c.username ?? null, c.scope)
       } else {
-        cIns.run(s.definition.id, 'custom', null, c.id, c.label, c.envVar, JSON.stringify(c.domains), '[]', c.store)
+        cIns.run(s.definition.id, 'custom', null, c.id, c.label, c.envVar, JSON.stringify(c.domains), '[]', c.store, null, null, null)
       }
     }
   }
@@ -182,13 +194,14 @@ export function openStore(filename: string): Store {
       const hostServices = (db.prepare(`SELECT host_port AS hostPort, label FROM host_service WHERE definition_id = ? ORDER BY id`).all(id) as Array<Record<string, unknown>>)
         .map((r) => ({ hostPort: Number(r.hostPort), label: String(r.label) }))
       const credentials = (db.prepare(
-        `SELECT kind, service_id AS serviceId, cred_id AS credId, label, env_var AS envVar, domains, store
+        `SELECT kind, service_id AS serviceId, cred_id AS credId, label, env_var AS envVar, domains, store, host, username, scope
          FROM credential_ref WHERE definition_id = ? ORDER BY id`
-      ).all(id) as Array<{ kind: string; serviceId: string | null; credId: string | null; label: string; envVar: string; domains: string; store: string }>)
-        .map((r): CredentialRef =>
-          r.kind === 'service'
-            ? { kind: 'service', serviceId: r.serviceId!, envVar: r.envVar, store: r.store as CredentialStore }
-            : { kind: 'custom', id: r.credId!, label: r.label, envVar: r.envVar, domains: JSON.parse(r.domains), store: r.store as CredentialStore })
+      ).all(id) as Array<{ kind: string; serviceId: string | null; credId: string | null; label: string; envVar: string; domains: string; store: string; host: string | null; username: string | null; scope: string | null }>)
+        .map((r): CredentialRef => {
+          if (r.kind === 'service') return { kind: 'service', serviceId: r.serviceId!, envVar: r.envVar, store: r.store as CredentialStore }
+          if (r.kind === 'registry') return { kind: 'registry', id: r.credId!, host: r.host!, username: r.username ?? undefined, scope: r.scope as RegistryScope, store: r.store as CredentialStore }
+          return { kind: 'custom', id: r.credId!, label: r.label, envVar: r.envVar, domains: JSON.parse(r.domains), store: r.store as CredentialStore }
+        })
       return { definition: def, mounts, domains, ports, hostServices, credentials }
     },
     upsertInstanceMeta(m) {

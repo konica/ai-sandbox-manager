@@ -1,4 +1,4 @@
-import type { Tier, MountMode, CredentialRef, DefinitionSpec, PortProtocol } from '@shared/types'
+import type { Tier, MountMode, CredentialRef, DefinitionSpec, PortProtocol, RegistryScope } from '@shared/types'
 
 // Draft credentials carry a transient plaintext `value` that is NEVER persisted to
 // the spec — it is staged to the vault via IPC on submit (see App/CreateDefinition).
@@ -17,7 +17,15 @@ export interface DraftCustomCred {
   domains: string[]
   value: string
 }
-export type DraftCred = DraftServiceCred | DraftCustomCred
+export interface DraftRegistryCred {
+  kind: 'registry'
+  id: string
+  host: string
+  username: string
+  scope: RegistryScope
+  value: string // token/password — staged host-side on submit, never persisted to the spec
+}
+export type DraftCred = DraftServiceCred | DraftCustomCred | DraftRegistryCred
 
 export const TOTAL_STEPS = 6
 
@@ -89,6 +97,7 @@ export type DraftAction =
   | { type: 'removeHostService'; index: number }
   | { type: 'addServiceCred'; serviceId: string; envVar: string; value: string; fromEnv?: boolean }
   | { type: 'addCustomCred'; cred: DraftCustomCred }
+  | { type: 'addRegistryCred'; cred: DraftRegistryCred }
   | { type: 'removeCredential'; index: number }
 
 export function draftReducer(d: Draft, a: DraftAction): Draft {
@@ -110,6 +119,7 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'removeHostService': return { ...d, hostServices: d.hostServices.filter((_, i) => i !== a.index) }
     case 'addServiceCred': return { ...d, credentials: [...d.credentials, { kind: 'service', serviceId: a.serviceId, envVar: a.envVar, value: a.value, fromEnv: a.fromEnv }] }
     case 'addCustomCred': return { ...d, credentials: [...d.credentials, a.cred] }
+    case 'addRegistryCred': return { ...d, credentials: [...d.credentials, a.cred] }
     case 'removeCredential': return { ...d, credentials: d.credentials.filter((_, i) => i !== a.index) }
     default: return d
   }
@@ -166,10 +176,11 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
     domains: [...spec.domains],
     ports: spec.ports.map((p) => ({ ...p })),
     hostServices: spec.hostServices.map((hs) => ({ ...hs })),
-    credentials: spec.credentials.map((c): DraftCred =>
-      c.kind === 'service'
-        ? { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, value: '' }
-        : { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: [...c.domains], value: '' })
+    credentials: spec.credentials.map((c): DraftCred => {
+      if (c.kind === 'service') return { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, value: '' }
+      if (c.kind === 'registry') return { kind: 'registry', id: c.id, host: c.host, username: c.username ?? '', scope: c.scope, value: '' }
+      return { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: [...c.domains], value: '' }
+    })
   }
 }
 
@@ -183,9 +194,10 @@ export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec 
     domains: d.domains,
     ports: d.ports,
     hostServices: d.hostServices,
-    credentials: d.credentials.map((c): CredentialRef =>
-      c.kind === 'service'
-        ? { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, store: 'sbx' }
-        : { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: c.domains, store: 'encrypted' })
+    credentials: d.credentials.map((c): CredentialRef => {
+      if (c.kind === 'service') return { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, store: 'sbx' }
+      if (c.kind === 'registry') return { kind: 'registry', id: c.id, host: c.host, username: c.username.trim() || undefined, scope: c.scope, store: 'sbx' }
+      return { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: c.domains, store: 'encrypted' }
+    })
   }
 }

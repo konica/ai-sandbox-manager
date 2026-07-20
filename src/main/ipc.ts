@@ -104,7 +104,9 @@ export function buildHandlers(deps: Deps): {
       for (const c of spec?.credentials ?? []) {
         try {
           if (c.kind === 'service') await deps.adapter.removeSecret(c.serviceId, { sandbox: name })
-          else await deps.adapter.removeCustomSecret(c.domains, { sandbox: name })
+          else if (c.kind === 'custom') await deps.adapter.removeCustomSecret(c.domains, { sandbox: name })
+          // Only sandbox-scoped registry creds are scoped to this VM; host/global are shared, leave them.
+          else if (c.scope === 'sandbox') await deps.adapter.removeRegistrySecret(c.host, { sandbox: name })
         } catch (e) {
           deps.log?.error(`Could not remove scoped secret for "${name}": ${(e as Error).message}`)
         }

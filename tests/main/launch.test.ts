@@ -20,16 +20,17 @@ function deps(getSpec: () => DefinitionSpec | undefined, live: string[] = [], me
   } as never
   const setSecret = vi.fn(async () => {})
   const setCustomSecret = vi.fn(async () => {})
+  const setRegistrySecret = vi.fn(async () => {})
   const adapter = {
     listSandboxes: vi.fn(async (): Promise<SbxInstance[]> => live.map((n) => ({ name: n, status: 'running', agent: 'claude', ports: [], workspace: null }))),
-    setSecret, setCustomSecret
+    setSecret, setCustomSecret, setRegistrySecret
   }
   const staged: Record<string, string> = {}
   const creds = { getStaged: (k: string) => staged[k] ?? null }
   const materializeKit = vi.fn(() => '/p/.sandbox/kit')
   const openTerminal = vi.fn()
   const log = { info: (m: string) => infos.push(m), command: () => {}, error: () => {} }
-  return { adapter, store, creds, materializeKit, openTerminal, log, metas, infos, staged, setSecret, setCustomSecret }
+  return { adapter, store, creds, materializeKit, openTerminal, log, metas, infos, staged, setSecret, setCustomSecret, setRegistrySecret }
 }
 
 describe('launchDefinition', () => {
@@ -73,6 +74,30 @@ describe('launchDefinition', () => {
     const cmd = d.openTerminal.mock.calls[0][0] as string
     expect(cmd).not.toContain('sk-ant-xyz')
     expect(cmd).not.toContain('acme-secret')
+  })
+
+  it('registers registry credentials with scope-mapped options (host / global / sandbox), token via the adapter not the command', async () => {
+    const credSpec: DefinitionSpec = {
+      ...spec,
+      hostServices: [], credentials: [
+        { kind: 'registry', id: 'ghcr-io', host: 'ghcr.io', username: 'me', scope: 'global', store: 'sbx' },
+        { kind: 'registry', id: 'reg-local', host: 'reg.local', scope: 'sandbox', store: 'sbx' },
+        { kind: 'registry', id: 'hub', host: 'docker.io', scope: 'host', store: 'sbx' }
+      ]
+    }
+    const d = deps(() => credSpec)
+    d.staged['d1:registry:ghcr-io'] = 'ghp_global'
+    d.staged['d1:registry:reg-local'] = 'tok_sandbox'
+    d.staged['d1:registry:hub'] = 'tok_host'
+
+    await launchDefinition(d as never, 'd1')
+
+    expect(d.setRegistrySecret).toHaveBeenCalledWith('ghcr.io', 'me', 'ghp_global', { global: true })
+    expect(d.setRegistrySecret).toHaveBeenCalledWith('reg.local', undefined, 'tok_sandbox', { sandbox: 'my-project' })
+    expect(d.setRegistrySecret).toHaveBeenCalledWith('docker.io', undefined, 'tok_host', {})
+    const cmd = d.openTerminal.mock.calls[0][0] as string
+    expect(cmd).not.toContain('ghp_global')
+    expect(cmd).not.toContain('tok_sandbox')
   })
 
   it('skips a credential with no staged value and logs a clear warning', async () => {

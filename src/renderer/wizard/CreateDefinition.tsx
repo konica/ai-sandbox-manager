@@ -2,7 +2,7 @@ import { useEffect, useReducer, useState } from 'react'
 import type { Tier, DefinitionSpec } from '@shared/types'
 import { serviceById } from '@shared/services'
 import { api } from '../ipc/client'
-import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant } from './draft'
+import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant, type DraftCred } from './draft'
 import { CredentialsStep } from './CredentialsStep'
 import { PortsStep } from './PortsStep'
 import { TierBadge } from '../components/badges'
@@ -16,13 +16,15 @@ const TIERS: { value: Tier; descKey: string }[] = [
 
 type EnvHit = { serviceId: string; label: string; envVar: string; masked: string }
 
-// Review-step summary, e.g. "Anthropic, GitHub + 1 custom". Null when empty.
-function credentialsSummary(creds: { kind: 'service' | 'custom'; serviceId?: string }[]): string | null {
+// Review-step summary, e.g. "Anthropic, GitHub + 1 custom + 1 registry". Null when empty.
+function credentialsSummary(creds: DraftCred[]): string | null {
   if (creds.length === 0) return null
-  const svcNames = creds.filter((c) => c.kind === 'service').map((c) => serviceById(c.serviceId ?? '')?.label ?? c.serviceId ?? '')
+  const svcNames = creds.filter((c) => c.kind === 'service').map((c) => serviceById((c as { serviceId: string }).serviceId)?.label ?? (c as { serviceId: string }).serviceId)
   const customCount = creds.filter((c) => c.kind === 'custom').length
+  const registryCount = creds.filter((c) => c.kind === 'registry').length
   const parts = [...svcNames]
   if (customCount > 0) parts.push(`${customCount} custom`)
+  if (registryCount > 0) parts.push(`${registryCount} registry`)
   return parts.join(' + ')
 }
 
@@ -73,7 +75,7 @@ export function CreateDefinition({
     // Typed values go straight through; imported service creds have their real value
     // fetched host-side (the renderer only ever saw a mask).
     for (const c of draft.credentials) {
-      const sub = c.kind === 'service' ? `service:${c.serviceId}` : `custom:${c.id}`
+      const sub = c.kind === 'service' ? `service:${c.serviceId}` : c.kind === 'registry' ? `registry:${c.id}` : `custom:${c.id}`
       const key = `${spec.definition.id}:${sub}`
       if (c.value.trim()) {
         const staged = await api.credStageValue(key, c.value)
@@ -197,6 +199,7 @@ export function CreateDefinition({
               envHits={envHits}
               onAddService={(serviceId, envVar, value) => dispatch({ type: 'addServiceCred', serviceId, envVar, value })}
               onAddCustom={(cred) => dispatch({ type: 'addCustomCred', cred })}
+              onAddRegistry={(cred) => dispatch({ type: 'addRegistryCred', cred })}
               onRemove={(index) => dispatch({ type: 'removeCredential', index })}
               onImport={(serviceId) => {
                 const svc = serviceById(serviceId)
