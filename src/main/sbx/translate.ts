@@ -74,6 +74,14 @@ export function hostShellCommand(name: string): string {
   return `sbx exec -it ${shellQuote(name)} bash`
 }
 
+// Ephemeral Claude session for a host-side OAuth `/login`. Chained with `;` so the
+// throwaway sandbox is removed after the user exits Claude; the global token persists.
+export function loginCommand(workdir: string, name: string, kitDir: string): string {
+  const run = shellCommand(['sbx', 'run', 'claude', workdir, '--name', name, '--kit', kitDir])
+  const rm = shellCommand(['sbx', 'rm', name, '--force'])
+  return `${run} ; ${rm}`
+}
+
 // Args matching this are safe to pass unquoted in a shell command; anything
 // else (spaces, shell metacharacters like * , etc.) gets single-quoted.
 const SAFE_ARG = /^[A-Za-z0-9_./:=+-]+$/

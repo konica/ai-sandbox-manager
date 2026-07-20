@@ -62,3 +62,14 @@ export function buildKitSpec(spec: DefinitionSpec): GeneratedKit {
 
   return { name, specYaml: lines.join('\n') + '\n', secretFiles: [] }
 }
+
+// Domains the Claude OAuth `/login` token exchange needs reachable (spike-verified).
+const OAUTH_LOGIN_DOMAINS = ['api.anthropic.com', 'platform.claude.com', 'console.anthropic.com', 'claude.com', 'downloads.claude.ai']
+
+/** Standalone mixin kit for the ephemeral OAuth login sandbox (Settings sign-in). */
+export function buildLoginKit(): GeneratedKit {
+  const name = 'ai-sandbox-oauth-login'
+  const lines: string[] = ['schemaVersion: "1"', 'kind: mixin', `name: ${name}`, 'displayName: "OAuth Login"', 'network:', '  allowedDomains:']
+  for (const d of OAUTH_LOGIN_DOMAINS) lines.push(`    - ${q(d)}`)
+  return { name, specYaml: lines.join('\n') + '\n', secretFiles: [] }
+}

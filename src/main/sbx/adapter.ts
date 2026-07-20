@@ -20,6 +20,7 @@ export interface SbxAdapter {
   removeSandbox(name: string): Promise<void>
   setSecret(service: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   removeSecret(service: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
+  listGlobalSecretsRaw(): Promise<string>
   listPorts(name: string): Promise<LivePort[]>
   publishPort(name: string, port: LivePort): Promise<void>
   unpublishPort(name: string, port: LivePort): Promise<void>
@@ -102,6 +103,12 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     await runSbx(['secret', 'rm', ...scope, service, '-f'])
   }
 
+  // Raw `sbx secret ls -g` stdout for host-side auth detection (parsed by src/main/auth).
+  async function listGlobalSecretsRaw(): Promise<string> {
+    const res = await runSbx(['secret', 'ls', '-g'])
+    return res.stdout
+  }
+
   // Custom secret: placeholder-substitution for non-built-in services (verified in the
   // Phase 0 spike). `set-custom` has no stdin flag → value passes as argv (no shell, so
   // no history leak; brief `ps` exposure of the user's own secret on their own machine).
@@ -151,5 +158,5 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     return parsePolicyLog(res.stdout)
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog }
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog }
 }

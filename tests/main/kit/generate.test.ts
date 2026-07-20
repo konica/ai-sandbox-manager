@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildKitSpec } from '../../../src/main/kit/generate'
+import { buildKitSpec, buildLoginKit } from '../../../src/main/kit/generate'
 import type { DefinitionSpec } from '../../../src/shared/types'
 
 function spec(creds: DefinitionSpec['credentials'], tier: DefinitionSpec['definition']['tier'] = 'locked', domains: string[] = []): DefinitionSpec {
@@ -57,6 +57,13 @@ describe('buildKitSpec', () => {
     s.hostServices = [{ hostPort: 11434, label: 'Ollama' }]
     const k = buildKitSpec(s)
     expect(k.specYaml).toContain('localhost:11434')
+  })
+  it('buildLoginKit allowlists exactly the OAuth domains', () => {
+    const k = buildLoginKit()
+    for (const d of ['api.anthropic.com', 'platform.claude.com', 'console.anthropic.com', 'claude.com', 'downloads.claude.ai']) {
+      expect(k.specYaml).toContain(d)
+    }
+    expect(k.secretFiles).toEqual([])
   })
   it('emits no secretFiles ever (kit carries no secrets)', () => {
     const k = buildKitSpec(spec([{ kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', store: 'sbx' }]))

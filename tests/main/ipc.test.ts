@@ -17,6 +17,7 @@ const adapter: SbxAdapter = {
   removeSandbox: async () => {},
   setSecret: async () => {},
   removeSecret: async () => {},
+  listGlobalSecretsRaw: async () => '',
   setCustomSecret: async () => {},
   removeCustomSecret: async () => {},
   setRegistrySecret: async () => {},
