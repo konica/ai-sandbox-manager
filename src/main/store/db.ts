@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3'
 import type { Definition, InstanceMeta, DefinitionSpec, MountMode, CredentialRef, CredentialStore, GlobalSecretMeta, PortProtocol, RegistryScope } from '@shared/types'
+import { DEFAULT_SSH } from '@shared/types'
 
 export interface Store {
   insertDefinition(d: Definition): void
@@ -24,7 +25,9 @@ CREATE TABLE IF NOT EXISTS definition (
   description TEXT NOT NULL DEFAULT '',
   base_image TEXT NOT NULL,
   tier TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  ssh_forward_agent INTEGER NOT NULL DEFAULT 1,
+  ssh_commit_signing INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS instance_meta (
   sbx_name TEXT PRIMARY KEY,
@@ -87,7 +90,7 @@ CREATE TABLE IF NOT EXISTS global_secret (
   store TEXT NOT NULL DEFAULT 'sbx',
   created_at TEXT NOT NULL
 );
-PRAGMA user_version = 5;
+PRAGMA user_version = 6;
 `
 
 export function openStore(filename: string): Store {
@@ -108,6 +111,12 @@ export function openStore(filename: string): Store {
     for (const col of ['host TEXT', 'username TEXT', 'scope TEXT']) {
       db.exec(`ALTER TABLE credential_ref ADD COLUMN ${col};`)
     }
+  }
+  // v5 → v6: definitions gain SSH agent forward + commit-signing flags. Non-destructive.
+  const defCols = (db.prepare(`PRAGMA table_info(definition)`).all() as { name: string }[]).map((c) => c.name)
+  if (!defCols.includes('ssh_forward_agent')) {
+    db.exec(`ALTER TABLE definition ADD COLUMN ssh_forward_agent INTEGER NOT NULL DEFAULT 1;`)
+    db.exec(`ALTER TABLE definition ADD COLUMN ssh_commit_signing INTEGER NOT NULL DEFAULT 0;`)
   }
 
   // v3 → v4: port_intent gains `protocol` + nullable host_port; add host_service. Recreate
@@ -164,19 +173,23 @@ export function openStore(filename: string): Store {
     },
     insertDefinitionSpec(spec) {
       const insertAll = db.transaction((s: DefinitionSpec) => {
+        const ssh = s.ssh ?? DEFAULT_SSH
         db.prepare(
-          `INSERT INTO definition (id, name, description, base_image, tier, created_at)
-           VALUES (@id, @name, @description, @baseImage, @tier, @createdAt)`
-        ).run(s.definition)
+          `INSERT INTO definition (id, name, description, base_image, tier, created_at, ssh_forward_agent, ssh_commit_signing)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(s.definition.id, s.definition.name, s.definition.description, s.definition.baseImage, s.definition.tier, s.definition.createdAt,
+          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0)
         insertChildren(s)
       })
       insertAll(spec)
     },
     updateDefinitionSpec(spec) {
       const updateAll = db.transaction((s: DefinitionSpec) => {
+        const ssh = s.ssh ?? DEFAULT_SSH
         const res = db.prepare(
-          `UPDATE definition SET name = @name, description = @description, base_image = @baseImage, tier = @tier WHERE id = @id`
-        ).run(s.definition)
+          `UPDATE definition SET name = ?, description = ?, base_image = ?, tier = ?, ssh_forward_agent = ?, ssh_commit_signing = ? WHERE id = ?`
+        ).run(s.definition.name, s.definition.description, s.definition.baseImage, s.definition.tier,
+          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.definition.id)
         if (res.changes === 0) throw new Error(`Definition ${s.definition.id} not found`)
         deleteChildren(s.definition.id)
         insertChildren(s)
@@ -202,7 +215,9 @@ export function openStore(filename: string): Store {
           if (r.kind === 'registry') return { kind: 'registry', id: r.credId!, host: r.host!, username: r.username ?? undefined, scope: r.scope as RegistryScope, store: r.store as CredentialStore }
           return { kind: 'custom', id: r.credId!, label: r.label, envVar: r.envVar, domains: JSON.parse(r.domains), store: r.store as CredentialStore }
         })
-      return { definition: def, mounts, domains, ports, hostServices, credentials }
+      const sshRow = db.prepare(`SELECT ssh_forward_agent AS fwd, ssh_commit_signing AS sign FROM definition WHERE id = ?`).get(id) as { fwd: number; sign: number } | undefined
+      const ssh = { forwardAgent: (sshRow?.fwd ?? 1) === 1, commitSigning: (sshRow?.sign ?? 0) === 1 }
+      return { definition: def, mounts, domains, ports, hostServices, credentials, ssh }
     },
     upsertInstanceMeta(m) {
       db.prepare(
