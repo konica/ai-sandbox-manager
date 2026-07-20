@@ -1,4 +1,4 @@
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, ClaudeAuthKind } from '@shared/types'
 
 interface Api {
   prereqCheck(): Promise<Result<PrereqResult>>
@@ -27,6 +27,10 @@ interface Api {
   instanceDomainAllow(name: string, domain: string): Promise<Result<null>>
   instanceDomainDeny(name: string, domain: string): Promise<Result<null>>
   instancePolicyLog(name: string): Promise<Result<PolicySummary>>
+  authStatus(): Promise<Result<AuthStatus>>
+  authSignOut(): Promise<Result<null>>
+  authStartLogin(): Promise<Result<{ name: string }>>
+  authLaunchPrecheck(definitionId: string): Promise<Result<{ needsNudge: boolean; status: ClaudeAuthKind }>>
 }
 
 export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
@@ -55,5 +59,9 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   instanceHostServiceRemove: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceDomainAllow: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceDomainDeny: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
-  instancePolicyLog: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } })
+  instancePolicyLog: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  authStatus: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  authSignOut: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  authStartLogin: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  authLaunchPrecheck: async () => ({ ok: true, data: { needsNudge: false, status: 'none' } })
 }

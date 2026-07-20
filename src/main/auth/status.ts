@@ -1,5 +1,5 @@
-export type ClaudeAuthKind = 'oauth' | 'apikey' | 'none'
-export interface AuthStatus { anthropic: ClaudeAuthKind }
+import type { AuthStatus, ClaudeAuthKind } from '@shared/types'
+export type { AuthStatus, ClaudeAuthKind }
 
 /**
  * Parse `sbx secret ls -g` output for the Claude (anthropic) auth state.

@@ -10,7 +10,7 @@ import { openHostTerminal } from './terminal'
 import { createLogger } from './log'
 import { createSafeStorageVault } from './creds/vault'
 import { createCredentialManager } from './creds/manager'
-import { buildKitSpec } from './kit/generate'
+import { buildKitSpec, buildLoginKit } from './kit/generate'
 import { writeKit } from './kit/write'
 import type { DefinitionSpec } from '@shared/types'
 
@@ -28,6 +28,15 @@ function materializeKit(spec: DefinitionSpec, _name: string): string | undefined
   if (!primary) return undefined
   const ws = primary.hostPath
   return writeKit(buildKitSpec(spec), {}, { fs: kitFs, kitDir: `${ws}/.sandbox/kit`, secretsDir: `${ws}/.sandbox/.unused`, gitignorePath: `${ws}/.gitignore` }).kitDir
+}
+
+// Materialize the ephemeral OAuth login kit under the OS temp dir; returns the kit dir.
+// The kit only allowlists the Claude OAuth domains — carries no secrets.
+function loginKitDir(): string {
+  const dir = join(app.getPath('temp'), 'sbx-oauth-login')
+  nodeFs.mkdirSync(dir, { recursive: true })
+  const kitDir = `${dir}/.kit`
+  return writeKit(buildLoginKit(), {}, { fs: kitFs, kitDir, secretsDir: `${dir}/.unused`, gitignorePath: `${dir}/.gitignore` }).kitDir
 }
 
 // GUI apps on macOS don't inherit the shell's env, so read it from a login shell.
@@ -82,7 +91,7 @@ app.whenReady().then(() => {
     }
   })
   const creds = createCredentialManager({ adapter, vault, store })
-  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, log: logger })
+  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, log: logger })
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

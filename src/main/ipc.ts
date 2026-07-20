@@ -1,11 +1,12 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, ClaudeAuthKind } from '@shared/types'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
 import { reconcile } from './reconciler'
 import { launchDefinition } from './launch'
-import { agentAttachCommand, hostShellCommand } from './sbx/translate'
+import { agentAttachCommand, hostShellCommand, loginCommand } from './sbx/translate'
+import { claudeAuthStatus, claudeSignOut, needsAuthNudge } from './auth/manager'
 import { scanEnv } from './creds/env-scan'
 import { applyPortEdit, applyHostServiceEdit, applyDomainEdit } from './detail/persist'
 import { serviceById } from '@shared/services'
@@ -20,6 +21,7 @@ interface Deps {
   creds?: CredentialManager
   materializeKit?: (spec: DefinitionSpec, name: string) => string | undefined
   readLoginEnv?: () => Record<string, string | undefined>
+  loginKitDir?: () => string // materializes the OAuth login kit, returns its dir
   log?: Logger
 }
 
@@ -63,6 +65,10 @@ export function buildHandlers(deps: Deps): {
   'instance:domain:allow': (name: string, domain: string) => Promise<Result<null>>
   'instance:domain:deny': (name: string, domain: string) => Promise<Result<null>>
   'instance:policyLog': (name: string) => Promise<Result<PolicySummary>>
+  'auth:status': () => Promise<Result<AuthStatus>>
+  'auth:signOut': () => Promise<Result<null>>
+  'auth:startLogin': () => Promise<Result<{ name: string }>>
+  'auth:launchPrecheck': (definitionId: string) => Promise<Result<{ needsNudge: boolean; status: ClaudeAuthKind }>>
 } {
   return {
     'prereq:check': () => wrap(() => checkPrereqs(deps.probes)),
@@ -175,7 +181,25 @@ export function buildHandlers(deps: Deps): {
       deps.log?.info(`Domain ${domain} denied on "${name}"${saved ? ' and removed from its definition' : ''}.`)
       return null
     }),
-    'instance:policyLog': (name) => wrap(async () => deps.adapter.policyLog(name))
+    'instance:policyLog': (name) => wrap(async () => deps.adapter.policyLog(name)),
+    'auth:status': () => wrap(() => claudeAuthStatus(deps.adapter)),
+    'auth:signOut': () => wrap(async () => { await claudeSignOut(deps.adapter); return null }),
+    'auth:startLogin': () => wrap(async () => {
+      if (!deps.loginKitDir) throw new Error('login kit not configured')
+      const name = 'sbx-oauth-login'
+      const kitDir = deps.loginKitDir()
+      const workdir = kitDir.replace(/\/[^/]+$/, '') // the login temp dir (kit lives under it)
+      const cmd = loginCommand(workdir, name, kitDir)
+      deps.log?.info(`Opening Claude OAuth login terminal: ${cmd}`)
+      deps.openTerminal(cmd)
+      return { name }
+    }),
+    'auth:launchPrecheck': (definitionId) => wrap(async () => {
+      const spec = deps.store.getDefinitionSpec(definitionId)
+      const { anthropic } = await claudeAuthStatus(deps.adapter)
+      const needsNudge = spec ? needsAuthNudge(anthropic, spec) : false
+      return { needsNudge, status: anthropic }
+    })
   }
 }
 
@@ -218,6 +242,10 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instance:domain:allow', (_e, name: string, domain: string) => handlers['instance:domain:allow'](name, domain))
   ipcMain.handle('instance:domain:deny', (_e, name: string, domain: string) => handlers['instance:domain:deny'](name, domain))
   ipcMain.handle('instance:policyLog', (_e, name: string) => handlers['instance:policyLog'](name))
+  ipcMain.handle('auth:status', () => handlers['auth:status']())
+  ipcMain.handle('auth:signOut', () => handlers['auth:signOut']())
+  ipcMain.handle('auth:startLogin', () => handlers['auth:startLogin']())
+  ipcMain.handle('auth:launchPrecheck', (_e, id: string) => handlers['auth:launchPrecheck'](id))
   ipcMain.handle('dialog:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }

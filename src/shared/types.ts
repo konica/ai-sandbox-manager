@@ -72,6 +72,10 @@ export interface PolicySummary {
   events: PolicyEvent[]
 }
 
+/** Claude Code host-side auth state (see src/main/auth). */
+export type ClaudeAuthKind = 'oauth' | 'apikey' | 'none'
+export interface AuthStatus { anthropic: ClaudeAuthKind }
+
 export type CredentialStore = 'sbx' | 'encrypted'
 
 /** A built-in service (anthropic, openai, …). Value lives in sbx keychain; base kit owns serviceAuth. */
