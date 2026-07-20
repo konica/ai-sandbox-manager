@@ -139,6 +139,14 @@ export const en = {
     securityLabel: 'Security:',
     securityNote: 'Service credentials are proxy-injected — the real value never enters the VM. Registry credentials marked Global or Sandbox-scoped are injected into the sandbox’s registry login by the proxy (the token never lands on its filesystem). Stored in your OS keychain (macOS Keychain / GNOME Keyring / Windows Credential Manager) with an encrypted file fallback on headless Linux.'
   },
+  auth: {
+    nudgeTitle: 'Sign in to Claude for “{name}”',
+    nudgeBody: 'No Anthropic credential is configured. You can sign in with your account when the session opens, sign in first, or use an API key.',
+    proceed: 'Launch — sign in when it opens',
+    signInFirst: 'Sign in first',
+    useKey: 'Use an API key instead',
+    cancel: 'Cancel'
+  },
   secrets: {
     title: 'Global secrets',
     subtitle: 'Reusable API keys stored in your OS keychain (via sbx -g). Applied when a sandbox is created.',

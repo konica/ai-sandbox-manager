@@ -10,6 +10,7 @@ import { CreateDefinition } from './wizard/CreateDefinition'
 import { AppShell, type NavScreen } from './components/AppShell'
 import { ConfirmModal } from './components/ConfirmModal'
 import { LaunchDialog } from './components/LaunchDialog'
+import { AuthNudge } from './components/AuthNudge'
 import { useT } from './i18n'
 
 type Phase =
@@ -25,6 +26,7 @@ export default function App(): JSX.Element {
   const [instances, setInstances] = useState<InstanceView[]>([])
   const [pending, setPending] = useState<{ kind: 'stop' | 'remove'; name: string } | null>(null)
   const [launchFor, setLaunchFor] = useState<Definition | null>(null)
+  const [nudgeFor, setNudgeFor] = useState<Definition | null>(null)
   const [detailName, setDetailName] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
@@ -74,10 +76,13 @@ export default function App(): JSX.Element {
     else setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
   }
 
-  function openLaunchDialog(definitionId: string): void {
+  async function openLaunchDialog(definitionId: string): Promise<void> {
     const def = defs.find((d) => d.id === definitionId)
     if (!def) return
     setNotice(null)
+    // Nudge a host-side OAuth sign-in when Claude has no credential (non-blocking).
+    const pre = await api.authLaunchPrecheck(def.id)
+    if (pre.ok && pre.data.needsNudge) { setNudgeFor(def); return }
     setLaunchFor(def)
     void loadInstances() // refresh existing sandbox names for the dialog
   }
@@ -139,7 +144,7 @@ export default function App(): JSX.Element {
       {screen === 'definitions' && (
         wizard
           ? <CreateDefinition initial={wizard.spec} onDone={() => { setWizard(null); void loadDefs() }} onCancel={() => setWizard(null)} />
-          : <Definitions definitions={defs} onCreate={() => setWizard({})} onLaunch={openLaunchDialog} onEdit={(id) => void openEditor(id)} launchingId={busyId} />
+          : <Definitions definitions={defs} onCreate={() => setWizard({})} onLaunch={(id) => void openLaunchDialog(id)} onEdit={(id) => void openEditor(id)} launchingId={busyId} />
       )}
       {screen === 'instances' && (() => {
         const detail = detailName ? instances.find((i) => i.name === detailName) : null
@@ -183,6 +188,15 @@ export default function App(): JSX.Element {
           definition={launchFor}
           onLaunch={(session) => void submitLaunch(launchFor, session)}
           onCancel={() => setLaunchFor(null)}
+        />
+      )}
+      {nudgeFor && (
+        <AuthNudge
+          definition={nudgeFor}
+          onProceed={() => { const d = nudgeFor; setNudgeFor(null); setLaunchFor(d); void loadInstances() }}
+          onSignIn={() => { setNudgeFor(null); void api.authStartLogin() }}
+          onUseKey={() => { const d = nudgeFor; setNudgeFor(null); void openEditor(d.id) }}
+          onCancel={() => setNudgeFor(null)}
         />
       )}
     </AppShell>

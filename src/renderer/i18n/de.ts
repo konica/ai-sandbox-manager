@@ -141,6 +141,14 @@ export const de: Dict = {
     securityLabel: 'Sicherheit:',
     securityNote: 'Dienst-Anmeldedaten werden per Proxy eingefügt — der echte Wert gelangt nie in die VM. Als Global oder Sandbox-bezogen markierte Registry-Anmeldedaten werden vom Proxy in den Registry-Login der Sandbox eingefügt (das Token landet nie auf deren Dateisystem). Gespeichert im Betriebssystem-Schlüsselbund (macOS Keychain / GNOME Keyring / Windows Credential Manager) mit verschlüsseltem Datei-Fallback unter Headless-Linux.'
   },
+  auth: {
+    nudgeTitle: 'Bei Claude für „{name}“ anmelden',
+    nudgeBody: 'Keine Anthropic-Anmeldedaten konfiguriert. Sie können sich beim Öffnen der Sitzung mit Ihrem Konto anmelden, sich zuerst anmelden oder einen API-Schlüssel verwenden.',
+    proceed: 'Starten — beim Öffnen anmelden',
+    signInFirst: 'Zuerst anmelden',
+    useKey: 'Stattdessen API-Schlüssel verwenden',
+    cancel: 'Abbrechen'
+  },
   secrets: {
     title: 'Globale Geheimnisse',
     subtitle: 'Wiederverwendbare API-Schlüssel im Betriebssystem-Schlüsselbund (über sbx -g). Werden bei Erstellung einer Sandbox angewendet.',

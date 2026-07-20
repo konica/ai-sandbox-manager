@@ -9,6 +9,8 @@ const instanceAttach = vi.fn()
 const instanceShell = vi.fn()
 const instanceStop = vi.fn()
 const instanceRemove = vi.fn()
+const authLaunchPrecheck = vi.fn()
+const authStartLogin = vi.fn()
 
 vi.mock('../../src/renderer/ipc/client', () => ({
   api: {
@@ -20,7 +22,9 @@ vi.mock('../../src/renderer/ipc/client', () => ({
     instanceAttach: (n: string) => instanceAttach(n),
     instanceShell: (n: string) => instanceShell(n),
     instanceStop: (n: string) => instanceStop(n),
-    instanceRemove: (n: string) => instanceRemove(n)
+    instanceRemove: (n: string) => instanceRemove(n),
+    authLaunchPrecheck: (id: string) => authLaunchPrecheck(id),
+    authStartLogin: () => authStartLogin()
   }
 }))
 
@@ -32,6 +36,8 @@ const runningInst = { ok: true, data: [{ name: 'my-project', status: 'running', 
 beforeEach(() => {
   prereqCheck.mockReset(); instancesList.mockReset(); defList.mockReset()
   instanceLaunch.mockReset(); instanceAttach.mockReset(); instanceShell.mockReset(); instanceStop.mockReset(); instanceRemove.mockReset()
+  authLaunchPrecheck.mockReset().mockResolvedValue({ ok: true, data: { needsNudge: false, status: 'apikey' } })
+  authStartLogin.mockReset().mockResolvedValue({ ok: true, data: { name: 'sbx-oauth-login' } })
   prereqCheck.mockResolvedValue({ ok: true, data: { ok: true, checks: [] } })
   instancesList.mockResolvedValue(runningInst)
   defList.mockResolvedValue(oneDef)
@@ -50,6 +56,16 @@ describe('App launch & lifecycle wiring', () => {
     fireEvent.change(within(dialog).getByLabelText('Session name'), { target: { value: 'Refactor auth' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Launch' }))
     await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', undefined, 'Refactor auth'))
+  })
+
+  it('shows the OAuth nudge (not the launch dialog) when Claude has no credential', async () => {
+    authLaunchPrecheck.mockResolvedValue({ ok: true, data: { needsNudge: true, status: 'none' } })
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
+    // The nudge appears; its primary action proceeds to the normal launch dialog.
+    fireEvent.click(await screen.findByRole('button', { name: /launch — sign in when it opens/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('Session name')).toBeInTheDocument()
   })
 
   it('surfaces the error message when launch fails', async () => {
