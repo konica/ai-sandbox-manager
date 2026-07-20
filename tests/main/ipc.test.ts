@@ -63,6 +63,12 @@ describe('buildHandlers', () => {
     expect(r.ok && r.data.status).toBe('none')
   })
 
+  it('ssh:detect reports whether SSH_AUTH_SOCK is present', async () => {
+    const h = buildHandlers({ adapter, store: openStore(":memory:"), probes, openTerminal: () => {}, readLoginEnv: () => ({ SSH_AUTH_SOCK: '/tmp/s.sock' }) })
+    const r = await h['ssh:detect']()
+    expect(r.ok && r.data.present).toBe(true)
+  })
+
   it('wraps thrown errors as {ok:false}', async () => {
     const boom: SbxAdapter = { ...adapter, listSandboxes: async () => { throw new Error('kaboom') } }
     const h = buildHandlers({ adapter: boom, store: openStore(":memory:"), probes, openTerminal: () => {} })

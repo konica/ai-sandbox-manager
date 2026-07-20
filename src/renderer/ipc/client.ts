@@ -31,6 +31,7 @@ interface Api {
   authSignOut(): Promise<Result<null>>
   authStartLogin(): Promise<Result<{ name: string }>>
   authLaunchPrecheck(definitionId: string): Promise<Result<{ needsNudge: boolean; status: ClaudeAuthKind }>>
+  sshDetect(): Promise<Result<{ present: boolean }>>
 }
 
 export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
@@ -63,5 +64,6 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   authStatus: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   authSignOut: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   authStartLogin: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
-  authLaunchPrecheck: async () => ({ ok: true, data: { needsNudge: false, status: 'none' } })
+  authLaunchPrecheck: async () => ({ ok: true, data: { needsNudge: false, status: 'none' } }),
+  sshDetect: async () => ({ ok: true, data: { present: false } })
 }

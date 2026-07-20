@@ -7,6 +7,7 @@ import { reconcile } from './reconciler'
 import { launchDefinition } from './launch'
 import { agentAttachCommand, hostShellCommand, loginCommand } from './sbx/translate'
 import { claudeAuthStatus, claudeSignOut, needsAuthNudge } from './auth/manager'
+import { sshAuthSockPresent } from './ssh/detect'
 import { scanEnv } from './creds/env-scan'
 import { applyPortEdit, applyHostServiceEdit, applyDomainEdit } from './detail/persist'
 import { serviceById } from '@shared/services'
@@ -69,6 +70,7 @@ export function buildHandlers(deps: Deps): {
   'auth:signOut': () => Promise<Result<null>>
   'auth:startLogin': () => Promise<Result<{ name: string }>>
   'auth:launchPrecheck': (definitionId: string) => Promise<Result<{ needsNudge: boolean; status: ClaudeAuthKind }>>
+  'ssh:detect': () => Promise<Result<{ present: boolean }>>
 } {
   return {
     'prereq:check': () => wrap(() => checkPrereqs(deps.probes)),
@@ -199,7 +201,8 @@ export function buildHandlers(deps: Deps): {
       const { anthropic } = await claudeAuthStatus(deps.adapter)
       const needsNudge = spec ? needsAuthNudge(anthropic, spec) : false
       return { needsNudge, status: anthropic }
-    })
+    }),
+    'ssh:detect': () => wrap(async () => ({ present: sshAuthSockPresent(deps.readLoginEnv?.() ?? {}) }))
   }
 }
 
@@ -246,6 +249,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('auth:signOut', () => handlers['auth:signOut']())
   ipcMain.handle('auth:startLogin', () => handlers['auth:startLogin']())
   ipcMain.handle('auth:launchPrecheck', (_e, id: string) => handlers['auth:launchPrecheck'](id))
+  ipcMain.handle('ssh:detect', () => handlers['ssh:detect']())
   ipcMain.handle('dialog:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }
