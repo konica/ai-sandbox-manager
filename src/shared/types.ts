@@ -76,6 +76,14 @@ export interface PolicySummary {
 export type ClaudeAuthKind = 'oauth' | 'apikey' | 'none'
 export interface AuthStatus { anthropic: ClaudeAuthKind }
 
+/**
+ * Per-definition SSH agent config. Forwarding is automatic in sbx when SSH_AUTH_SOCK
+ * is set; forwardAgent=false opts out (launch strips SSH_AUTH_SOCK). commitSigning
+ * configures git SSH signing inside the sandbox and requires forwardAgent=true.
+ */
+export interface SshConfig { forwardAgent: boolean; commitSigning: boolean }
+export const DEFAULT_SSH: SshConfig = { forwardAgent: true, commitSigning: false }
+
 export type CredentialStore = 'sbx' | 'encrypted'
 
 /** A built-in service (anthropic, openai, …). Value lives in sbx keychain; base kit owns serviceAuth. */
@@ -146,6 +154,7 @@ export interface DefinitionSpec {
   ports: PortIntent[]
   hostServices: HostServiceIntent[]
   credentials: CredentialRef[]
+  ssh?: SshConfig
 }
 
 export interface InstanceView extends SbxInstance {

@@ -1,4 +1,5 @@
 import type { Tier, MountMode, CredentialRef, DefinitionSpec, PortProtocol, RegistryScope } from '@shared/types'
+import { DEFAULT_SSH } from '@shared/types'
 
 // Draft credentials carry a transient plaintext `value` that is NEVER persisted to
 // the spec — it is staged to the vault via IPC on submit (see App/CreateDefinition).
@@ -61,6 +62,8 @@ export interface Draft {
   ports: { hostPort: number | null; containerPort: number; protocol: PortProtocol; label: string }[]
   hostServices: { hostPort: number; label: string }[]
   credentials: DraftCred[]
+  sshForwardAgent: boolean
+  sshCommitSigning: boolean
 }
 
 export const initialDraft: Draft = {
@@ -76,7 +79,9 @@ export const initialDraft: Draft = {
   domains: [],
   ports: [],
   hostServices: [],
-  credentials: []
+  credentials: [],
+  sshForwardAgent: true,
+  sshCommitSigning: false
 }
 
 export type DraftAction =
@@ -99,6 +104,8 @@ export type DraftAction =
   | { type: 'addCustomCred'; cred: DraftCustomCred }
   | { type: 'addRegistryCred'; cred: DraftRegistryCred }
   | { type: 'removeCredential'; index: number }
+  | { type: 'setSshForward'; value: boolean }
+  | { type: 'setSshCommitSigning'; value: boolean }
 
 export function draftReducer(d: Draft, a: DraftAction): Draft {
   switch (a.type) {
@@ -121,6 +128,8 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'addCustomCred': return { ...d, credentials: [...d.credentials, a.cred] }
     case 'addRegistryCred': return { ...d, credentials: [...d.credentials, a.cred] }
     case 'removeCredential': return { ...d, credentials: d.credentials.filter((_, i) => i !== a.index) }
+    case 'setSshForward': return { ...d, sshForwardAgent: a.value, sshCommitSigning: a.value ? d.sshCommitSigning : false }
+    case 'setSshCommitSigning': return { ...d, sshCommitSigning: a.value }
     default: return d
   }
 }
@@ -180,7 +189,9 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
       if (c.kind === 'service') return { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, value: '' }
       if (c.kind === 'registry') return { kind: 'registry', id: c.id, host: c.host, username: c.username ?? '', scope: c.scope, value: '' }
       return { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: [...c.domains], value: '' }
-    })
+    }),
+    sshForwardAgent: (spec.ssh ?? DEFAULT_SSH).forwardAgent,
+    sshCommitSigning: (spec.ssh ?? DEFAULT_SSH).commitSigning
   }
 }
 
@@ -198,6 +209,7 @@ export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec 
       if (c.kind === 'service') return { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, store: 'sbx' }
       if (c.kind === 'registry') return { kind: 'registry', id: c.id, host: c.host, username: c.username.trim() || undefined, scope: c.scope, store: 'sbx' }
       return { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: c.domains, store: 'encrypted' }
-    })
+    }),
+    ssh: { forwardAgent: d.sshForwardAgent, commitSigning: d.sshForwardAgent && d.sshCommitSigning }
   }
 }
