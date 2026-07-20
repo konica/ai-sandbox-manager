@@ -85,7 +85,16 @@ export const de: Dict = {
     credStorage: 'Anmeldedaten-Speicher',
     credStorageValue: 'Betriebssystem-Schlüsselbund, mit verschlüsseltem Fallback',
     agent: 'Agent',
-    agentValue: 'Claude Code'
+    agentValue: 'Claude Code',
+    accountsTitle: 'Konten',
+    accountsSubtitle: 'Melden Sie sich bei Claude Code mit Ihrem Anthropic-Konto (Max/Team/Enterprise) an. Das OAuth-Token bleibt auf Ihrem Host und gelangt nie in eine Sandbox.',
+    accountClaude: 'Claude Code',
+    accountSignedInOauth: 'Angemeldet (OAuth)',
+    accountSignedInKey: 'API-Schlüssel konfiguriert',
+    accountSignedOut: 'Nicht angemeldet',
+    accountSignIn: 'Anmelden',
+    accountSignOut: 'Abmelden',
+    accountSignInHint: 'Ein Claude-Terminal wird geöffnet. Geben Sie /login ein, schließen Sie die Anmeldung im Browser ab und dann /exit.'
   },
   credentials: {
     subtitle: 'Geheimnisse gelangen nie in die Sandbox — der Host-seitige Proxy fügt sie zur Laufzeit ein. Gespeichert im Betriebssystem-Schlüsselbund (mit verschlüsseltem Fallback).',

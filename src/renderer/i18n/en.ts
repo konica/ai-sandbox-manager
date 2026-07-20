@@ -83,7 +83,16 @@ export const en = {
     credStorage: 'Credential storage',
     credStorageValue: 'OS keychain, with an encrypted fallback',
     agent: 'Agent',
-    agentValue: 'Claude Code'
+    agentValue: 'Claude Code',
+    accountsTitle: 'Accounts',
+    accountsSubtitle: 'Sign in to Claude Code with your Anthropic account (Max/Team/Enterprise). The OAuth token stays on your host and never enters a sandbox.',
+    accountClaude: 'Claude Code',
+    accountSignedInOauth: 'Signed in (OAuth)',
+    accountSignedInKey: 'API key configured',
+    accountSignedOut: 'Not signed in',
+    accountSignIn: 'Sign in',
+    accountSignOut: 'Sign out',
+    accountSignInHint: 'A Claude terminal will open. Type /login, complete the browser sign-in, then /exit.'
   },
   credentials: {
     subtitle: 'Secrets never enter the sandbox — the host-side proxy injects them at runtime. Stored in your OS keychain (with encrypted fallback).',

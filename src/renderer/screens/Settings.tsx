@@ -3,6 +3,7 @@ import type { GlobalSecretMeta } from '@shared/types'
 import { api } from '../ipc/client'
 import { useT } from '../i18n'
 import { GlobalSecrets } from './GlobalSecrets'
+import { AccountsSection } from './AccountsSection'
 
 export function Settings(): JSX.Element {
   const t = useT()
@@ -51,6 +52,7 @@ export function Settings(): JSX.Element {
       </div>
       {notice && <p className="section-desc" style={{ color: 'var(--danger)', marginTop: 'var(--space-3)' }}>{notice}</p>}
       <GlobalSecrets secrets={secrets} onAdd={(id, v) => void onAdd(id, v)} onRemove={(id) => void onRemove(id)} />
+      <AccountsSection />
     </section>
   )
 }
