@@ -46,6 +46,12 @@ describe('buildKitSpec', () => {
     expect(k.specYaml).toContain('reg.local')   // sandbox → injected → reachable
     expect(k.specYaml).not.toContain('private.hub') // host-only → host pull, not in-VM
   })
+  it('always allowlists the Claude agent baseline even with no credential (locked tier)', () => {
+    const k = buildKitSpec(spec([], 'locked', []))
+    for (const d of ['api.anthropic.com', 'platform.claude.com', 'console.anthropic.com', 'claude.com', 'downloads.claude.ai', 'claude.ai', 'mcp-proxy.anthropic.com']) {
+      expect(k.specYaml).toContain(d)
+    }
+  })
   it('allowlists localhost:<port> for each host service', () => {
     const s = spec([], 'locked', [])
     s.hostServices = [{ hostPort: 11434, label: 'Ollama' }]

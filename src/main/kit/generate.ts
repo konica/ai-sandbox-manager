@@ -10,6 +10,13 @@ import type { DefinitionSpec } from '@shared/types'
 import { serviceById } from '@shared/services'
 import { BALANCED_BASELINE } from '../sbx/translate'
 
+// The app always launches the `claude` agent, so every sandbox must reach Anthropic
+// for inference AND the OAuth /login token exchange — independent of credentials.
+export const CLAUDE_AGENT_DOMAINS = [
+  'api.anthropic.com', 'console.anthropic.com', 'claude.ai',
+  'platform.claude.com', 'claude.com', 'downloads.claude.ai', 'mcp-proxy.anthropic.com'
+]
+
 export interface GeneratedKit {
   name: string
   specYaml: string
@@ -39,7 +46,7 @@ function allowedDomains(spec: DefinitionSpec): string[] {
   const hostSvc = spec.hostServices.map((hs) => `localhost:${hs.hostPort}`)
   const tierBase = spec.definition.tier === 'balanced' ? BALANCED_BASELINE : []
   const open = spec.definition.tier === 'open'
-  const all = open ? ['**'] : [...tierBase, ...spec.domains, ...svc, ...hostSvc]
+  const all = open ? ['**'] : [...tierBase, ...CLAUDE_AGENT_DOMAINS, ...spec.domains, ...svc, ...hostSvc]
   return [...new Set(all.filter((d) => d.trim().length > 0))]
 }
 

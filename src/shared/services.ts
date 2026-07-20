@@ -10,7 +10,7 @@ export interface KnownService {
 }
 
 export const KNOWN_SERVICES: KnownService[] = [
-  { id: 'anthropic', label: 'Anthropic', envVars: ['ANTHROPIC_API_KEY'], domains: ['api.anthropic.com', 'console.anthropic.com', 'claude.ai', 'mcp-proxy.anthropic.com'] },
+  { id: 'anthropic', label: 'Anthropic', envVars: ['ANTHROPIC_API_KEY'], domains: ['api.anthropic.com', 'console.anthropic.com', 'claude.ai', 'claude.com', 'platform.claude.com', 'mcp-proxy.anthropic.com'] },
   { id: 'openai', label: 'OpenAI', envVars: ['OPENAI_API_KEY'], domains: ['api.openai.com', 'openai.com', 'chatgpt.com', 'www.chatgpt.com'] },
   { id: 'github', label: 'GitHub', envVars: ['GH_TOKEN', 'GITHUB_TOKEN'], domains: ['api.github.com', 'github.com'] },
   { id: 'google', label: 'Google', envVars: ['GEMINI_API_KEY', 'GOOGLE_API_KEY'], domains: ['generativelanguage.googleapis.com'] },

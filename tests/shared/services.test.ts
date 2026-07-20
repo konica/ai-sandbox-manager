@@ -7,6 +7,10 @@ describe('KNOWN_SERVICES', () => {
     expect(a?.envVars).toContain('ANTHROPIC_API_KEY')
     expect(a?.domains).toContain('api.anthropic.com')
   })
+  it('anthropic service includes the OAuth token-exchange domains', () => {
+    const a = serviceById('anthropic')
+    expect(a?.domains).toEqual(expect.arrayContaining(['api.anthropic.com', 'platform.claude.com', 'claude.com']))
+  })
   it('maps every env var back to exactly one service', () => {
     for (const svc of KNOWN_SERVICES)
       for (const v of svc.envVars) expect(serviceForEnvVar(v)?.id).toBe(svc.id)
