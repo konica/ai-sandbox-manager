@@ -54,13 +54,15 @@ export function CreateDefinition({
   const [domainInput, setDomainInput] = useState('')
   const [folderInput, setFolderInput] = useState('')
   const [envHits, setEnvHits] = useState<EnvHit[]>([])
+  const [sshDetected, setSshDetected] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Scan the host environment for known service API keys when the Credentials step opens.
+  // Scan the host environment for known service API keys + SSH agent when the Credentials step opens.
   useEffect(() => {
     if (draft.step !== 4) return
     let alive = true
     void api.credScanEnv().then((r) => { if (alive && r.ok) setEnvHits(r.data) })
+    void api.sshDetect().then((r) => { if (alive && r.ok) setSshDetected(r.data.present) })
     return () => { alive = false }
   }, [draft.step])
 
@@ -200,6 +202,9 @@ export function CreateDefinition({
               onAddService={(serviceId, envVar, value) => dispatch({ type: 'addServiceCred', serviceId, envVar, value })}
               onAddCustom={(cred) => dispatch({ type: 'addCustomCred', cred })}
               onAddRegistry={(cred) => dispatch({ type: 'addRegistryCred', cred })}
+              ssh={{ forwardAgent: draft.sshForwardAgent, commitSigning: draft.sshCommitSigning }}
+              onSshChange={(next) => { dispatch({ type: 'setSshForward', value: next.forwardAgent }); dispatch({ type: 'setSshCommitSigning', value: next.commitSigning }) }}
+              sshDetected={sshDetected}
               onRemove={(index) => dispatch({ type: 'removeCredential', index })}
               onImport={(serviceId) => {
                 const svc = serviceById(serviceId)

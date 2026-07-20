@@ -33,7 +33,7 @@ function mask(value: string): string {
  * values go to `sbx secret set`; custom secrets become a generated mixin-kit
  * serviceAuth four-block. Values are staged host-side on submit.
  */
-export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddRegistry, onRemove, envHits, onImport }: {
+export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddRegistry, onRemove, envHits, onImport, ssh, onSshChange, sshDetected }: {
   credentials: DraftCred[]
   onAddService: (serviceId: string, envVar: string, value: string) => void
   onAddCustom: (cred: DraftCustomCred) => void
@@ -41,9 +41,12 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
   onRemove: (index: number) => void
   envHits: { serviceId: string; label: string; envVar: string; masked: string }[]
   onImport: (serviceId: string, scope: 'sandbox' | 'global') => void
+  ssh: { forwardAgent: boolean; commitSigning: boolean }
+  onSshChange: (next: { forwardAgent: boolean; commitSigning: boolean }) => void
+  sshDetected: boolean
 }): JSX.Element {
   const t = useT()
-  const [tab, setTab] = useState<'service' | 'custom' | 'registry'>('service')
+  const [tab, setTab] = useState<'service' | 'custom' | 'registry' | 'ssh'>('service')
   const [serviceId, setServiceId] = useState(KNOWN_SERVICES[0].id)
   const [svcValue, setSvcValue] = useState('')
   const [host, setHost] = useState('')
@@ -104,6 +107,7 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
         <button role="tab" aria-selected={tab === 'service'} style={credTabStyle(tab === 'service')} onClick={() => setTab('service')}>{t('credentials.tabService')}</button>
         <button role="tab" aria-selected={tab === 'custom'} style={credTabStyle(tab === 'custom')} onClick={() => setTab('custom')}>{t('credentials.tabCustom')}</button>
         <button role="tab" aria-selected={tab === 'registry'} style={credTabStyle(tab === 'registry')} onClick={() => setTab('registry')}>{t('credentials.tabRegistry')}</button>
+        <button role="tab" aria-selected={tab === 'ssh'} style={credTabStyle(tab === 'ssh')} onClick={() => setTab('ssh')}>{t('credentials.tabSsh')}</button>
       </div>
 
       {tab === 'service' && (
@@ -263,6 +267,29 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
                 </span>
               </div>
             ))}
+        </>
+      )}
+
+      {tab === 'ssh' && (
+        <>
+          <p style={hint}>{t('credentials.sshHint')}</p>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 'var(--space-3) 0 4px' }}>
+            <input type="checkbox" aria-label="Forward SSH Agent" checked={ssh.forwardAgent}
+              onChange={(e) => onSshChange({ forwardAgent: e.target.checked, commitSigning: e.target.checked ? ssh.commitSigning : false })} />
+            <strong style={{ fontSize: 13 }}>{t('credentials.sshForward')}</strong>
+          </label>
+          <p style={{ ...hint, margin: '0 0 2px 22px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: sshDetected ? 'var(--success, #3fb950)' : 'var(--text-muted)', display: 'inline-block' }} />
+            {sshDetected ? t('credentials.sshDetected') : t('credentials.sshNotDetected')}
+          </p>
+          <p style={{ ...hint, margin: '0 0 var(--space-3) 22px' }}>{t('credentials.sshForwardKeysHint')}</p>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 'var(--space-2) 0 4px' }}>
+            <input type="checkbox" aria-label="Automatic Commit Signing" disabled={!ssh.forwardAgent} checked={ssh.commitSigning}
+              onChange={(e) => onSshChange({ forwardAgent: ssh.forwardAgent, commitSigning: e.target.checked })} />
+            <strong style={{ fontSize: 13, opacity: ssh.forwardAgent ? 1 : 0.5 }}>{t('credentials.sshCommitSigning')}</strong>
+          </label>
+          <p style={{ ...hint, margin: '0 0 var(--space-3) 22px' }}>{t('credentials.sshCommitSigningHint')}</p>
+          <p style={{ ...hint, padding: '10px 12px', background: 'var(--surface-2, rgba(127,127,127,.06))', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>{t('credentials.sshHowItWorks')}</p>
         </>
       )}
 

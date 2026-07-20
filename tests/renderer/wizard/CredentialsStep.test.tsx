@@ -4,7 +4,7 @@ import { CredentialsStep } from '../../../src/renderer/wizard/CredentialsStep'
 
 type Props = Parameters<typeof CredentialsStep>[0]
 function setup(over: Partial<Props> = {}) {
-  const props: Props = { credentials: [], onAddService: vi.fn(), onAddCustom: vi.fn(), onAddRegistry: vi.fn(), onRemove: vi.fn(), envHits: [], onImport: vi.fn(), ...over }
+  const props: Props = { credentials: [], onAddService: vi.fn(), onAddCustom: vi.fn(), onAddRegistry: vi.fn(), onRemove: vi.fn(), envHits: [], onImport: vi.fn(), ssh: { forwardAgent: true, commitSigning: false }, onSshChange: vi.fn(), sshDetected: true, ...over }
   render(<CredentialsStep {...props} />)
   return props
 }
@@ -74,6 +74,25 @@ describe('CredentialsStep', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Registry Credential' }))
     expect(screen.getByText('Added registry credentials')).toBeInTheDocument()
     expect(screen.getByText('ghcr.io')).toBeInTheDocument()
+  })
+
+  it('SSH tab shows detection status and toggles forward/signing', () => {
+    const p = setup({ sshDetected: true })
+    fireEvent.click(screen.getByRole('tab', { name: 'SSH Agent' }))
+    expect(screen.getByText(/ssh agent detected/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Automatic Commit Signing'))
+    expect(p.onSshChange).toHaveBeenCalledWith({ forwardAgent: true, commitSigning: true })
+  })
+  it('disables commit signing when forward is off', () => {
+    setup({ ssh: { forwardAgent: false, commitSigning: false } })
+    fireEvent.click(screen.getByRole('tab', { name: 'SSH Agent' }))
+    expect(screen.getByLabelText('Automatic Commit Signing')).toBeDisabled()
+  })
+  it('turning forward off clears signing', () => {
+    const p = setup({ ssh: { forwardAgent: true, commitSigning: true } })
+    fireEvent.click(screen.getByRole('tab', { name: 'SSH Agent' }))
+    fireEvent.click(screen.getByLabelText('Forward SSH Agent'))
+    expect(p.onSshChange).toHaveBeenCalledWith({ forwardAgent: false, commitSigning: false })
   })
 
   it('shows an empty-state when no env vars are detected', () => {
