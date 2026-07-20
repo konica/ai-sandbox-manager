@@ -108,6 +108,14 @@ export function TerminalsTab({ instance, spec, onAttach, onShell, onAllowDomain,
                   {registries.map((c, i) => c.kind === 'registry' && (<div key={i} className="secret-row" style={{ background: 'transparent', border: 'none', padding: '2px 0' }}><div className="secret-info"><span className="secret-name">{credName(c)}</span><span className="secret-value">{t(`credentials.scope.${c.scope}`)} · token = {MASK}</span></div></div>))}
                 </div>
               )}
+              <div className="cred-type-group">
+                <div className="cred-type-label">{t('detail.sshAgent')}</div>
+                <div className="secret-row" style={{ background: 'transparent', border: 'none', padding: '2px 0' }}>
+                  <div className="secret-info"><span className="secret-value">
+                    {(spec.ssh?.forwardAgent ?? true) ? t('wizard.sshForwarded') : t('wizard.sshOff')}{spec.ssh?.commitSigning ? ` · ${t('credentials.sshCommitSigning')}` : ''}
+                  </span></div>
+                </div>
+              </div>
             </div>
           </>
         )}

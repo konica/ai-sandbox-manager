@@ -29,6 +29,12 @@ function credentialsSummary(creds: DraftCred[]): string | null {
 }
 
 
+// Review-step SSH summary: "Forwarded" / "Off", "+ commit signing" when signing on.
+export function sshSummary(d: { sshForwardAgent: boolean; sshCommitSigning: boolean }, t: (k: string) => string): string {
+  if (!d.sshForwardAgent) return t('wizard.sshOff')
+  return d.sshCommitSigning ? `${t('wizard.sshForwarded')} ${t('wizard.sshPlusSigning')}` : t('wizard.sshForwarded')
+}
+
 function Chip({ text, onRemove }: { text: string; onRemove: () => void }): JSX.Element {
   return (
     <span className="tag">{text}<button className="tag-remove" onClick={onRemove} aria-label={`Remove ${text}`}>✕</button></span>
@@ -230,6 +236,7 @@ export function CreateDefinition({
                   <tr><td>{t('wizard.reviewPorts')}</td><td>{draft.ports.length === 0 ? '—' : (<>{t('wizard.reviewPortRules', { count: draft.ports.length })}: {draft.ports.map((p, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{p.hostPort !== null ? p.hostPort : ''}→{p.containerPort}/{p.protocol}</span></span>))}</>)}</td></tr>
                   {draft.hostServices.length > 0 && <tr><td>{t('wizard.reviewHostServices')}</td><td>{draft.hostServices.map((h, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">host.docker.internal:{h.hostPort}</span></span>))}</td></tr>}
                   <tr><td>{t('wizard.reviewCredentials')}</td><td>{credentialsSummary(draft.credentials) ?? '—'}</td></tr>
+                  <tr><td>{t('wizard.reviewSsh')}</td><td>{sshSummary(draft, t)}</td></tr>
                   <tr><td>{t('wizard.reviewAgent')}</td><td>Claude Code</td></tr>
                 </tbody>
               </table>

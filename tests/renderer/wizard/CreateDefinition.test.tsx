@@ -5,7 +5,17 @@ const defCreate = vi.fn()
 const credStageValue = vi.fn()
 vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v) } }))
 
-import { CreateDefinition } from '../../../src/renderer/wizard/CreateDefinition'
+import { CreateDefinition, sshSummary } from '../../../src/renderer/wizard/CreateDefinition'
+
+const tSsh = (k: string): string => ({ 'wizard.sshForwarded': 'Forwarded', 'wizard.sshOff': 'Off', 'wizard.sshPlusSigning': '+ commit signing' }[k] ?? k)
+
+describe('sshSummary', () => {
+  it('reflects forward/off and signing', () => {
+    expect(sshSummary({ sshForwardAgent: true, sshCommitSigning: false }, tSsh)).toBe('Forwarded')
+    expect(sshSummary({ sshForwardAgent: true, sshCommitSigning: true }, tSsh)).toBe('Forwarded + commit signing')
+    expect(sshSummary({ sshForwardAgent: false, sshCommitSigning: false }, tSsh)).toBe('Off')
+  })
+})
 
 beforeEach(() => {
   defCreate.mockReset(); defCreate.mockResolvedValue({ ok: true, data: { id: 'id1' } })

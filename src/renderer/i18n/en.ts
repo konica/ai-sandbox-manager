@@ -188,6 +188,7 @@ export const en = {
   },
   detail: {
     back: 'Back',
+    sshAgent: 'SSH Agent',
     stop: 'Stop',
     remove: 'Remove',
     fromDefinition: 'from definition',
@@ -273,6 +274,10 @@ export const en = {
     reviewHostServices: 'Host services',
     reviewCredentials: 'Credentials',
     reviewAgent: 'Agent',
+    reviewSsh: 'SSH Agent',
+    sshForwarded: 'Forwarded',
+    sshOff: 'Off',
+    sshPlusSigning: '+ commit signing',
     reviewDomainsAllowlisted: '{count} domains allowlisted',
     reviewPortRules: '{count} rules',
     modeReadWrite: 'read-write',

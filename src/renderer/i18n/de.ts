@@ -190,6 +190,7 @@ export const de: Dict = {
   },
   detail: {
     back: 'Zurück',
+    sshAgent: 'SSH-Agent',
     stop: 'Stoppen',
     remove: 'Entfernen',
     fromDefinition: 'aus Definition',
@@ -275,6 +276,10 @@ export const de: Dict = {
     reviewHostServices: 'Host-Dienste',
     reviewCredentials: 'Anmeldedaten',
     reviewAgent: 'Agent',
+    reviewSsh: 'SSH-Agent',
+    sshForwarded: 'Weitergeleitet',
+    sshOff: 'Aus',
+    sshPlusSigning: '+ Commit-Signierung',
     reviewDomainsAllowlisted: '{count} Domains auf der Allowlist',
     reviewPortRules: '{count} Regeln',
     modeReadWrite: 'Lese-/Schreibzugriff',
