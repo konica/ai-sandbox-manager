@@ -31,6 +31,18 @@ export function uniqueSandboxName(base: string, existing: Iterable<string>): str
   return `${base}-${i}`
 }
 
+/**
+ * Give every launch a distinct, unique instance name: `<base>-<hash>` where `hash` is a
+ * short hex code (e.g. "proj-3323dc52"). `genHash` supplies the suffix (injected for tests);
+ * regenerates on the astronomically-rare collision with an existing name.
+ */
+export function hashedSandboxName(base: string, existing: Iterable<string>, genHash: () => string): string {
+  const taken = new Set(existing)
+  let name = `${base}-${genHash()}`
+  while (taken.has(name)) name = `${base}-${genHash()}`
+  return name
+}
+
 export function tierToAllowlist(tier: Tier, extraDomains: string[]): string[] {
   if (tier === 'open') return ['**']
   if (tier === 'locked') return dedup(extraDomains)

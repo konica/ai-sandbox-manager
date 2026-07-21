@@ -3,7 +3,8 @@ import type { Store } from './store/db'
 import type { CredentialManager } from './creds/manager'
 import type { Logger } from './log'
 import type { DefinitionSpec } from '@shared/types'
-import { resolveSandboxName, uniqueSandboxName, launchCommand } from './sbx/translate'
+import { randomBytes } from 'crypto'
+import { resolveSandboxName, hashedSandboxName, launchCommand } from './sbx/translate'
 import { toSbxName } from '@shared/names'
 import { SbxError } from '@shared/errors'
 
@@ -16,6 +17,8 @@ export interface LaunchDeps {
   openTerminal: (command: string) => void
   /** Opens the session in VS Code (folder + integrated terminal). Absent → falls back to the terminal. */
   openVSCode?: (command: string, workspaceDir: string, sandboxName: string) => void
+  /** Generates the unique instance-name suffix (default: 8 random hex chars). Injected for tests. */
+  genHash?: () => string
   log?: Logger
 }
 
@@ -64,8 +67,9 @@ export async function launchDefinition(
     deps.log?.error(`Could not list existing sandboxes for name collision check: ${(e as Error).message}`)
   }
   const existing = new Set<string>([...liveNames, ...deps.store.listInstanceMeta().map((m) => m.sbxName)])
-  const name = uniqueSandboxName(base, existing)
-  if (name !== base) deps.log?.info(`Name "${base}" is already in use; using "${name}" instead.`)
+  const genHash = deps.genHash ?? (() => randomBytes(4).toString('hex'))
+  const name = hashedSandboxName(base, existing, genHash)
+  deps.log?.info(`Instance name: "${name}" (unique per launch).`)
 
   // Register secrets scoped to <name>, pre-create, from this process (never in the terminal).
   if (spec.credentials.length > 0) {

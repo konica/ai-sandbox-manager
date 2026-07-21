@@ -26,7 +26,7 @@ function deps() {
     listInstanceMeta: vi.fn(() => [])
   }
   const probes = {} as never
-  return { adapter, store, probes, openTerminal }
+  return { adapter, store, probes, openTerminal, genHash: () => '3323dc52' }
 }
 
 describe('instance lifecycle IPC', () => {
@@ -34,10 +34,10 @@ describe('instance lifecycle IPC', () => {
     const d = deps()
     const h = buildHandlers(d as never)
     const r = await h['instance:launch']('d1')
-    expect(r).toEqual({ ok: true, data: { name: 'my-project' } })
+    expect(r).toEqual({ ok: true, data: { name: 'my-project-3323dc52' } })
     const cmd = d.openTerminal.mock.calls[0][0] as string
     expect(cmd).toContain('sbx create claude')
-    expect(cmd).toMatch(/sbx run --name my-project$/)
+    expect(cmd).toMatch(/sbx run --name my-project-3323dc52$/)
   })
 
   it('instance:attach and instance:shell open a terminal with the right command', async () => {

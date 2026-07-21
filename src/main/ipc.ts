@@ -25,6 +25,7 @@ interface Deps {
   readLoginEnv?: () => Record<string, string | undefined>
   loginKitDir?: () => string // materializes the OAuth login kit, returns its dir
   openVSCode?: (command: string, workspaceDir: string, sandboxName: string) => void
+  genHash?: () => string
   log?: Logger
 }
 
@@ -91,6 +92,7 @@ export function buildHandlers(deps: Deps): {
         materializeKit: deps.materializeKit ?? (() => undefined),
         openTerminal: deps.openTerminal,
         openVSCode: deps.openVSCode,
+        genHash: deps.genHash,
         log: deps.log
       },
       definitionId, name, sessionName, opener ?? 'terminal'

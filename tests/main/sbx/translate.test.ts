@@ -4,6 +4,7 @@ import {
   toSbxName,
   resolveSandboxName,
   uniqueSandboxName,
+  hashedSandboxName,
   tierToAllowlist,
   specToCreateArgs,
   portIntentToPublishSpec,
@@ -52,6 +53,18 @@ describe('uniqueSandboxName', () => {
   it('appends the first free numeric suffix when taken', () => {
     expect(uniqueSandboxName('proj', ['proj'])).toBe('proj-2')
     expect(uniqueSandboxName('proj', ['proj', 'proj-2', 'proj-3'])).toBe('proj-4')
+  })
+})
+
+describe('hashedSandboxName', () => {
+  it('appends the generated hash suffix', () => {
+    expect(hashedSandboxName('proj', [], () => '3323dc52')).toBe('proj-3323dc52')
+  })
+  it('regenerates on the (rare) collision', () => {
+    const hashes = ['aaaa1111', 'bbbb2222']
+    let i = 0
+    const name = hashedSandboxName('proj', ['proj-aaaa1111'], () => hashes[i++])
+    expect(name).toBe('proj-bbbb2222')
   })
 })
 
