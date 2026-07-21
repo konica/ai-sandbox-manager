@@ -1,0 +1,74 @@
+import type { DefinitionSpec } from '@shared/types'
+
+export type ExportableDefinition = Omit<DefinitionSpec, 'definition'> & {
+  definition: Omit<DefinitionSpec['definition'], 'id' | 'createdAt'>
+}
+export interface DefinitionBundle {
+  formatVersion: '1'
+  kind: 'sandbox-definitions'
+  exportedAt: string
+  definitions: ExportableDefinition[]
+}
+export class BundleError extends Error {}
+
+/** Wrap specs in the shareable envelope, dropping id/createdAt (regenerated on import).
+ * Secret-free by construction: the spec's credentials are refs with no values. */
+export function buildExportBundle(specs: DefinitionSpec[], now: string): DefinitionBundle {
+  return {
+    formatVersion: '1',
+    kind: 'sandbox-definitions',
+    exportedAt: now,
+    definitions: specs.map((s) => {
+      const { id: _id, createdAt: _createdAt, ...definition } = s.definition
+      return { ...s, definition }
+    })
+  }
+}
+
+// A definition entry is usable when it has the required scalar fields; array fields
+// default to [] so an older/partial export still imports.
+function normalizeEntry(raw: unknown): ExportableDefinition | null {
+  if (!raw || typeof raw !== 'object') return null
+  const e = raw as Record<string, unknown>
+  const def = e.definition as Record<string, unknown> | undefined
+  if (!def || typeof def.name !== 'string' || !def.name.trim() || typeof def.baseImage !== 'string' || typeof def.tier !== 'string') return null
+  const arr = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : [])
+  return {
+    definition: {
+      name: def.name,
+      description: typeof def.description === 'string' ? def.description : '',
+      baseImage: def.baseImage,
+      tier: def.tier as DefinitionSpec['definition']['tier']
+    },
+    mounts: arr(e.mounts), domains: arr(e.domains), ports: arr(e.ports),
+    hostServices: arr(e.hostServices), credentials: arr(e.credentials),
+    ssh: (e.ssh && typeof e.ssh === 'object' ? e.ssh : undefined) as ExportableDefinition['ssh']
+  }
+}
+
+/** Parse + validate a bundle. Throws BundleError on bad envelope; skips malformed entries. */
+export function parseImportBundle(jsonText: string): { definitions: ExportableDefinition[]; skipped: number } {
+  let parsed: unknown
+  try { parsed = JSON.parse(jsonText) } catch { throw new BundleError('Not valid JSON') }
+  const b = parsed as Record<string, unknown>
+  if (!b || b.formatVersion !== '1' || b.kind !== 'sandbox-definitions' || !Array.isArray(b.definitions)) {
+    throw new BundleError('Not a valid .sbx.json definition bundle')
+  }
+  const definitions: ExportableDefinition[] = []
+  let skipped = 0
+  for (const raw of b.definitions) {
+    const e = normalizeEntry(raw)
+    if (e) definitions.push(e)
+    else skipped++
+  }
+  return { definitions, skipped }
+}
+
+/** "Foo" taken → "Foo (imported)"; that taken → "Foo (imported 2)" … */
+export function dedupeName(name: string, existing: Set<string>): string {
+  if (!existing.has(name)) return name
+  let candidate = `${name} (imported)`
+  let n = 2
+  while (existing.has(candidate)) candidate = `${name} (imported ${n++})`
+  return candidate
+}
