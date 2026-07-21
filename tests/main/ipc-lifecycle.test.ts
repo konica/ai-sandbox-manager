@@ -26,7 +26,8 @@ function deps() {
     listInstanceMeta: vi.fn(() => [])
   }
   const probes = {} as never
-  return { adapter, store, probes, openTerminal, genHash: () => '3323dc52' }
+  const cleanupKit = vi.fn()
+  return { adapter, store, probes, openTerminal, cleanupKit, genHash: () => '3323dc52' }
 }
 
 describe('instance lifecycle IPC', () => {
@@ -82,5 +83,14 @@ describe('instance lifecycle IPC', () => {
     expect(d.adapter.removeSecret).toHaveBeenCalledWith('anthropic', { sandbox: 'my-project' })
     expect(d.adapter.removeCustomSecret).toHaveBeenCalledWith(['api.acme.com'], { sandbox: 'my-project' })
     expect(d.store.deleteInstanceMeta).toHaveBeenCalledWith('my-project')
+  })
+
+  it('instance:remove deletes the workspace .sandbox dir (re-created at next launch)', async () => {
+    const d = deps()
+    d.store.listInstanceMeta.mockReturnValue([{ sbxName: 'my-project', definitionId: 'd1', createdByApp: true, createdAt: 't' }] as never)
+    d.store.getDefinitionSpec.mockReturnValue(spec as never) // primary mount hostPath: '/p'
+    const h = buildHandlers(d as never)
+    await h['instance:remove']('my-project')
+    expect(d.cleanupKit).toHaveBeenCalledWith('/p')
   })
 })

@@ -26,6 +26,8 @@ interface Deps {
   loginKitDir?: () => string // materializes the OAuth login kit, returns its dir
   openVSCode?: (command: string, workspaceDir: string, sandboxName: string) => void
   genHash?: () => string
+  /** Removes the generated <workspace>/.sandbox dir on instance removal (re-created at next launch). */
+  cleanupKit?: (workspaceDir: string) => void
   log?: Logger
 }
 
@@ -135,6 +137,12 @@ export function buildHandlers(deps: Deps): {
         } catch (e) {
           deps.log?.error(`Could not remove scoped secret for "${name}": ${(e as Error).message}`)
         }
+      }
+      // Remove the generated .sandbox kit dir from the workspace (re-created at next launch).
+      const workspaceDir = (spec?.mounts.find((m) => m.isPrimary) ?? spec?.mounts[0])?.hostPath?.trim()
+      if (workspaceDir && deps.cleanupKit) {
+        try { deps.cleanupKit(workspaceDir); deps.log?.info(`Removed ${workspaceDir}/.sandbox for "${name}".`) }
+        catch (e) { deps.log?.error(`Could not remove .sandbox for "${name}": ${(e as Error).message}`) }
       }
       deps.store.deleteInstanceMeta(name)
       return null

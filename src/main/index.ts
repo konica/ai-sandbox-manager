@@ -31,6 +31,12 @@ function materializeKit(spec: DefinitionSpec, _name: string): string | undefined
   return writeKit(buildKitSpec(spec), {}, { fs: kitFs, kitDir: `${ws}/.sandbox/kit`, secretsDir: `${ws}/.sandbox/.unused`, gitignorePath: `${ws}/.gitignore` }).kitDir
 }
 
+// Remove the generated <workspace>/.sandbox dir when an instance is removed. It holds only
+// generated artifacts (allowlist kit, code-workspace) and is re-created at the next launch.
+function cleanupKit(workspaceDir: string): void {
+  nodeFs.rmSync(`${workspaceDir}/.sandbox`, { recursive: true, force: true })
+}
+
 // Materialize the ephemeral OAuth login kit under the OS temp dir; returns the kit dir.
 // The kit only allowlists the Claude OAuth domains — carries no secrets.
 function loginKitDir(): string {
@@ -102,7 +108,7 @@ app.whenReady().then(() => {
     }
   })
   const creds = createCredentialManager({ adapter, vault, store })
-  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, openVSCode, log: logger })
+  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, openVSCode, cleanupKit, log: logger })
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
