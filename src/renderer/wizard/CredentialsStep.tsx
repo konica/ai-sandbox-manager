@@ -10,6 +10,7 @@ const field = { display: 'flex', flexDirection: 'column' as const, gap: 4 }
 const lbl = { fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' as const, letterSpacing: '.04em' }
 const hint = { fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }
 const sectionLbl = { fontSize: 13, fontWeight: 600, margin: 'var(--space-4) 0 var(--space-2)' }
+const sshCode = { margin: 0, padding: '6px 8px', background: 'var(--bg, rgba(0,0,0,.25))', border: '1px solid var(--border)', borderRadius: 4, fontSize: 11, fontFamily: 'var(--font-mono, monospace)', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' as const, overflowX: 'auto' as const, userSelect: 'text' as const }
 const credRow = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', padding: '10px 12px', background: 'var(--surface-2, rgba(127,127,127,.06))', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', marginBottom: 6 } as const
 
 // Text-style credential-type tab, matching the v7 mockup (.cred-type-tab).
@@ -56,6 +57,7 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
   const [regUser, setRegUser] = useState('')
   const [regToken, setRegToken] = useState('')
   const [regScope, setRegScope] = useState<RegistryScope>('host')
+  const [sshHelpOpen, setSshHelpOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [importScope, setImportScope] = useState<'sandbox' | 'global'>('sandbox')
@@ -282,6 +284,25 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
             <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: sshDetected ? 'var(--success, #3fb950)' : 'var(--text-muted)', display: 'inline-block' }} />
             {sshDetected ? t('credentials.sshDetected') : t('credentials.sshNotDetected')}
           </p>
+          {/* Collapsible host-setup guide — copy-pasteable commands (macOS). */}
+          <div style={{ margin: '0 0 var(--space-3) 22px' }}>
+            <button aria-expanded={sshHelpOpen} onClick={() => setSshHelpOpen((v) => !v)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontSize: 11, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span aria-hidden style={{ transform: sshHelpOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▸</span>
+              {t('credentials.sshHelpToggle')}
+            </button>
+            {sshHelpOpen && (
+              <div style={{ marginTop: 6, padding: '10px 12px', background: 'var(--surface-2, rgba(127,127,127,.06))', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 12, color: 'var(--text-muted)' }}>
+                <p style={{ margin: '0 0 4px' }}>{t('credentials.sshHelpStep1')}</p>
+                <pre style={sshCode}>ssh-add --apple-use-keychain ~/.ssh/id_ed25519</pre>
+                <p style={{ margin: '8px 0 4px' }}>{t('credentials.sshHelpStep2')}</p>
+                <pre style={sshCode}>{'Host *\n  AddKeysToAgent yes\n  UseKeychain yes\n  IdentityFile ~/.ssh/id_ed25519'}</pre>
+                <p style={{ margin: '8px 0 4px' }}>{t('credentials.sshHelpStep3')}</p>
+                <pre style={sshCode}>ssh-add -l</pre>
+                <p style={{ margin: '8px 0 0' }}>{t('credentials.sshHelpAfter')}</p>
+              </div>
+            )}
+          </div>
           <p style={{ ...hint, margin: '0 0 var(--space-3) 22px' }}>{t('credentials.sshForwardKeysHint')}</p>
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 'var(--space-2) 0 4px' }}>
             <input type="checkbox" aria-label="Automatic Commit Signing" disabled={!ssh.forwardAgent} checked={ssh.commitSigning}

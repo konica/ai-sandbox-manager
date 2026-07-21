@@ -83,6 +83,14 @@ describe('CredentialsStep', () => {
     fireEvent.click(screen.getByLabelText('Automatic Commit Signing'))
     expect(p.onSshChange).toHaveBeenCalledWith({ forwardAgent: true, commitSigning: true })
   })
+  it('offers a collapsible setup guide with the ssh-add command', () => {
+    setup({ sshDetected: false })
+    fireEvent.click(screen.getByRole('tab', { name: 'SSH Agent' }))
+    // command hidden until the guide is expanded
+    expect(screen.queryByText(/ssh-add --apple-use-keychain/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /how do i enable this/i }))
+    expect(screen.getByText(/ssh-add --apple-use-keychain ~\/\.ssh\/id_ed25519/)).toBeInTheDocument()
+  })
   it('disables commit signing when forward is off', () => {
     setup({ ssh: { forwardAgent: false, commitSigning: false } })
     fireEvent.click(screen.getByRole('tab', { name: 'SSH Agent' }))
