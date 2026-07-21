@@ -9,7 +9,7 @@ import { toSbxName } from '@shared/names'
 import { SbxError } from '@shared/errors'
 
 export interface LaunchDeps {
-  adapter: Pick<SbxAdapter, 'listSandboxes' | 'setSecret' | 'setCustomSecret' | 'setRegistrySecret'>
+  adapter: Pick<SbxAdapter, 'listSandboxes' | 'setSecret' | 'setCustomSecret' | 'setRegistrySecret' | 'checkDockerAuth'>
   store: Store
   creds: Pick<CredentialManager, 'getStaged'>
   /** Writes the definition's allowlist kit to disk and returns its dir (or undefined to launch kit-less). */
@@ -58,6 +58,17 @@ export async function launchDefinition(
 ): Promise<{ name: string }> {
   const spec = deps.store.getDefinitionSpec(definitionId)
   if (!spec) throw new SbxError('not-found', `Definition ${definitionId} not found`)
+
+  // Preflight: a launch needs the sbx client registered with Docker. When it is
+  // definitively not (diagnose → Authentication:fail), Docker's remote governance
+  // denies every mount and network request ("403 … client not registered"), which
+  // would otherwise land as a cryptic error in the terminal. Stop early with an
+  // actionable message. 'unknown' (daemon down, old CLI) does NOT block — the real
+  // error surfaces at run time as before.
+  if (await deps.adapter.checkDockerAuth() === 'fail') {
+    deps.log?.error('Launch blocked: sbx client not signed in to Docker (diagnose → Authentication: fail).')
+    throw new SbxError('not-authed', 'Sign in to Docker to launch a sandbox: run `sbx login` (and make sure Docker Desktop is running), then launch again.')
+  }
 
   const base = requestedName && requestedName.trim() ? toSbxName(requestedName) : resolveSandboxName(spec)
   let liveNames: string[] = []

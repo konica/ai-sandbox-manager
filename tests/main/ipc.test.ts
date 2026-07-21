@@ -22,7 +22,8 @@ const adapter: SbxAdapter = {
   removeCustomSecret: async () => {},
   setRegistrySecret: async () => {},
   removeRegistrySecret: async () => {},
-    listPorts: async () => [], publishPort: async () => {}, unpublishPort: async () => {}, allowNetwork: async () => {}, removeNetwork: async () => {}, policyLog: async () => ({ allowed: 0, blocked: 0, events: [] })
+    listPorts: async () => [], publishPort: async () => {}, unpublishPort: async () => {}, allowNetwork: async () => {}, removeNetwork: async () => {}, policyLog: async () => ({ allowed: 0, blocked: 0, events: [] }),
+  checkDockerAuth: async () => 'pass'
 }
 const probes: Probes = {
   dockerVersion: async () => 'Docker version 24.0.7', sbxVersion: async () => 'sbx 1.0', sbxAuthed: async () => true,

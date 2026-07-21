@@ -3,6 +3,7 @@ import type { SbxInstance, DefinitionSpec, PortIntent, Tier, LivePort, PolicySum
 import { SbxError, classifySbxError } from '@shared/errors'
 import { parseSbxLsJson, parseSbxLsText, parsePortsJson } from './parse'
 import { parsePolicyLog } from './policy-log'
+import { parseDiagnoseAuth, type AuthCheck } from './diagnose'
 import { specToCreateArgs, tierToAllowlist, portIntentToPublishSpec } from './translate'
 import type { Logger } from '../log'
 
@@ -31,6 +32,8 @@ export interface SbxAdapter {
   removeCustomSecret(hosts: string[], opts: { global?: boolean; sandbox?: string }): Promise<void>
   setRegistrySecret(host: string, username: string | undefined, token: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   removeRegistrySecret(host: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
+  /** Docker sign-in / governance registration state (via `sbx diagnose`). 'unknown' never blocks. */
+  checkDockerAuth(): Promise<AuthCheck>
 }
 
 export const defaultSpawn: SpawnFn = (cmd, args, opts) =>
@@ -157,6 +160,19 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     const res = await runSbx(['policy', 'log', name, '--json'])
     return parsePolicyLog(res.stdout)
   }
+  async function checkDockerAuth(): Promise<AuthCheck> {
+    // Bypass runSbx's throw-on-nonzero: diagnose is a report, not an action, and
+    // may exit non-zero while still emitting a usable JSON body. A spawn failure
+    // (not installed, daemon unreachable) → 'unknown', which never blocks a launch.
+    logger?.command(['diagnose', '-o', 'json'])
+    try {
+      const res = await spawnFn('sbx', ['diagnose', '-o', 'json'], {})
+      return parseDiagnoseAuth(res.stdout)
+    } catch (e) {
+      logger?.error(`sbx diagnose failed: ${(e as Error).message}`)
+      return 'unknown'
+    }
+  }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog }
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth }
 }

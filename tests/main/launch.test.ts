@@ -21,9 +21,10 @@ function deps(getSpec: () => DefinitionSpec | undefined, live: string[] = [], me
   const setSecret = vi.fn(async () => {})
   const setCustomSecret = vi.fn(async () => {})
   const setRegistrySecret = vi.fn(async () => {})
+  const checkDockerAuth = vi.fn(async (): Promise<'pass' | 'fail' | 'unknown'> => 'pass')
   const adapter = {
     listSandboxes: vi.fn(async (): Promise<SbxInstance[]> => live.map((n) => ({ name: n, status: 'running', agent: 'claude', ports: [], workspace: null }))),
-    setSecret, setCustomSecret, setRegistrySecret
+    setSecret, setCustomSecret, setRegistrySecret, checkDockerAuth
   }
   const staged: Record<string, string> = {}
   const creds = { getStaged: (k: string) => staged[k] ?? null }
@@ -31,7 +32,7 @@ function deps(getSpec: () => DefinitionSpec | undefined, live: string[] = [], me
   const openTerminal = vi.fn()
   const openVSCode = vi.fn()
   const log = { info: (m: string) => infos.push(m), command: () => {}, error: () => {} }
-  return { adapter, store, creds, materializeKit, openTerminal, openVSCode, genHash, log, metas, infos, staged, setSecret, setCustomSecret, setRegistrySecret }
+  return { adapter, store, creds, materializeKit, openTerminal, openVSCode, genHash, log, metas, infos, staged, setSecret, setCustomSecret, setRegistrySecret, checkDockerAuth }
 }
 
 describe('launchDefinition', () => {
@@ -176,6 +177,24 @@ describe('launchDefinition', () => {
     const d = deps(() => undefined)
     await expect(launchDefinition(d as never, 'nope')).rejects.toThrow(/not found/i)
     expect(d.openTerminal).not.toHaveBeenCalled()
+  })
+
+  it('blocks the launch with an actionable message when Docker auth is definitively failed', async () => {
+    const d = deps(() => spec)
+    d.checkDockerAuth.mockResolvedValue('fail')
+    await expect(launchDefinition(d as never, 'd1')).rejects.toThrow(/sbx login/i)
+    // gate runs before any side effects — no secrets, no terminal, no metadata
+    expect(d.openTerminal).not.toHaveBeenCalled()
+    expect(d.openVSCode).not.toHaveBeenCalled()
+    expect(d.setSecret).not.toHaveBeenCalled()
+    expect(d.metas).toHaveLength(0)
+  })
+
+  it('does NOT block the launch when Docker auth is unknown (daemon down / old CLI)', async () => {
+    const d = deps(() => spec)
+    d.checkDockerAuth.mockResolvedValue('unknown')
+    await launchDefinition(d as never, 'd1')
+    expect(d.openTerminal).toHaveBeenCalledTimes(1)
   })
 
   it('logs launch milestones when a logger is provided', async () => {
