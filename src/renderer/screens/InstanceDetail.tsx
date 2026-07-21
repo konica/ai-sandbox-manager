@@ -24,12 +24,13 @@ function tabStyle(active: boolean): React.CSSProperties {
  * the definition spec (fetched here) feeds the Terminals info sidebar and the Ports
  * host-services list.
  */
-export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, onShell }: {
+export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, onRemove, onAttach, onShell }: {
   instance: InstanceView
+  hasVSCode?: boolean
   onBack: () => void
   onStop: (name: string) => void
   onRemove: (name: string) => void
-  onAttach: (name: string) => void
+  onAttach: (name: string, opener: 'terminal' | 'vscode') => void
   onShell: (name: string) => void
 }): JSX.Element {
   const t = useT()
@@ -120,6 +121,7 @@ export function InstanceDetail({ instance, onBack, onStop, onRemove, onAttach, o
         <TerminalsTab
           instance={instance}
           spec={spec}
+          hasVSCode={hasVSCode}
           onAttach={onAttach}
           onShell={onShell}
           onAllowDomain={async (d) => { await api.instanceDomainAllow(instance.name, d); void reloadSpec() }}

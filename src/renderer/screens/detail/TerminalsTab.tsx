@@ -17,10 +17,11 @@ function credName(c: CredentialRef): string {
  * sidebar (Network Policy, Credentials, Mounts) sourced from the definition spec.
  * No in-app terminals — matches the app's native-terminal architecture.
  */
-export function TerminalsTab({ instance, spec, onAttach, onShell, onAllowDomain, onDenyDomain }: {
+export function TerminalsTab({ instance, spec, hasVSCode, onAttach, onShell, onAllowDomain, onDenyDomain }: {
   instance: InstanceView
   spec: DefinitionSpec | null
-  onAttach: (name: string) => void
+  hasVSCode: boolean
+  onAttach: (name: string, opener: 'terminal' | 'vscode') => void
   onShell: (name: string) => void
   onAllowDomain?: (domain: string) => void
   onDenyDomain?: (domain: string) => void
@@ -44,9 +45,11 @@ export function TerminalsTab({ instance, spec, onAttach, onShell, onAllowDomain,
         <div className="card">
           <div className="card-header"><div className="card-title">{t('detail.terminals')}</div></div>
           <p className="section-desc" style={{ marginTop: 0 }}>{t('detail.nativeNote')} <span className="os-tag" style={{ fontSize: 10 }}>macOS</span></p>
-          <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-3)' }}>
-            {/* Agent uses `sbx run --name … -- --continue`, which starts a stopped sandbox → always enabled. */}
-            <button className="btn btn-primary btn-sm" onClick={() => onAttach(instance.name)}>{running ? t('detail.openAgent') : t('detail.startAgent')}</button>
+          <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-3)', flexWrap: 'wrap' }}>
+            {/* Agent uses `sbx run --name … -- --continue`, which starts a stopped sandbox → always enabled.
+                Two openers: native Terminal.app, or VS Code (folder + integrated terminal). */}
+            <button className="btn btn-primary btn-sm" onClick={() => onAttach(instance.name, 'terminal')}>{running ? t('detail.openAgentTerminal') : t('detail.startAgentTerminal')}</button>
+            <button className="btn btn-primary btn-sm" disabled={!hasVSCode} title={hasVSCode ? undefined : t('launch.openVSCodeUnavailable')} onClick={() => onAttach(instance.name, 'vscode')}>{running ? t('detail.openAgentVSCode') : t('detail.startAgentVSCode')}</button>
             {/* Shell uses `sbx exec`, which needs a running VM → disabled until running. */}
             <button className="btn btn-secondary btn-sm" disabled={!running} onClick={() => onShell(instance.name)}>{t('detail.openShell')}</button>
           </div>

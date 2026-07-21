@@ -118,7 +118,12 @@ export default function App(): JSX.Element {
     if (!r.ok && r.error) setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
     await loadInstances()
   }
-  function onAttach(name: string): void { setAttachFor(name) }
+  // With an explicit opener (the detail screen's two buttons) attach directly; without one
+  // (the Instances list) pop the Open-with chooser.
+  function onAttach(name: string, opener?: 'terminal' | 'vscode'): void {
+    if (opener) void runAction(api.instanceAttach(name, opener))
+    else setAttachFor(name)
+  }
   function onShell(name: string): void { void runAction(api.instanceShell(name)) }
   function onConfirmPending(): void {
     const p = pending
@@ -160,6 +165,7 @@ export default function App(): JSX.Element {
         return detail ? (
           <InstanceDetail
             instance={detail}
+            hasVSCode={hasVSCode}
             onBack={() => setDetailName(null)}
             onAttach={onAttach}
             onShell={onShell}

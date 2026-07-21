@@ -12,38 +12,44 @@ const spec: DefinitionSpec = {
 }
 
 describe('TerminalsTab', () => {
-  it('launches agent and shell in the native terminal', () => {
+  it('opens the agent in Terminal or VS Code and a shell', () => {
     const onAttach = vi.fn(); const onShell = vi.fn()
-    render(<TerminalsTab instance={inst} spec={spec} onAttach={onAttach} onShell={onShell} />)
-    fireEvent.click(screen.getByRole('button', { name: /agent/i })); expect(onAttach).toHaveBeenCalledWith('sbx-a')
+    render(<TerminalsTab instance={inst} spec={spec} hasVSCode onAttach={onAttach} onShell={onShell} />)
+    fireEvent.click(screen.getByRole('button', { name: /agent in terminal/i })); expect(onAttach).toHaveBeenCalledWith('sbx-a', 'terminal')
+    fireEvent.click(screen.getByRole('button', { name: /agent in vs code/i })); expect(onAttach).toHaveBeenCalledWith('sbx-a', 'vscode')
     fireEvent.click(screen.getByRole('button', { name: /shell/i })); expect(onShell).toHaveBeenCalledWith('sbx-a')
   })
+  it('disables the VS Code agent button when the code CLI is unavailable', () => {
+    render(<TerminalsTab instance={inst} spec={spec} hasVSCode={false} onAttach={vi.fn()} onShell={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /agent in vs code/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /agent in terminal/i })).not.toBeDisabled()
+  })
   it('shows the info sidebar from the spec (domains, credential, mounts)', () => {
-    render(<TerminalsTab instance={inst} spec={spec} onAttach={vi.fn()} onShell={vi.fn()} />)
+    render(<TerminalsTab instance={inst} spec={spec} hasVSCode onAttach={vi.fn()} onShell={vi.fn()} />)
     expect(screen.getByText('github.com')).toBeInTheDocument()
     expect(screen.getByText(/ANTHROPIC_API_KEY/)).toBeInTheDocument()
     expect(screen.getByText('/shared')).toBeInTheDocument()
   })
-  it('keeps the Agent button enabled when stopped (it re-runs the sandbox) but disables Shell', () => {
+  it('keeps the Agent buttons enabled when stopped (they re-run the sandbox) but disables Shell', () => {
     const onAttach = vi.fn()
-    render(<TerminalsTab instance={{ ...inst, status: 'stopped' }} spec={spec} onAttach={onAttach} onShell={vi.fn()} />)
-    const agent = screen.getByRole('button', { name: /agent/i })
-    expect(agent).not.toBeDisabled()
-    fireEvent.click(agent)
-    expect(onAttach).toHaveBeenCalledWith('sbx-a')
+    render(<TerminalsTab instance={{ ...inst, status: 'stopped' }} spec={spec} hasVSCode onAttach={onAttach} onShell={vi.fn()} />)
+    const agentTerminal = screen.getByRole('button', { name: /start agent in terminal/i })
+    expect(agentTerminal).not.toBeDisabled()
+    fireEvent.click(agentTerminal)
+    expect(onAttach).toHaveBeenCalledWith('sbx-a', 'terminal')
     expect(screen.getByRole('button', { name: /shell/i })).toBeDisabled()
   })
   it('degrades when there is no linked definition', () => {
-    render(<TerminalsTab instance={inst} spec={null} onAttach={vi.fn()} onShell={vi.fn()} />)
+    render(<TerminalsTab instance={inst} spec={null} hasVSCode onAttach={vi.fn()} onShell={vi.fn()} />)
     expect(screen.getByText(/no linked definition/i)).toBeInTheDocument()
   })
   it('allows and denies domains live when handlers are provided', () => {
     const onAllowDomain = vi.fn(); const onDenyDomain = vi.fn()
-    render(<TerminalsTab instance={inst} spec={spec} onAttach={vi.fn()} onShell={vi.fn()} onAllowDomain={onAllowDomain} onDenyDomain={onDenyDomain} />)
+    render(<TerminalsTab instance={inst} spec={spec} hasVSCode onAttach={vi.fn()} onShell={vi.fn()} onAllowDomain={onAllowDomain} onDenyDomain={onDenyDomain} />)
     fireEvent.click(screen.getByRole('button', { name: 'Deny github.com' }))
     expect(onDenyDomain).toHaveBeenCalledWith('github.com')
     fireEvent.change(screen.getByLabelText('Add domain'), { target: { value: 'pypi.org' } })
-    fireEvent.click(screen.getByRole('button', { name: /allow/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^allow$/i }))
     expect(onAllowDomain).toHaveBeenCalledWith('pypi.org')
   })
 })
