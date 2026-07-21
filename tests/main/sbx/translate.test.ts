@@ -93,9 +93,9 @@ describe('specToCreateArgs', () => {
       '--template', 'docker.io/docker/sandbox-templates:claude-code'
     ])
   })
-  it('adds --clone when the primary mount is clone mode', () => {
-    const args = specToCreateArgs(spec({ mounts: [{ hostPath: '/p', mode: 'clone', isPrimary: true }] }))
-    expect(args).toContain('--clone')
+  it('never adds --clone (primary workspace is always direct)', () => {
+    const args = specToCreateArgs(spec({ mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }] }))
+    expect(args).not.toContain('--clone')
   })
   it('appends extra mounts, read-only extras get :ro', () => {
     const args = specToCreateArgs(spec({

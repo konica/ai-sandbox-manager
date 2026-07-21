@@ -15,7 +15,7 @@ describe('draftFromSpec', () => {
     const d = draftFromSpec(storedSpec)
     expect(d).toMatchObject({
       name: 'Proj', description: 'desc', imageChoice: 'claude-code', customImageRef: '',
-      workspace: '/w', workspaceMode: 'direct', tier: 'balanced', domains: ['a.com']
+      workspace: '/w', tier: 'balanced', domains: ['a.com']
     })
     expect(d.extraFolders).toEqual([{ path: '/docs', mode: 'clone' }])
     expect(d.ports).toEqual([{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }])
@@ -121,7 +121,7 @@ describe('toSpec', () => {
   it('builds a DefinitionSpec with the workspace as the primary mount', () => {
     const d = {
       ...initialDraft, name: 'alpha', description: 'a', imageChoice: 'claude-code' as const,
-      workspace: '/home/u/alpha', workspaceMode: 'direct' as const,
+      workspace: '/home/u/alpha',
       extraFolders: [{ path: '/home/u/lib', mode: 'clone' as const }],
       tier: 'locked' as const, domains: ['api.github.com'],
       ports: [{ hostPort: 8080, containerPort: 3000, protocol: 'tcp' as const, label: 'web' }],

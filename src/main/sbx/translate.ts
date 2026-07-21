@@ -60,7 +60,6 @@ export function specToCreateArgs(spec: DefinitionSpec, name: string = resolveSan
   for (const m of extras) args.push(m.mode === 'clone' ? `${m.hostPath}:ro` : m.hostPath)
   args.push('--name', name)
   if (spec.definition.baseImage.trim().length > 0) args.push('--template', spec.definition.baseImage)
-  if (primary.mode === 'clone') args.push('--clone')
   if (kitDir) args.push('--kit', kitDir)
   return args
 }

@@ -137,15 +137,6 @@ export function CreateDefinition({
                 <input id="workdir" aria-label="Workspace" className="input input-mono" style={{ flex: 1 }} placeholder="/path/to/project" value={draft.workspace} onChange={(e) => dispatch({ type: 'setField', field: 'workspace', value: e.target.value })} />
                 <button className="btn btn-secondary" onClick={async () => { const p = await api.pickFolder(); if (p) dispatch({ type: 'setField', field: 'workspace', value: p }) }}>{t('common.browse')}</button>
               </div>
-              <div style={{ display: 'flex', gap: 'var(--space-4)', margin: 'var(--space-3) 0' }}>
-                <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}><input type="radio" name="wsmode" checked={draft.workspaceMode === 'direct'} onChange={() => dispatch({ type: 'setWorkspaceMode', mode: 'direct' })} /> {t('wizard.modeDirect')}</label>
-                <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}><input type="radio" name="wsmode" checked={draft.workspaceMode === 'clone'} onChange={() => dispatch({ type: 'setWorkspaceMode', mode: 'clone' })} /> {t('wizard.modeClone')}</label>
-              </div>
-              {draft.workspaceMode === 'direct' && (
-                <div className="card" style={{ background: 'var(--warning-bg)', borderColor: 'var(--warning)', fontSize: 12, color: 'var(--text-secondary)' }}>
-                  {t('wizard.directWarning')}
-                </div>
-              )}
               <label style={{ marginTop: 'var(--space-3)' }}>{t('wizard.extraFolders')}</label>
               <div style={row}>
                 <input aria-label="Extra folder path" className="input input-mono" style={{ flex: 1 }} placeholder={t('wizard.extraPlaceholder')} value={folderInput} onChange={(e) => setFolderInput(e.target.value)} />
@@ -254,7 +245,6 @@ export function CreateDefinition({
                   {draft.description.trim() && <tr><td>{t('wizard.reviewDescription')}</td><td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{draft.description.trim()}</td></tr>}
                   <tr><td>{t('wizard.reviewBase')}</td><td><span className="code-inline">{resolveBaseImage(draft)}</span></td></tr>
                   <tr><td>{t('wizard.reviewWorkspace')}</td><td><span className="code-inline">{draft.workspace}</span></td></tr>
-                  <tr><td>{t('wizard.reviewMountMode')}</td><td><span className="code-inline">{draft.workspaceMode}</span> ({draft.workspaceMode === 'direct' ? t('wizard.modeReadWrite') : t('wizard.modeReadOnly')})</td></tr>
                   <tr><td>{t('wizard.reviewFolders')}</td><td>{draft.extraFolders.length === 0 ? '—' : draft.extraFolders.map((f, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{f.path}</span> ({f.mode === 'direct' ? t('wizard.modeReadWrite') : t('wizard.modeReadOnly')})</span>))}</td></tr>
                   <tr><td>{t('wizard.reviewNetwork')}</td><td><TierBadge tier={draft.tier} /> — {t('wizard.reviewDomainsAllowlisted', { count: draft.domains.length })}</td></tr>
                   <tr><td>{t('wizard.reviewPorts')}</td><td>{draft.ports.length === 0 ? '—' : (<>{t('wizard.reviewPortRules', { count: draft.ports.length })}: {draft.ports.map((p, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{p.hostPort !== null ? p.hostPort : ''}→{p.containerPort}/{p.protocol}</span></span>))}</>)}</td></tr>

@@ -55,7 +55,6 @@ export interface Draft {
   imageChoice: BuiltinVariant | 'custom'
   customImageRef: string
   workspace: string
-  workspaceMode: MountMode
   extraFolders: { path: string; mode: MountMode }[]
   tier: Tier
   domains: string[]
@@ -73,7 +72,6 @@ export const initialDraft: Draft = {
   imageChoice: 'claude-code',
   customImageRef: '',
   workspace: '',
-  workspaceMode: 'direct',
   extraFolders: [],
   tier: 'locked',
   domains: [],
@@ -90,7 +88,6 @@ export type DraftAction =
   | { type: 'goToStep'; step: number }
   | { type: 'setField'; field: 'name' | 'description' | 'customImageRef' | 'workspace'; value: string }
   | { type: 'setImageChoice'; value: BuiltinVariant | 'custom' }
-  | { type: 'setWorkspaceMode'; mode: MountMode }
   | { type: 'setTier'; tier: Tier }
   | { type: 'addExtraFolder'; path: string; mode: MountMode }
   | { type: 'removeExtraFolder'; index: number }
@@ -115,7 +112,6 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'goToStep': return { ...d, step: Math.min(TOTAL_STEPS, Math.max(1, a.step)) }
     case 'setField': return { ...d, [a.field]: a.value }
     case 'setImageChoice': return { ...d, imageChoice: a.value }
-    case 'setWorkspaceMode': return { ...d, workspaceMode: a.mode }
     case 'setTier': return { ...d, tier: a.tier }
     case 'addExtraFolder': return { ...d, extraFolders: [...d.extraFolders, { path: a.path, mode: a.mode }] }
     case 'removeExtraFolder': return { ...d, extraFolders: d.extraFolders.filter((_, i) => i !== a.index) }
@@ -181,7 +177,6 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
     imageChoice: knownVariant ? knownVariant.value : 'custom',
     customImageRef: knownVariant ? '' : spec.definition.baseImage,
     workspace: primary?.hostPath ?? '',
-    workspaceMode: primary?.mode ?? 'direct',
     extraFolders: extras.map((m) => ({ path: m.hostPath, mode: m.mode })),
     tier: spec.definition.tier,
     domains: [...spec.domains],
@@ -201,7 +196,7 @@ export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec 
   return {
     definition: { id, name: effectiveName(d), description: d.description.trim(), baseImage: resolveBaseImage(d), tier: d.tier, createdAt },
     mounts: [
-      { hostPath: d.workspace.trim(), mode: d.workspaceMode, isPrimary: true },
+      { hostPath: d.workspace.trim(), mode: 'direct', isPrimary: true }, // primary workspace is always direct (read-write bind)
       ...d.extraFolders.map((f) => ({ hostPath: f.path, mode: f.mode, isPrimary: false }))
     ],
     domains: d.domains,

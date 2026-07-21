@@ -91,9 +91,4 @@ describe('CreateDefinition wizard', () => {
     await waitFor(() => expect(defCreate).toHaveBeenCalledOnce())
     expect(defCreate.mock.calls[0][0].definition.name).toBe('my-project')
   })
-
-  it('shows the direct-mode warning on the merged first step', () => {
-    render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
-    expect(screen.getByText(/git hooks|implicit|makefile/i)).toBeInTheDocument()
-  })
 })
