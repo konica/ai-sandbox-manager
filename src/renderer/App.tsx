@@ -14,6 +14,16 @@ import { AuthNudge } from './components/AuthNudge'
 import { OpenWithDialog } from './components/OpenWithDialog'
 import { useT } from './i18n'
 
+/**
+ * True when another instance shares this one's definition — i.e. the same workspace and its
+ * generated .sandbox folder. Used to warn on removal (removing one clears the shared .sandbox).
+ */
+export function hasSiblingInstances(instances: InstanceView[], name: string): boolean {
+  const inst = instances.find((i) => i.name === name)
+  if (!inst?.definitionId) return false
+  return instances.some((i) => i.name !== name && i.definitionId === inst.definitionId)
+}
+
 type Phase =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
@@ -190,7 +200,8 @@ export default function App(): JSX.Element {
         body={
           pending?.kind === 'stop'
             ? t('instances.stopBody', { name: pending.name })
-            : t('instances.removeBody', { name: pending?.name ?? '' })
+            : t('instances.removeBody', { name: pending?.name ?? '' }) +
+              (pending?.kind === 'remove' && hasSiblingInstances(instances, pending.name) ? ` ${t('instances.removeSharedWarning')}` : '')
         }
         confirmLabel={pending?.kind === 'stop' ? t('instances.confirmStop') : t('instances.confirmRemove')}
         cancelLabel={t('instances.cancel')}

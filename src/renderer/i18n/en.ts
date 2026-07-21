@@ -61,6 +61,7 @@ export const en = {
     confirmStop: 'Stop',
     removeTitle: 'Remove sandbox?',
     removeBody: 'This permanently removes “{name}”: its container, Git worktrees, and sandbox state. This cannot be undone.',
+    removeSharedWarning: 'Other instances from the same definition share this workspace. Its generated .sandbox folder will be deleted and regenerated on the next launch.',
     confirmRemove: 'Remove',
     cancel: 'Cancel',
     launched: 'Launched “{name}” — a terminal is opening.',

@@ -63,6 +63,7 @@ export const de: Dict = {
     confirmStop: 'Stoppen',
     removeTitle: 'Sandbox entfernen?',
     removeBody: 'Entfernt „{name}“ dauerhaft: Container, Git-Worktrees und Sandbox-Status. Dies kann nicht rückgängig gemacht werden.',
+    removeSharedWarning: 'Andere Instanzen derselben Definition teilen sich diesen Workspace. Der generierte Ordner .sandbox wird gelöscht und beim nächsten Start neu erzeugt.',
     confirmRemove: 'Entfernen',
     cancel: 'Abbrechen',
     launched: '„{name}“ gestartet — ein Terminal wird geöffnet.',
