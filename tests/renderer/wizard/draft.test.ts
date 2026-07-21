@@ -107,6 +107,14 @@ describe('draftReducer', () => {
     d = draftReducer(d, { type: 'removeExtraFolder', index: 0 })
     expect(d.extraFolders).toEqual([])
   })
+  it('changes an extra folder access mode (read-only ⇄ read-write)', () => {
+    let d = draftReducer(initialDraft, { type: 'addExtraFolder', path: '/lib', mode: 'clone' })
+    d = draftReducer(d, { type: 'setExtraFolderMode', index: 0, mode: 'direct' })
+    expect(d.extraFolders).toEqual([{ path: '/lib', mode: 'direct' }])
+    // toSpec carries the chosen access into the mount (direct = read-write, clone = read-only)
+    const spec = toSpec({ ...d, workspace: '/w', name: 'p' }, 'id', 't')
+    expect(spec.mounts).toContainEqual({ hostPath: '/lib', mode: 'direct', isPrimary: false })
+  })
 })
 
 describe('toSpec', () => {

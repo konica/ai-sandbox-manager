@@ -149,7 +149,21 @@ export function CreateDefinition({
                 <button className="btn btn-secondary" onClick={async () => { const p = await api.pickFolder(); if (p) setFolderInput(p) }}>{t('common.browse')}</button>
                 <button className="btn btn-secondary btn-sm" onClick={() => { if (folderInput.trim()) { dispatch({ type: 'addExtraFolder', path: folderInput.trim(), mode: 'clone' }); setFolderInput('') } }}>{t('wizard.addFolder')}</button>
               </div>
-              <div>{draft.extraFolders.map((f, i) => (<Chip key={i} text={`${f.path} (${f.mode})`} onRemove={() => dispatch({ type: 'removeExtraFolder', index: i })} />))}</div>
+              {draft.extraFolders.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 'var(--space-2)' }}>
+                  {draft.extraFolders.map((f, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                      <span className="code-inline" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.path}>{f.path}</span>
+                      <select aria-label={`Access for ${f.path}`} className="input" style={{ maxWidth: 140, fontSize: 12 }} value={f.mode === 'direct' ? 'rw' : 'ro'}
+                        onChange={(e) => dispatch({ type: 'setExtraFolderMode', index: i, mode: e.target.value === 'rw' ? 'direct' : 'clone' })}>
+                        <option value="ro">{t('wizard.modeReadOnly')}</option>
+                        <option value="rw">{t('wizard.modeReadWrite')}</option>
+                      </select>
+                      <button className="btn btn-ghost btn-sm" aria-label={`Remove ${f.path}`} style={{ color: 'var(--danger)' }} onClick={() => dispatch({ type: 'removeExtraFolder', index: i })}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
 
@@ -231,7 +245,7 @@ export function CreateDefinition({
                   <tr><td>{t('wizard.reviewBase')}</td><td><span className="code-inline">{resolveBaseImage(draft)}</span></td></tr>
                   <tr><td>{t('wizard.reviewWorkspace')}</td><td><span className="code-inline">{draft.workspace}</span></td></tr>
                   <tr><td>{t('wizard.reviewMountMode')}</td><td><span className="code-inline">{draft.workspaceMode}</span> ({draft.workspaceMode === 'direct' ? t('wizard.modeReadWrite') : t('wizard.modeReadOnly')})</td></tr>
-                  <tr><td>{t('wizard.reviewFolders')}</td><td>{draft.extraFolders.length === 0 ? '—' : draft.extraFolders.map((f, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{f.path}</span> ({f.mode})</span>))}</td></tr>
+                  <tr><td>{t('wizard.reviewFolders')}</td><td>{draft.extraFolders.length === 0 ? '—' : draft.extraFolders.map((f, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{f.path}</span> ({f.mode === 'direct' ? t('wizard.modeReadWrite') : t('wizard.modeReadOnly')})</span>))}</td></tr>
                   <tr><td>{t('wizard.reviewNetwork')}</td><td><TierBadge tier={draft.tier} /> — {t('wizard.reviewDomainsAllowlisted', { count: draft.domains.length })}</td></tr>
                   <tr><td>{t('wizard.reviewPorts')}</td><td>{draft.ports.length === 0 ? '—' : (<>{t('wizard.reviewPortRules', { count: draft.ports.length })}: {draft.ports.map((p, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{p.hostPort !== null ? p.hostPort : ''}→{p.containerPort}/{p.protocol}</span></span>))}</>)}</td></tr>
                   {draft.hostServices.length > 0 && <tr><td>{t('wizard.reviewHostServices')}</td><td>{draft.hostServices.map((h, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">host.docker.internal:{h.hostPort}</span></span>))}</td></tr>}

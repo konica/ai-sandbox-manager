@@ -94,6 +94,7 @@ export type DraftAction =
   | { type: 'setTier'; tier: Tier }
   | { type: 'addExtraFolder'; path: string; mode: MountMode }
   | { type: 'removeExtraFolder'; index: number }
+  | { type: 'setExtraFolderMode'; index: number; mode: MountMode }
   | { type: 'addDomain'; host: string }
   | { type: 'removeDomain'; host: string }
   | { type: 'addPort'; hostPort: number | null; containerPort: number; protocol: PortProtocol; label: string }
@@ -118,6 +119,7 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'setTier': return { ...d, tier: a.tier }
     case 'addExtraFolder': return { ...d, extraFolders: [...d.extraFolders, { path: a.path, mode: a.mode }] }
     case 'removeExtraFolder': return { ...d, extraFolders: d.extraFolders.filter((_, i) => i !== a.index) }
+    case 'setExtraFolderMode': return { ...d, extraFolders: d.extraFolders.map((f, i) => (i === a.index ? { ...f, mode: a.mode } : f)) }
     case 'addDomain': return d.domains.includes(a.host) ? d : { ...d, domains: [...d.domains, a.host] }
     case 'removeDomain': return { ...d, domains: d.domains.filter((h) => h !== a.host) }
     case 'addPort': return { ...d, ports: [...d.ports, { hostPort: a.hostPort, containerPort: a.containerPort, protocol: a.protocol, label: a.label }] }
