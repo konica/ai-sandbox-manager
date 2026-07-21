@@ -45,6 +45,22 @@ describe('dual-write persist', () => {
     applyDomainEdit(store, 'box', 'api.anthropic.com:443', 'remove')
     expect(store.getDefinitionSpec('d1')!.domains).toEqual([])
   })
+  it('removes a legacy port-suffixed domain (stored with :443) when denied', () => {
+    // Domains added before normalization can be stored as "host:443"; the ✕ passes that
+    // exact value. Remove must match by bare host on both sides.
+    const s = store.getDefinitionSpec('d1')!
+    s.domains = ['mgm-atlassian.mgm-tp.com:443', 'other.com']
+    store.updateDefinitionSpec(s)
+    applyDomainEdit(store, 'box', 'mgm-atlassian.mgm-tp.com:443', 'remove')
+    expect(store.getDefinitionSpec('d1')!.domains).toEqual(['other.com'])
+  })
+  it('does not add a duplicate when a port-suffixed variant is already stored', () => {
+    const s = store.getDefinitionSpec('d1')!
+    s.domains = ['dup.com:443']
+    store.updateDefinitionSpec(s)
+    applyDomainEdit(store, 'box', 'dup.com', 'add')
+    expect(store.getDefinitionSpec('d1')!.domains).toEqual(['dup.com:443'])
+  })
   it('dedupes an add (no duplicate ports/domains)', () => {
     applyDomainEdit(store, 'box', 'x.com', 'add')
     applyDomainEdit(store, 'box', 'x.com', 'add')

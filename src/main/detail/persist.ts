@@ -56,10 +56,11 @@ export function applyDomainEdit(store: Store, sbxName: string, domain: string, o
   if (!spec) return false
   const host = bareDomain(domain)
   if (op === 'add') {
-    if (spec.domains.includes(host)) return true
+    if (spec.domains.some((d) => bareDomain(d) === host)) return true
     spec.domains = [...spec.domains, host]
   } else {
-    spec.domains = spec.domains.filter((d) => d !== host)
+    // Match by bare host on both sides so a legacy "host:443" entry is removed too.
+    spec.domains = spec.domains.filter((d) => bareDomain(d) !== host)
   }
   store.updateDefinitionSpec(spec)
   return true
