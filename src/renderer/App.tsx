@@ -44,6 +44,7 @@ export default function App(): JSX.Element {
   const [notice, setNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
   const [hasVSCode, setHasVSCode] = useState(false)
   const [defFlash, setDefFlash] = useState<{ kind: 'info' | 'error'; text: string } | null>(null)
+  const [pendingDefRemove, setPendingDefRemove] = useState<{ id: string; name: string; count: number } | null>(null)
   const [launchCloneMode, setLaunchCloneMode] = useState(false)
   const t = useT()
 
@@ -107,6 +108,21 @@ export default function App(): JSX.Element {
     if (!r.ok) { setDefFlash({ kind: 'error', text: t('definitions.exportError') }); return }
     if (r.data.canceled) return
     setDefFlash({ kind: 'info', text: t('definitions.exported', { count: r.data.count ?? 0 }) })
+  }
+  function openDefRemove(id: string): void {
+    const def = defs.find((d) => d.id === id)
+    if (!def) return
+    setDefFlash(null)
+    setPendingDefRemove({ id, name: def.name, count: instances.filter((i) => i.definitionId === id).length })
+  }
+  async function confirmDefRemove(): Promise<void> {
+    const p = pendingDefRemove
+    setPendingDefRemove(null)
+    if (!p) return
+    const r = await api.defRemove(p.id)
+    if (!r.ok) { setDefFlash({ kind: 'error', text: t('definitions.removeError') }); return }
+    await Promise.all([loadDefs(), loadInstances()])
+    setDefFlash({ kind: 'info', text: t('definitions.removed', { name: p.name, count: r.data.removedInstances }) })
   }
 
   async function openLaunchDialog(definitionId: string): Promise<void> {
@@ -185,7 +201,7 @@ export default function App(): JSX.Element {
       {screen === 'definitions' && (
         wizard
           ? <CreateDefinition initial={wizard.spec} onDone={() => { setWizard(null); void loadDefs() }} onCancel={() => setWizard(null)} />
-          : <Definitions definitions={defs} onCreate={() => setWizard({})} onLaunch={(id) => void openLaunchDialog(id)} onEdit={(id) => void openEditor(id)} onImport={() => void onImportDefs()} onExport={(ids) => void onExportDefs(ids)} flash={defFlash} launchingId={busyId} />
+          : <Definitions definitions={defs} onCreate={() => setWizard({})} onLaunch={(id) => void openLaunchDialog(id)} onEdit={(id) => void openEditor(id)} onImport={() => void onImportDefs()} onExport={(ids) => void onExportDefs(ids)} onRemove={(id) => openDefRemove(id)} flash={defFlash} launchingId={busyId} />
       )}
       {screen === 'instances' && (() => {
         const detail = detailName ? instances.find((i) => i.name === detailName) : null
@@ -225,6 +241,15 @@ export default function App(): JSX.Element {
         destructive={pending?.kind !== 'stop'}
         onConfirm={onConfirmPending}
         onCancel={() => setPending(null)}
+      />
+      <ConfirmModal
+        open={pendingDefRemove !== null}
+        title={t('definitions.removeDefTitle')}
+        body={t('definitions.removeDefBody', { name: pendingDefRemove?.name ?? '', count: pendingDefRemove?.count ?? 0 })}
+        confirmLabel={t('definitions.removeDefConfirm')}
+        cancelLabel={t('instances.cancel')}
+        onConfirm={() => void confirmDefRemove()}
+        onCancel={() => setPendingDefRemove(null)}
       />
       {launchFor && (
         <LaunchDialog

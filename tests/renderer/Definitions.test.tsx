@@ -63,12 +63,15 @@ describe('Definitions import/export', () => {
     fireEvent.click(screen.getByLabelText('Select all'))
     expect(screen.getByText(/2 selected/i)).toBeInTheDocument()
   })
-  it('per-row Export exports just that definition', () => {
-    const onExport = vi.fn()
-    render(<Definitions definitions={two} onCreate={() => {}} onImport={vi.fn()} onExport={onExport} />)
-    // Header button has aria-label "Export selected"; per-row buttons are named "Export".
-    fireEvent.click(screen.getAllByRole('button', { name: /^export$/i })[0]) // first row (Alpha)
-    expect(onExport).toHaveBeenCalledWith(['d1'])
+  it('per-row Remove calls onRemove with the definition id', () => {
+    const onRemove = vi.fn()
+    render(<Definitions definitions={two} onCreate={() => {}} onImport={vi.fn()} onExport={vi.fn()} onRemove={onRemove} />)
+    fireEvent.click(screen.getByLabelText('Remove Alpha'))
+    expect(onRemove).toHaveBeenCalledWith('d1')
+  })
+  it('has no per-row Export button (export is header/selection only)', () => {
+    render(<Definitions definitions={two} onCreate={() => {}} onImport={vi.fn()} onExport={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: /^export$/i })).toBeNull()
   })
   it('Import calls onImport', () => {
     const onImport = vi.fn()
