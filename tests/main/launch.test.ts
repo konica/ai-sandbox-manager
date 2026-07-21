@@ -29,8 +29,9 @@ function deps(getSpec: () => DefinitionSpec | undefined, live: string[] = [], me
   const creds = { getStaged: (k: string) => staged[k] ?? null }
   const materializeKit = vi.fn(() => '/p/.sandbox/kit')
   const openTerminal = vi.fn()
+  const openVSCode = vi.fn()
   const log = { info: (m: string) => infos.push(m), command: () => {}, error: () => {} }
-  return { adapter, store, creds, materializeKit, openTerminal, log, metas, infos, staged, setSecret, setCustomSecret, setRegistrySecret }
+  return { adapter, store, creds, materializeKit, openTerminal, openVSCode, log, metas, infos, staged, setSecret, setCustomSecret, setRegistrySecret }
 }
 
 describe('launchDefinition', () => {
@@ -137,6 +138,28 @@ describe('launchDefinition', () => {
     const d = deps(() => spec, [], ['my-project', 'my-project-2'])
     const res = await launchDefinition(d as never, 'd1')
     expect(res.name).toBe('my-project-3')
+  })
+
+  it('opens VS Code (not the terminal) when opener is vscode and a workspace dir exists', async () => {
+    const d = deps(() => spec)
+    await launchDefinition(d as never, 'd1', undefined, undefined, 'vscode')
+    expect(d.openVSCode).toHaveBeenCalledTimes(1)
+    const [command, workspaceDir, name] = d.openVSCode.mock.calls[0]
+    expect(workspaceDir).toBe('/p')
+    expect(name).toBe('my-project')
+    expect(command).toContain('sbx run --name my-project')
+    expect(d.openTerminal).not.toHaveBeenCalled()
+  })
+  it('falls back to the terminal when opener is vscode but openVSCode dep is absent', async () => {
+    const d = deps(() => spec); (d as { openVSCode?: unknown }).openVSCode = undefined
+    await launchDefinition(d as never, 'd1', undefined, undefined, 'vscode')
+    expect(d.openTerminal).toHaveBeenCalledTimes(1)
+  })
+  it('uses the terminal for the default opener', async () => {
+    const d = deps(() => spec)
+    await launchDefinition(d as never, 'd1')
+    expect(d.openTerminal).toHaveBeenCalledTimes(1)
+    expect(d.openVSCode).not.toHaveBeenCalled()
   })
 
   it('throws not-found when the definition is missing (and opens no terminal)', async () => {

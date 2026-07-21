@@ -14,6 +14,8 @@ export interface LaunchDeps {
   /** Writes the definition's allowlist kit to disk and returns its dir (or undefined to launch kit-less). */
   materializeKit: (spec: DefinitionSpec, name: string) => string | undefined
   openTerminal: (command: string) => void
+  /** Opens the session in VS Code (folder + integrated terminal). Absent → falls back to the terminal. */
+  openVSCode?: (command: string, workspaceDir: string, sandboxName: string) => void
   log?: Logger
 }
 
@@ -48,7 +50,8 @@ export async function launchDefinition(
   deps: LaunchDeps,
   definitionId: string,
   requestedName?: string,
-  sessionName?: string
+  sessionName?: string,
+  opener: 'terminal' | 'vscode' = 'terminal'
 ): Promise<{ name: string }> {
   const spec = deps.store.getDefinitionSpec(definitionId)
   if (!spec) throw new SbxError('not-found', `Definition ${definitionId} not found`)
@@ -115,8 +118,16 @@ export async function launchDefinition(
     createdByApp: true,
     createdAt: new Date().toISOString()
   })
-  deps.openTerminal(command)
+  const primary = spec.mounts.find((m) => m.isPrimary) ?? spec.mounts[0]
+  const workspaceDir = primary?.hostPath?.trim()
+  if (opener === 'vscode' && deps.openVSCode && workspaceDir) {
+    deps.log?.info(`Opening VS Code at ${workspaceDir} (session in integrated terminal) for "${name}".`)
+    deps.openVSCode(command, workspaceDir, name)
+  } else {
+    if (opener === 'vscode') deps.log?.info('VS Code opener unavailable; falling back to Terminal.')
+    deps.openTerminal(command)
+  }
 
-  deps.log?.info(`Terminal opened for "${name}". Watch that window for provisioning progress.`)
+  deps.log?.info(`Session opened for "${name}". Watch that window for provisioning progress.`)
   return { name }
 }
