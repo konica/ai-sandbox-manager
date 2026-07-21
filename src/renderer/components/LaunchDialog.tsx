@@ -19,7 +19,9 @@ export function LaunchDialog({ definition, hasVSCode, cloneMode, onLaunch, onCan
 }): JSX.Element {
   const t = useT()
   const [sessionName, setSessionName] = useState('')
-  const [opener, setOpener] = useState<'terminal' | 'vscode'>('terminal')
+  // Default to VS Code when it's available; fall back to Terminal when the code
+  // CLI wasn't detected (the VS Code radio is disabled in that case).
+  const [opener, setOpener] = useState<'terminal' | 'vscode'>(hasVSCode ? 'vscode' : 'terminal')
 
   function submit(): void {
     onLaunch(sessionName.trim(), opener)

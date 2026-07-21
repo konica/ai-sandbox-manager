@@ -57,7 +57,7 @@ describe('App launch & lifecycle wiring', () => {
     const dialog = await screen.findByRole('dialog')
     fireEvent.change(within(dialog).getByLabelText('Session name'), { target: { value: 'Refactor auth' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Launch' }))
-    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', undefined, 'Refactor auth', 'terminal'))
+    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', undefined, 'Refactor auth', 'vscode'))
   })
 
   it('shows the OAuth nudge (not the launch dialog) when Claude has no credential', async () => {

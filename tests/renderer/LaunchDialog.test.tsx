@@ -19,30 +19,34 @@ describe('LaunchDialog', () => {
     expect(input).toHaveAttribute('placeholder')
   })
 
-  it('launches with an empty session name and the Terminal opener by default', () => {
+  it('launches with an empty session name and the VS Code opener by default when available', () => {
     const { onLaunch } = setup()
+    expect(screen.getByLabelText('VS Code')).toBeChecked()
     fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    expect(onLaunch).toHaveBeenCalledWith('', 'terminal')
+    expect(onLaunch).toHaveBeenCalledWith('', 'vscode')
   })
 
   it('passes the typed session name (trimmed) and chosen opener', () => {
     const { onLaunch } = setup()
     fireEvent.change(screen.getByLabelText('Session name'), { target: { value: '  Refactor auth  ' } })
-    fireEvent.click(screen.getByLabelText('VS Code'))
+    fireEvent.click(screen.getByLabelText('Terminal'))
     fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    expect(onLaunch).toHaveBeenCalledWith('Refactor auth', 'vscode')
+    expect(onLaunch).toHaveBeenCalledWith('Refactor auth', 'terminal')
   })
 
-  it('disables the VS Code option when the code CLI is unavailable', () => {
-    setup({ hasVSCode: false })
+  it('disables the VS Code option and defaults to Terminal when the code CLI is unavailable', () => {
+    const { onLaunch } = setup({ hasVSCode: false })
     expect(screen.getByLabelText('VS Code')).toBeDisabled()
+    expect(screen.getByLabelText('Terminal')).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
+    expect(onLaunch).toHaveBeenCalledWith('', 'terminal')
   })
 
   it('shows the clone-mode note only when VS Code is selected in clone mode', () => {
-    setup({ cloneMode: true })
-    expect(screen.queryByText(/in clone mode/i)).toBeNull()
-    fireEvent.click(screen.getByLabelText('VS Code'))
+    setup({ cloneMode: true }) // VS Code is the default opener → note shows immediately
     expect(screen.getByText(/in clone mode/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Terminal'))
+    expect(screen.queryByText(/in clone mode/i)).toBeNull()
   })
 
   it('cancels without launching', () => {
