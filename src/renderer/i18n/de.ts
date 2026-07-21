@@ -281,6 +281,7 @@ export const de: Dict = {
     descLabel: 'Beschreibung (optional)',
     descPlaceholder: 'Beschreiben Sie, wofür diese Sandbox gedacht ist…',
     workdirLabel: 'Arbeitsverzeichnis',
+    workspaceRequired: 'Ein Arbeitsverzeichnis ist erforderlich.',
     extraFolders: 'Zusätzliche Ordner',
     extraPlaceholder: '/pfad/zum/zusätzlichen/ordner',
     addFolder: 'Ordner hinzufügen',

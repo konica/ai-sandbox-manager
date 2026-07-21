@@ -279,6 +279,7 @@ export const en = {
     descLabel: 'Description (optional)',
     descPlaceholder: 'Describe what this sandbox is for…',
     workdirLabel: 'Working directory',
+    workspaceRequired: 'A working directory is required.',
     extraFolders: 'Extra folders',
     extraPlaceholder: '/path/to/extra/folder',
     addFolder: 'Add Folder',

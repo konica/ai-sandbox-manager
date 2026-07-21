@@ -58,6 +58,11 @@ describe('resolveBaseImage', () => {
   it('maps a builtin variant to a template ref', () => {
     expect(resolveBaseImage({ ...initialDraft, imageChoice: 'claude-code' })).toBe('docker.io/docker/sandbox-templates:claude-code')
   })
+  it('maps the claude-code-docker variant to its template ref (and round-trips)', () => {
+    expect(resolveBaseImage({ ...initialDraft, imageChoice: 'claude-code-docker' })).toBe('docker.io/docker/sandbox-templates:claude-code-docker')
+    const d = draftFromSpec({ ...storedSpec, definition: { ...storedSpec.definition, baseImage: 'docker.io/docker/sandbox-templates:claude-code-docker' } })
+    expect(d.imageChoice).toBe('claude-code-docker')
+  })
   it('uses the custom ref verbatim when custom is chosen', () => {
     expect(resolveBaseImage({ ...initialDraft, imageChoice: 'custom', customImageRef: 'docker.io/acme/img:1' })).toBe('docker.io/acme/img:1')
   })

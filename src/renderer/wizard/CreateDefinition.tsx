@@ -73,6 +73,7 @@ export function CreateDefinition({
   }, [draft.step])
 
   async function submit(): Promise<void> {
+    if (!draft.workspace.trim()) { dispatch({ type: 'goToStep', step: 1 }); setError(t('wizard.workspaceRequired')); return }
     const spec = initial
       ? toSpec(draft, initial.definition.id, initial.definition.createdAt)
       : toSpec(draft, createId(), now())
@@ -114,12 +115,16 @@ export function CreateDefinition({
           {Array.from({ length: TOTAL_STEPS }, (_, idx) => {
             const n = idx + 1
             const cls = n === draft.step ? 'active' : n < draft.step ? 'completed' : ''
-            return (
+            // Step headers are clickable to jump only when editing (all steps already valid);
+            // during create the flow stays linear (Next/Back).
+            const content = <><span className="wizard-step-num">{n}</span>{t(`wizard.steps.${stepKeys[idx]}`)}</>
+            return isEdit ? (
               <button key={n} type="button" className={`wizard-step ${cls}`} onClick={() => dispatch({ type: 'goToStep', step: n })}
                 style={{ background: 'none', border: 'none', font: 'inherit', cursor: 'pointer' }}>
-                <span className="wizard-step-num">{n}</span>
-                {t(`wizard.steps.${stepKeys[idx]}`)}
+                {content}
               </button>
+            ) : (
+              <div key={n} className={`wizard-step ${cls}`}>{content}</div>
             )
           })}
         </div>
@@ -133,6 +138,7 @@ export function CreateDefinition({
               <label htmlFor="def-desc" style={{ marginTop: 'var(--space-3)' }}>{t('wizard.descLabel')}</label>
               <textarea id="def-desc" aria-label="Description" className="input" style={{ minHeight: 70, resize: 'vertical' }} value={draft.description} placeholder={t('wizard.descPlaceholder')} onChange={(e) => dispatch({ type: 'setField', field: 'description', value: e.target.value })} />
 
+              {error && <p style={{ color: 'var(--danger)', marginTop: 'var(--space-3)', marginBottom: 0 }}>{error}</p>}
               <label htmlFor="workdir" style={{ marginTop: 'var(--space-4)' }}>{t('wizard.workdirLabel')} <span style={{ color: 'var(--danger)' }}>*</span></label>
               <div style={row}>
                 <input id="workdir" aria-label="Workspace" className="input input-mono" style={{ flex: 1 }} placeholder="/path/to/project" value={draft.workspace} onChange={(e) => dispatch({ type: 'setField', field: 'workspace', value: e.target.value })} />
@@ -265,7 +271,7 @@ export function CreateDefinition({
           {draft.step < TOTAL_STEPS ? (
             <button className="btn btn-primary" onClick={() => dispatch({ type: 'next' })} disabled={!canAdvance(draft)}>{t('common.next')}</button>
           ) : (
-            <button className="btn btn-primary" onClick={() => void submit()}>{isEdit ? t('common.save') : t('common.createSandbox')}</button>
+            <button className="btn btn-primary" onClick={() => void submit()} disabled={!draft.workspace.trim()} title={!draft.workspace.trim() ? t('wizard.workspaceRequired') : undefined}>{isEdit ? t('common.save') : t('common.createSandbox')}</button>
           )}
         </div>
       </div>

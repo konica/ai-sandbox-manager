@@ -30,7 +30,7 @@ export type DraftCred = DraftServiceCred | DraftCustomCred | DraftRegistryCred
 
 export const TOTAL_STEPS = 6
 
-export type BuiltinVariant = 'claude-code' | 'claude-code-minimal' | 'opencode' | 'codex' | 'copilot'
+export type BuiltinVariant = 'claude-code' | 'claude-code-docker' | 'claude-code-minimal' | 'opencode' | 'codex' | 'copilot'
 
 // Docker Sandboxes publishes built-in base images under this repository.
 // Refs must include the docker.io host — sbx does not auto-resolve it.
@@ -42,6 +42,7 @@ export const TEMPLATE_REPO = 'docker.io/docker/sandbox-templates'
 export interface VariantInfo { value: BuiltinVariant; label: string }
 export const BUILTIN_VARIANTS: VariantInfo[] = [
   { value: 'claude-code', label: 'Claude Code' },
+  { value: 'claude-code-docker', label: 'claude-code-docker (docker-in-docker)' },
   { value: 'claude-code-minimal', label: 'Claude Code — minimal toolset (no Node.js, Python, Go, or Java)' },
   { value: 'opencode', label: 'OpenCode' },
   { value: 'codex', label: 'OpenAI Codex' },
