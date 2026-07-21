@@ -9,6 +9,7 @@ const api = {
   defGetSpec: (id: string) => ipcRenderer.invoke('def:getSpec', id),
   defExport: (ids: string[]) => ipcRenderer.invoke('def:export', ids),
   defImport: () => ipcRenderer.invoke('def:import'),
+  defRemove: (id: string) => ipcRenderer.invoke('def:remove', id),
   defList: () => ipcRenderer.invoke('def:list'),
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
   instanceLaunch: (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => ipcRenderer.invoke('instance:launch', definitionId, name, sessionName, opener),

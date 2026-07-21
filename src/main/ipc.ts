@@ -59,6 +59,7 @@ export function buildHandlers(deps: Deps): {
   'def:list': () => Promise<Result<Definition[]>>
   'def:export': (ids: string[]) => Promise<Result<{ canceled?: boolean; path?: string; count?: number }>>
   'def:import': () => Promise<Result<{ canceled?: boolean; imported?: string[]; skipped?: number }>>
+  'def:remove': (id: string) => Promise<Result<{ removedInstances: number }>>
   'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
   'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
   'instance:commands': (name: string) => Promise<Result<{ agent: string; shell: string }>>
@@ -123,6 +124,17 @@ export function buildHandlers(deps: Deps): {
       deps.log?.info(`Imported ${imported.length} definition(s)${skipped ? `, skipped ${skipped}` : ''} from ${file.path}`)
       return { imported, skipped }
     }),
+    'def:remove': (id) => wrap(async () => {
+      // Remove every instance launched from this definition (best-effort each), then the definition.
+      const instances = deps.store.listInstanceMeta().filter((m) => m.definitionId === id)
+      for (const m of instances) {
+        try { await cleanupInstance(deps, m.sbxName) }
+        catch (e) { deps.log?.error(`Could not remove instance "${m.sbxName}" while deleting its definition: ${(e as Error).message}`) }
+      }
+      deps.store.deleteDefinition(id)
+      deps.log?.info(`Deleted definition ${id} and ${instances.length} instance(s).`)
+      return { removedInstances: instances.length }
+    }),
     'instance:launch': (definitionId, name, sessionName, opener) => wrap(() => launchDefinition(
       {
         adapter: deps.adapter,
@@ -159,31 +171,7 @@ export function buildHandlers(deps: Deps): {
     // The exact sbx commands to run the agent / open a shell manually (for copy-to-clipboard).
     'instance:commands': (name) => wrap(async () => ({ agent: agentAttachCommand(name), shell: hostShellCommand(name) })),
     'instance:stop': (name) => wrap(async () => { await deps.adapter.stopSandbox(name); return null }),
-    'instance:remove': (name) => wrap(async () => {
-      await deps.adapter.removeSandbox(name)
-      // Sandbox-scoped secrets are NOT auto-removed with the sandbox (Phase 0 spike) —
-      // clean up this instance's scoped secrets so they don't accumulate. Best-effort.
-      const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
-      const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
-      for (const c of spec?.credentials ?? []) {
-        try {
-          if (c.kind === 'service') await deps.adapter.removeSecret(c.serviceId, { sandbox: name })
-          else if (c.kind === 'custom') await deps.adapter.removeCustomSecret(c.domains, { sandbox: name })
-          // Only sandbox-scoped registry creds are scoped to this VM; host/global are shared, leave them.
-          else if (c.scope === 'sandbox') await deps.adapter.removeRegistrySecret(c.host, { sandbox: name })
-        } catch (e) {
-          deps.log?.error(`Could not remove scoped secret for "${name}": ${(e as Error).message}`)
-        }
-      }
-      // Remove the generated .sandbox kit dir from the workspace (re-created at next launch).
-      const workspaceDir = (spec?.mounts.find((m) => m.isPrimary) ?? spec?.mounts[0])?.hostPath?.trim()
-      if (workspaceDir && deps.cleanupKit) {
-        try { deps.cleanupKit(workspaceDir); deps.log?.info(`Removed ${workspaceDir}/.sandbox for "${name}".`) }
-        catch (e) { deps.log?.error(`Could not remove .sandbox for "${name}": ${(e as Error).message}`) }
-      }
-      deps.store.deleteInstanceMeta(name)
-      return null
-    }),
+    'instance:remove': (name) => wrap(async () => { await cleanupInstance(deps, name); return null }),
     'secret:listGlobal': () => wrap(async () => requireCreds(deps).listGlobalSecrets()),
     'secret:setGlobal': (serviceId, value) => wrap(async () => requireCreds(deps).setGlobalService(serviceId, value)),
     'secret:removeGlobal': (id) => wrap(async () => { await requireCreds(deps).removeGlobalSecret(id); return null }),
@@ -281,6 +269,32 @@ function persist(deps: Deps, edit: () => boolean, name: string): boolean {
   }
 }
 
+/**
+ * Remove one instance and its side artifacts: the sbx sandbox, its sandbox-scoped secrets
+ * (not auto-removed by sbx), the generated <workspace>/.sandbox dir, and its metadata row.
+ * Shared by `instance:remove` and `def:remove`.
+ */
+async function cleanupInstance(deps: Deps, name: string): Promise<void> {
+  await deps.adapter.removeSandbox(name)
+  const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
+  const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
+  for (const c of spec?.credentials ?? []) {
+    try {
+      if (c.kind === 'service') await deps.adapter.removeSecret(c.serviceId, { sandbox: name })
+      else if (c.kind === 'custom') await deps.adapter.removeCustomSecret(c.domains, { sandbox: name })
+      else if (c.scope === 'sandbox') await deps.adapter.removeRegistrySecret(c.host, { sandbox: name })
+    } catch (e) {
+      deps.log?.error(`Could not remove scoped secret for "${name}": ${(e as Error).message}`)
+    }
+  }
+  const workspaceDir = (spec?.mounts.find((m) => m.isPrimary) ?? spec?.mounts[0])?.hostPath?.trim()
+  if (workspaceDir && deps.cleanupKit) {
+    try { deps.cleanupKit(workspaceDir); deps.log?.info(`Removed ${workspaceDir}/.sandbox for "${name}".`) }
+    catch (e) { deps.log?.error(`Could not remove .sandbox for "${name}": ${(e as Error).message}`) }
+  }
+  deps.store.deleteInstanceMeta(name)
+}
+
 export function registerIpc(deps: Deps): void {
   const handlers = buildHandlers(deps)
   ipcMain.handle('prereq:check', () => handlers['prereq:check']())
@@ -291,6 +305,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('def:list', () => handlers['def:list']())
   ipcMain.handle('def:export', (_e, ids: string[]) => handlers['def:export'](ids))
   ipcMain.handle('def:import', () => handlers['def:import']())
+  ipcMain.handle('def:remove', (_e, id: string) => handlers['def:remove'](id))
   ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => handlers['instance:launch'](id, name, sessionName, opener))
   ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:attach'](name, opener))
   ipcMain.handle('instance:commands', (_e, name: string) => handlers['instance:commands'](name))

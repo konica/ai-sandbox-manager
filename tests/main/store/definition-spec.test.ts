@@ -29,6 +29,16 @@ describe('definition spec persistence', () => {
     expect(store.getDefinitionSpec('missing')).toBeNull()
   })
 
+  it('deleteDefinition removes the definition and its children', () => {
+    store.insertDefinitionSpec(spec)
+    expect(store.getDefinitionSpec('d1')).not.toBeNull()
+    store.deleteDefinition('d1')
+    expect(store.getDefinitionSpec('d1')).toBeNull()
+    expect(store.listDefinitions().map((d) => d.id)).not.toContain('d1')
+    // children are gone too (re-inserting the same id must not hit a leftover-row conflict)
+    expect(() => store.insertDefinitionSpec(spec)).not.toThrow()
+  })
+
   it('lists the definition base row alongside instance metadata queries', () => {
     store.insertDefinitionSpec(spec)
     expect(store.listDefinitions().map((d) => d.id)).toContain('d1')

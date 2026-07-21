@@ -134,6 +134,20 @@ describe('buildHandlers', () => {
     expect(store.listDefinitions().map((d) => d.name).sort()).toEqual(['Alpha', 'Alpha (imported)'])
     expect(store.getDefinitionSpec('new-0')).not.toBeNull()
   })
+  it('def:remove deletes the definition and removes its instances', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec({ definition: { id: 'd1', name: 'Alpha', description: '', baseImage: 'i', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    store.upsertInstanceMeta({ sbxName: 'alpha-1', definitionId: 'd1', createdByApp: true, createdAt: 't' })
+    store.upsertInstanceMeta({ sbxName: 'alpha-2', definitionId: 'd1', createdByApp: true, createdAt: 't' })
+    const removeSandbox = vi.fn(async () => {})
+    const h = buildHandlers({ adapter: { ...adapter, removeSandbox }, store, probes, openTerminal: () => {}, cleanupKit: () => {} })
+    const r = await h['def:remove']('d1')
+    expect(r.ok && r.data.removedInstances).toBe(2)
+    expect(removeSandbox).toHaveBeenCalledTimes(2)
+    expect(store.getDefinitionSpec('d1')).toBeNull()
+    expect(store.listInstanceMeta().filter((m) => m.definitionId === 'd1')).toEqual([])
+  })
+
   it('def:import surfaces an error for a malformed file', async () => {
     const h = buildHandlers({ adapter, store: openStore(':memory:'), probes, openTerminal: () => {}, openFile: async () => ({ path: '/tmp/x', contents: 'not json' }) })
     const r = await h['def:import']()

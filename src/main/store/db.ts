@@ -9,6 +9,7 @@ export interface Store {
   insertDefinitionSpec(spec: DefinitionSpec): void
   updateDefinitionSpec(spec: DefinitionSpec): void
   getDefinitionSpec(id: string): DefinitionSpec | null
+  deleteDefinition(id: string): void
   upsertInstanceMeta(m: InstanceMeta): void
   listInstanceMeta(): InstanceMeta[]
   deleteInstanceMeta(sbxName: string): void
@@ -218,6 +219,14 @@ export function openStore(filename: string): Store {
       const sshRow = db.prepare(`SELECT ssh_forward_agent AS fwd, ssh_commit_signing AS sign FROM definition WHERE id = ?`).get(id) as { fwd: number; sign: number } | undefined
       const ssh = { forwardAgent: (sshRow?.fwd ?? 1) === 1, commitSigning: (sshRow?.sign ?? 0) === 1 }
       return { definition: def, mounts, domains, ports, hostServices, credentials, ssh }
+    },
+    deleteDefinition(id) {
+      // FK cascade isn't enabled, so remove children explicitly, then the row.
+      const del = db.transaction((defId: string) => {
+        deleteChildren(defId)
+        db.prepare(`DELETE FROM definition WHERE id = ?`).run(defId)
+      })
+      del(id)
     },
     upsertInstanceMeta(m) {
       db.prepare(
