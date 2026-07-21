@@ -150,12 +150,12 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
           onAllow={async (host) => {
             setHostOverride(host, 'allow') // reflect immediately (log keeps the stale row until next request)
             await api.instanceDomainAllow(instance.name, host)
-            void reloadPolicy()
+            void reloadPolicy(); void reloadSpec() // reloadSpec → the definition change shows in the Network Policy card
           }}
           onDeny={async (host) => {
             setHostOverride(host, 'deny')
             await api.instanceDomainDeny(instance.name, host)
-            void reloadPolicy()
+            void reloadPolicy(); void reloadSpec()
           }}
         />
       )}

@@ -44,14 +44,22 @@ export function applyHostServiceEdit(store: Store, sbxName: string, hs: HostServ
   return true
 }
 
+// Live Traffic hosts come from `sbx policy log` with a port (e.g. "api.anthropic.com:443").
+// The definition's allowlist stores bare hostnames (matching the wizard + generated kit), so
+// normalize before persisting — otherwise adds land port-suffixed and denies never match.
+function bareDomain(d: string): string {
+  return d.replace(/:\d+$/, '')
+}
+
 export function applyDomainEdit(store: Store, sbxName: string, domain: string, op: Op): boolean {
   const spec = specFor(store, sbxName)
   if (!spec) return false
+  const host = bareDomain(domain)
   if (op === 'add') {
-    if (spec.domains.includes(domain)) return true
-    spec.domains = [...spec.domains, domain]
+    if (spec.domains.includes(host)) return true
+    spec.domains = [...spec.domains, host]
   } else {
-    spec.domains = spec.domains.filter((d) => d !== domain)
+    spec.domains = spec.domains.filter((d) => d !== host)
   }
   store.updateDefinitionSpec(spec)
   return true

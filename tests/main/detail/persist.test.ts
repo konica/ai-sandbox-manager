@@ -34,6 +34,17 @@ describe('dual-write persist', () => {
     applyDomainEdit(store, 'box', 'api.example.com', 'remove')
     expect(store.getDefinitionSpec('d1')!.domains).toEqual([])
   })
+  it('normalizes a live-traffic host:port to a bare domain when adding', () => {
+    // Live Traffic hosts come from `sbx policy log` with a port (e.g. api.anthropic.com:443);
+    // the definition stores bare hostnames (matching the wizard + kit).
+    applyDomainEdit(store, 'box', 'api.anthropic.com:443', 'add')
+    expect(store.getDefinitionSpec('d1')!.domains).toEqual(['api.anthropic.com'])
+  })
+  it('removes a bare definition domain even when denied as host:port', () => {
+    applyDomainEdit(store, 'box', 'api.anthropic.com', 'add')
+    applyDomainEdit(store, 'box', 'api.anthropic.com:443', 'remove')
+    expect(store.getDefinitionSpec('d1')!.domains).toEqual([])
+  })
   it('dedupes an add (no duplicate ports/domains)', () => {
     applyDomainEdit(store, 'box', 'x.com', 'add')
     applyDomainEdit(store, 'box', 'x.com', 'add')
