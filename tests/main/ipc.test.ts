@@ -69,6 +69,26 @@ describe('buildHandlers', () => {
     expect(r.ok && r.data.present).toBe(true)
   })
 
+  it('env:hasVSCode reports code availability', async () => {
+    const h = buildHandlers({ adapter, store: openStore(":memory:"), probes, openTerminal: () => {} })
+    const r = await h['env:hasVSCode']()
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(typeof r.data.present).toBe('boolean')
+  })
+  it('instance:attach with vscode opener resolves the workspace and opens VS Code', async () => {
+    const store = openStore(":memory:")
+    store.insertDefinitionSpec({
+      definition: { id: 'd', name: 'n', description: '', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
+      mounts: [{ hostPath: '/ws', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+    })
+    store.upsertInstanceMeta({ sbxName: 'box', definitionId: 'd', createdByApp: true, createdAt: 't' })
+    const openVSCode = vi.fn()
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {}, openVSCode })
+    await h['instance:attach']('box', 'vscode')
+    expect(openVSCode).toHaveBeenCalledTimes(1)
+    expect(openVSCode.mock.calls[0][1]).toBe('/ws')
+  })
+
   it('wraps thrown errors as {ok:false}', async () => {
     const boom: SbxAdapter = { ...adapter, listSandboxes: async () => { throw new Error('kaboom') } }
     const h = buildHandlers({ adapter: boom, store: openStore(":memory:"), probes, openTerminal: () => {} })

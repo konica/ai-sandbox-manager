@@ -9,8 +9,8 @@ const api = {
   defGetSpec: (id: string) => ipcRenderer.invoke('def:getSpec', id),
   defList: () => ipcRenderer.invoke('def:list'),
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
-  instanceLaunch: (definitionId: string, name?: string, sessionName?: string) => ipcRenderer.invoke('instance:launch', definitionId, name, sessionName),
-  instanceAttach: (name: string) => ipcRenderer.invoke('instance:attach', name),
+  instanceLaunch: (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => ipcRenderer.invoke('instance:launch', definitionId, name, sessionName, opener),
+  instanceAttach: (name: string, opener?: 'terminal' | 'vscode') => ipcRenderer.invoke('instance:attach', name, opener),
   instanceShell: (name: string) => ipcRenderer.invoke('instance:shell', name),
   instanceStop: (name: string) => ipcRenderer.invoke('instance:stop', name),
   instanceRemove: (name: string) => ipcRenderer.invoke('instance:remove', name),
@@ -32,7 +32,8 @@ const api = {
   authSignOut: () => ipcRenderer.invoke('auth:signOut'),
   authStartLogin: () => ipcRenderer.invoke('auth:startLogin'),
   authLaunchPrecheck: (definitionId: string) => ipcRenderer.invoke('auth:launchPrecheck', definitionId),
-  sshDetect: () => ipcRenderer.invoke('ssh:detect')
+  sshDetect: () => ipcRenderer.invoke('ssh:detect'),
+  envHasVSCode: () => ipcRenderer.invoke('env:hasVSCode')
 }
 
 contextBridge.exposeInMainWorld('api', api)

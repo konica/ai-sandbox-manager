@@ -11,6 +11,7 @@ import { createLogger } from './log'
 import { createSafeStorageVault } from './creds/vault'
 import { createCredentialManager } from './creds/manager'
 import { buildKitSpec, buildLoginKit } from './kit/generate'
+import { buildCodeWorkspace, openInVSCode } from './vscode'
 import { writeKit } from './kit/write'
 import type { DefinitionSpec } from '@shared/types'
 
@@ -37,6 +38,16 @@ function loginKitDir(): string {
   nodeFs.mkdirSync(dir, { recursive: true })
   const kitDir = `${dir}/.kit`
   return writeKit(buildLoginKit(), {}, { fs: kitFs, kitDir, secretsDir: `${dir}/.unused`, gitignorePath: `${dir}/.gitignore` }).kitDir
+}
+
+// Open the session in VS Code: write a throwaway .code-workspace under the workspace's
+// .sandbox/ dir (auto-runs the sbx chain in an integrated terminal) and launch `code`.
+function openVSCode(command: string, workspaceDir: string, sandboxName: string): void {
+  const dir = `${workspaceDir}/.sandbox`
+  nodeFs.mkdirSync(dir, { recursive: true })
+  const file = `${dir}/${sandboxName}.code-workspace`
+  nodeFs.writeFileSync(file, buildCodeWorkspace(workspaceDir, sandboxName, command), { mode: 0o644 })
+  openInVSCode(file)
 }
 
 // GUI apps on macOS don't inherit the shell's env, so read it from a login shell.
@@ -91,7 +102,7 @@ app.whenReady().then(() => {
     }
   })
   const creds = createCredentialManager({ adapter, vault, store })
-  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, log: logger })
+  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, openVSCode, log: logger })
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

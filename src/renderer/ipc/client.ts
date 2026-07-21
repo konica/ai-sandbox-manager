@@ -8,8 +8,8 @@ interface Api {
   defGetSpec(id: string): Promise<Result<DefinitionSpec | null>>
   defList(): Promise<Result<Definition[]>>
   pickFolder(): Promise<string | null>
-  instanceLaunch(definitionId: string, name?: string, sessionName?: string): Promise<Result<{ name: string }>>
-  instanceAttach(name: string): Promise<Result<null>>
+  instanceLaunch(definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
+  instanceAttach(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<null>>
   instanceShell(name: string): Promise<Result<null>>
   instanceStop(name: string): Promise<Result<null>>
   instanceRemove(name: string): Promise<Result<null>>
@@ -32,6 +32,7 @@ interface Api {
   authStartLogin(): Promise<Result<{ name: string }>>
   authLaunchPrecheck(definitionId: string): Promise<Result<{ needsNudge: boolean; status: ClaudeAuthKind }>>
   sshDetect(): Promise<Result<{ present: boolean }>>
+  envHasVSCode(): Promise<Result<{ present: boolean }>>
 }
 
 export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
@@ -65,5 +66,6 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   authSignOut: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   authStartLogin: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   authLaunchPrecheck: async () => ({ ok: true, data: { needsNudge: false, status: 'none' } }),
-  sshDetect: async () => ({ ok: true, data: { present: false } })
+  sshDetect: async () => ({ ok: true, data: { present: false } }),
+  envHasVSCode: async () => ({ ok: true, data: { present: false } })
 }

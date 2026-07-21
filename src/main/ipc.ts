@@ -8,6 +8,7 @@ import { launchDefinition } from './launch'
 import { agentAttachCommand, hostShellCommand, loginCommand } from './sbx/translate'
 import { claudeAuthStatus, claudeSignOut, needsAuthNudge } from './auth/manager'
 import { sshAuthSockPresent } from './ssh/detect'
+import { codeCliPresent } from './vscode'
 import { scanEnv } from './creds/env-scan'
 import { applyPortEdit, applyHostServiceEdit, applyDomainEdit } from './detail/persist'
 import { serviceById } from '@shared/services'
@@ -23,6 +24,7 @@ interface Deps {
   materializeKit?: (spec: DefinitionSpec, name: string) => string | undefined
   readLoginEnv?: () => Record<string, string | undefined>
   loginKitDir?: () => string // materializes the OAuth login kit, returns its dir
+  openVSCode?: (command: string, workspaceDir: string, sandboxName: string) => void
   log?: Logger
 }
 
@@ -47,8 +49,8 @@ export function buildHandlers(deps: Deps): {
   'def:update': (spec: DefinitionSpec) => Promise<Result<{ id: string }>>
   'def:getSpec': (id: string) => Promise<Result<DefinitionSpec | null>>
   'def:list': () => Promise<Result<Definition[]>>
-  'instance:launch': (definitionId: string, name?: string, sessionName?: string) => Promise<Result<{ name: string }>>
-  'instance:attach': (name: string) => Promise<Result<null>>
+  'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
+  'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
   'instance:shell': (name: string) => Promise<Result<null>>
   'instance:stop': (name: string) => Promise<Result<null>>
   'instance:remove': (name: string) => Promise<Result<null>>
@@ -71,6 +73,7 @@ export function buildHandlers(deps: Deps): {
   'auth:startLogin': () => Promise<Result<{ name: string }>>
   'auth:launchPrecheck': (definitionId: string) => Promise<Result<{ needsNudge: boolean; status: ClaudeAuthKind }>>
   'ssh:detect': () => Promise<Result<{ present: boolean }>>
+  'env:hasVSCode': () => Promise<Result<{ present: boolean }>>
 } {
   return {
     'prereq:check': () => wrap(() => checkPrereqs(deps.probes)),
@@ -79,21 +82,30 @@ export function buildHandlers(deps: Deps): {
     'def:update': (spec) => wrap(async () => { deps.store.updateDefinitionSpec(spec); return { id: spec.definition.id } }),
     'def:getSpec': (id) => wrap(async () => deps.store.getDefinitionSpec(id)),
     'def:list': () => wrap(async () => deps.store.listDefinitions()),
-    'instance:launch': (definitionId, name, sessionName) => wrap(() => launchDefinition(
+    'instance:launch': (definitionId, name, sessionName, opener) => wrap(() => launchDefinition(
       {
         adapter: deps.adapter,
         store: deps.store,
         creds: deps.creds ?? { getStaged: () => null },
         materializeKit: deps.materializeKit ?? (() => undefined),
         openTerminal: deps.openTerminal,
+        openVSCode: deps.openVSCode,
         log: deps.log
       },
-      definitionId, name, sessionName
+      definitionId, name, sessionName, opener ?? 'terminal'
     )),
-    'instance:attach': (name) => wrap(async () => {
+    'instance:attach': (name, opener) => wrap(async () => {
       const cmd = agentAttachCommand(name)
-      deps.log?.info(`Opening agent terminal: ${cmd}`)
-      deps.openTerminal(cmd)
+      const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
+      const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
+      const workspaceDir = (spec?.mounts.find((m) => m.isPrimary) ?? spec?.mounts[0])?.hostPath?.trim()
+      if (opener === 'vscode' && deps.openVSCode && workspaceDir) {
+        deps.log?.info(`Opening VS Code at ${workspaceDir} to attach "${name}"`)
+        deps.openVSCode(cmd, workspaceDir, name)
+      } else {
+        deps.log?.info(`Opening agent terminal: ${cmd}`)
+        deps.openTerminal(cmd)
+      }
       return null
     }),
     'instance:shell': (name) => wrap(async () => {
@@ -202,7 +214,8 @@ export function buildHandlers(deps: Deps): {
       const needsNudge = spec ? needsAuthNudge(anthropic, spec) : false
       return { needsNudge, status: anthropic }
     }),
-    'ssh:detect': () => wrap(async () => ({ present: sshAuthSockPresent(deps.readLoginEnv?.() ?? {}) }))
+    'ssh:detect': () => wrap(async () => ({ present: sshAuthSockPresent(deps.readLoginEnv?.() ?? {}) })),
+    'env:hasVSCode': () => wrap(async () => ({ present: codeCliPresent() }))
   }
 }
 
@@ -226,8 +239,8 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('def:update', (_e, spec: DefinitionSpec) => handlers['def:update'](spec))
   ipcMain.handle('def:getSpec', (_e, id: string) => handlers['def:getSpec'](id))
   ipcMain.handle('def:list', () => handlers['def:list']())
-  ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string) => handlers['instance:launch'](id, name, sessionName))
-  ipcMain.handle('instance:attach', (_e, name: string) => handlers['instance:attach'](name))
+  ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => handlers['instance:launch'](id, name, sessionName, opener))
+  ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:attach'](name, opener))
   ipcMain.handle('instance:shell', (_e, name: string) => handlers['instance:shell'](name))
   ipcMain.handle('instance:stop', (_e, name: string) => handlers['instance:stop'](name))
   ipcMain.handle('instance:remove', (_e, name: string) => handlers['instance:remove'](name))
@@ -250,6 +263,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('auth:startLogin', () => handlers['auth:startLogin']())
   ipcMain.handle('auth:launchPrecheck', (_e, id: string) => handlers['auth:launchPrecheck'](id))
   ipcMain.handle('ssh:detect', () => handlers['ssh:detect']())
+  ipcMain.handle('env:hasVSCode', () => handlers['env:hasVSCode']())
   ipcMain.handle('dialog:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }
