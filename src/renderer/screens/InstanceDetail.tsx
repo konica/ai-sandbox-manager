@@ -41,6 +41,7 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
   // Optimistic per-host state after an Allow/Deny click — sbx keeps the historical log
   // row until a new request re-classifies it, so we reflect the intent immediately.
   const [override, setOverride] = useState<Record<string, 'allow' | 'deny'>>({})
+  const [commands, setCommands] = useState<{ agent: string; shell: string } | null>(null)
 
   const reloadSpec = useCallback(async () => {
     if (!instance.definitionId) { setSpec(null); return }
@@ -57,6 +58,7 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
   }, [instance.name])
 
   useEffect(() => { void reloadSpec() }, [reloadSpec])
+  useEffect(() => { void api.instanceCommands(instance.name).then((r) => { if (r.ok) setCommands(r.data) }) }, [instance.name])
   useEffect(() => { if (tab === 'ports') void reloadPorts() }, [tab, reloadPorts])
   // Poll the policy log while the Monitoring tab is open (sbx policy log has no stream).
   useEffect(() => {
@@ -122,6 +124,8 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
           instance={instance}
           spec={spec}
           hasVSCode={hasVSCode}
+          agentCommand={commands?.agent}
+          shellCommand={commands?.shell}
           onAttach={onAttach}
           onShell={onShell}
           onAllowDomain={async (d) => { await api.instanceDomainAllow(instance.name, d); void reloadSpec() }}

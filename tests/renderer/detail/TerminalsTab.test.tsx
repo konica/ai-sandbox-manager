@@ -39,6 +39,15 @@ describe('TerminalsTab', () => {
     expect(onAttach).toHaveBeenCalledWith('sbx-a', 'terminal')
     expect(screen.getByRole('button', { name: /shell/i })).toBeDisabled()
   })
+  it('copies the manual agent / shell commands to the clipboard', () => {
+    const writeText = vi.fn()
+    Object.assign(navigator, { clipboard: { writeText } })
+    render(<TerminalsTab instance={inst} spec={spec} hasVSCode agentCommand="sbx run --name sbx-a -- --continue" shellCommand="sbx exec -it sbx-a bash" onAttach={vi.fn()} onShell={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /copy agent command/i }))
+    expect(writeText).toHaveBeenCalledWith('sbx run --name sbx-a -- --continue')
+    fireEvent.click(screen.getByRole('button', { name: /copy shell command/i }))
+    expect(writeText).toHaveBeenCalledWith('sbx exec -it sbx-a bash')
+  })
   it('degrades when there is no linked definition', () => {
     render(<TerminalsTab instance={inst} spec={null} hasVSCode onAttach={vi.fn()} onShell={vi.fn()} />)
     expect(screen.getByText(/no linked definition/i)).toBeInTheDocument()

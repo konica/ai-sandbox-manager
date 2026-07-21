@@ -51,6 +51,7 @@ export function buildHandlers(deps: Deps): {
   'def:list': () => Promise<Result<Definition[]>>
   'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
   'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
+  'instance:commands': (name: string) => Promise<Result<{ agent: string; shell: string }>>
   'instance:shell': (name: string) => Promise<Result<null>>
   'instance:stop': (name: string) => Promise<Result<null>>
   'instance:remove': (name: string) => Promise<Result<null>>
@@ -114,6 +115,8 @@ export function buildHandlers(deps: Deps): {
       deps.openTerminal(cmd)
       return null
     }),
+    // The exact sbx commands to run the agent / open a shell manually (for copy-to-clipboard).
+    'instance:commands': (name) => wrap(async () => ({ agent: agentAttachCommand(name), shell: hostShellCommand(name) })),
     'instance:stop': (name) => wrap(async () => { await deps.adapter.stopSandbox(name); return null }),
     'instance:remove': (name) => wrap(async () => {
       await deps.adapter.removeSandbox(name)
@@ -241,6 +244,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('def:list', () => handlers['def:list']())
   ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => handlers['instance:launch'](id, name, sessionName, opener))
   ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:attach'](name, opener))
+  ipcMain.handle('instance:commands', (_e, name: string) => handlers['instance:commands'](name))
   ipcMain.handle('instance:shell', (_e, name: string) => handlers['instance:shell'](name))
   ipcMain.handle('instance:stop', (_e, name: string) => handlers['instance:stop'](name))
   ipcMain.handle('instance:remove', (_e, name: string) => handlers['instance:remove'](name))

@@ -17,10 +17,12 @@ function credName(c: CredentialRef): string {
  * sidebar (Network Policy, Credentials, Mounts) sourced from the definition spec.
  * No in-app terminals — matches the app's native-terminal architecture.
  */
-export function TerminalsTab({ instance, spec, hasVSCode, onAttach, onShell, onAllowDomain, onDenyDomain }: {
+export function TerminalsTab({ instance, spec, hasVSCode, agentCommand, shellCommand, onAttach, onShell, onAllowDomain, onDenyDomain }: {
   instance: InstanceView
   spec: DefinitionSpec | null
   hasVSCode: boolean
+  agentCommand?: string
+  shellCommand?: string
   onAttach: (name: string, opener: 'terminal' | 'vscode') => void
   onShell: (name: string) => void
   onAllowDomain?: (domain: string) => void
@@ -29,6 +31,13 @@ export function TerminalsTab({ instance, spec, hasVSCode, onAttach, onShell, onA
   const t = useT()
   const running = instance.status === 'running'
   const [domainInput, setDomainInput] = useState('')
+  const [copied, setCopied] = useState<'agent' | 'shell' | null>(null)
+
+  function copy(which: 'agent' | 'shell', cmd: string): void {
+    void navigator.clipboard?.writeText(cmd)
+    setCopied(which)
+    setTimeout(() => setCopied((c) => (c === which ? null : c)), 1500)
+  }
   const editable = onAllowDomain !== undefined && onDenyDomain !== undefined
   const services = spec?.credentials.filter((c) => c.kind === 'service') ?? []
   const customs = spec?.credentials.filter((c) => c.kind === 'custom') ?? []
@@ -54,6 +63,16 @@ export function TerminalsTab({ instance, spec, hasVSCode, onAttach, onShell, onA
             <button className="btn btn-secondary btn-sm" disabled={!running} onClick={() => onShell(instance.name)}>{t('detail.openShell')}</button>
           </div>
           {!running && <p className="section-desc" style={{ fontSize: 11, margin: 'var(--space-2) 0 0' }}>{t('detail.stoppedHint')}</p>}
+          {/* Copy the exact sbx command to run the agent / shell manually in your own terminal. */}
+          {(agentCommand || shellCommand) && (
+            <>
+              <p className="section-desc" style={{ fontSize: 11, margin: 'var(--space-3) 0 var(--space-2)' }}>{t('detail.copyManualHint')}</p>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                {agentCommand && <button className="btn btn-ghost btn-sm" title={agentCommand} onClick={() => copy('agent', agentCommand)}>{copied === 'agent' ? t('detail.copied') : t('detail.copyAgentCmd')}</button>}
+                {shellCommand && <button className="btn btn-ghost btn-sm" title={shellCommand} onClick={() => copy('shell', shellCommand)}>{copied === 'shell' ? t('detail.copied') : t('detail.copyShellCmd')}</button>}
+              </div>
+            </>
+          )}
         </div>
 
         {spec && (

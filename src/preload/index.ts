@@ -11,6 +11,7 @@ const api = {
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
   instanceLaunch: (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => ipcRenderer.invoke('instance:launch', definitionId, name, sessionName, opener),
   instanceAttach: (name: string, opener?: 'terminal' | 'vscode') => ipcRenderer.invoke('instance:attach', name, opener),
+  instanceCommands: (name: string) => ipcRenderer.invoke('instance:commands', name),
   instanceShell: (name: string) => ipcRenderer.invoke('instance:shell', name),
   instanceStop: (name: string) => ipcRenderer.invoke('instance:stop', name),
   instanceRemove: (name: string) => ipcRenderer.invoke('instance:remove', name),

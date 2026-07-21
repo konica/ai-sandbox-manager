@@ -89,6 +89,19 @@ describe('buildHandlers', () => {
     expect(openVSCode.mock.calls[0][1]).toBe('/ws')
   })
 
+  it('instance:commands returns the manual agent + shell commands', async () => {
+    const h = buildHandlers({ adapter, store: openStore(":memory:"), probes, openTerminal: () => {} })
+    const r = await h['instance:commands']('box')
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.data.agent).toContain('sbx run --name')
+      expect(r.data.agent).toContain('box')
+      expect(r.data.agent).toContain('--continue')
+      expect(r.data.shell).toContain('sbx exec -it')
+      expect(r.data.shell).toContain('bash')
+    }
+  })
+
   it('wraps thrown errors as {ok:false}', async () => {
     const boom: SbxAdapter = { ...adapter, listSandboxes: async () => { throw new Error('kaboom') } }
     const h = buildHandlers({ adapter: boom, store: openStore(":memory:"), probes, openTerminal: () => {} })
