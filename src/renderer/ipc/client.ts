@@ -7,6 +7,8 @@ interface Api {
   defUpdate(spec: DefinitionSpec): Promise<Result<{ id: string }>>
   defGetSpec(id: string): Promise<Result<DefinitionSpec | null>>
   defList(): Promise<Result<Definition[]>>
+  defExport(ids: string[]): Promise<Result<{ canceled?: boolean; path?: string; count?: number }>>
+  defImport(): Promise<Result<{ canceled?: boolean; imported?: string[]; skipped?: number }>>
   pickFolder(): Promise<string | null>
   instanceLaunch(definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
   instanceAttach(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<null>>
@@ -43,6 +45,8 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   defUpdate: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   defGetSpec: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   defList: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  defExport: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  defImport: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   pickFolder: async () => null,
   instanceLaunch: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceAttach: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, safeStorage } from 'electron'
+import { app, BrowserWindow, safeStorage, dialog } from 'electron'
 import { join } from 'path'
 import { execFileSync } from 'node:child_process'
 import * as nodeFs from 'node:fs'
@@ -29,6 +29,25 @@ function materializeKit(spec: DefinitionSpec, _name: string): string | undefined
   if (!primary) return undefined
   const ws = primary.hostPath
   return writeKit(buildKitSpec(spec), {}, { fs: kitFs, kitDir: `${ws}/.sandbox/kit`, secretsDir: `${ws}/.sandbox/.unused`, gitignorePath: `${ws}/.gitignore` }).kitDir
+}
+
+// Native Save/Open dialogs for definition import/export (bundle .sbx.json files).
+const SBX_FILTER = [{ name: 'Sandbox definitions', extensions: ['sbx.json', 'json'] }]
+async function saveFile(defaultName: string, contents: string): Promise<string | null> {
+  const win = BrowserWindow.getFocusedWindow()
+  const res = win
+    ? await dialog.showSaveDialog(win, { defaultPath: defaultName, filters: SBX_FILTER })
+    : await dialog.showSaveDialog({ defaultPath: defaultName, filters: SBX_FILTER })
+  if (res.canceled || !res.filePath) return null
+  nodeFs.writeFileSync(res.filePath, contents, 'utf8')
+  return res.filePath
+}
+async function openFile(): Promise<{ path: string; contents: string } | null> {
+  const win = BrowserWindow.getFocusedWindow()
+  const opts = { properties: ['openFile' as const], filters: SBX_FILTER }
+  const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+  if (res.canceled || res.filePaths.length === 0) return null
+  return { path: res.filePaths[0], contents: nodeFs.readFileSync(res.filePaths[0], 'utf8') }
 }
 
 // Remove the generated <workspace>/.sandbox dir when an instance is removed. It holds only
@@ -108,7 +127,7 @@ app.whenReady().then(() => {
     }
   })
   const creds = createCredentialManager({ adapter, vault, store })
-  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, openVSCode, cleanupKit, log: logger })
+  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, openVSCode, cleanupKit, saveFile, openFile, log: logger })
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

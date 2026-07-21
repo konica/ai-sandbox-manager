@@ -9,6 +9,8 @@ import { agentAttachCommand, hostShellCommand, loginCommand } from './sbx/transl
 import { claudeAuthStatus, claudeSignOut, needsAuthNudge } from './auth/manager'
 import { sshAuthSockPresent } from './ssh/detect'
 import { codeCliPresent } from './vscode'
+import { buildExportBundle, parseImportBundle, dedupeName } from './defio/bundle'
+import { randomUUID } from 'crypto'
 import { scanEnv } from './creds/env-scan'
 import { applyPortEdit, applyHostServiceEdit, applyDomainEdit } from './detail/persist'
 import { serviceById } from '@shared/services'
@@ -28,6 +30,9 @@ interface Deps {
   genHash?: () => string
   /** Removes the generated <workspace>/.sandbox dir on instance removal (re-created at next launch). */
   cleanupKit?: (workspaceDir: string) => void
+  saveFile?: (defaultName: string, contents: string) => Promise<string | null>
+  openFile?: () => Promise<{ path: string; contents: string } | null>
+  genId?: () => string
   log?: Logger
 }
 
@@ -52,6 +57,8 @@ export function buildHandlers(deps: Deps): {
   'def:update': (spec: DefinitionSpec) => Promise<Result<{ id: string }>>
   'def:getSpec': (id: string) => Promise<Result<DefinitionSpec | null>>
   'def:list': () => Promise<Result<Definition[]>>
+  'def:export': (ids: string[]) => Promise<Result<{ canceled?: boolean; path?: string; count?: number }>>
+  'def:import': () => Promise<Result<{ canceled?: boolean; imported?: string[]; skipped?: number }>>
   'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
   'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
   'instance:commands': (name: string) => Promise<Result<{ agent: string; shell: string }>>
@@ -86,6 +93,36 @@ export function buildHandlers(deps: Deps): {
     'def:update': (spec) => wrap(async () => { deps.store.updateDefinitionSpec(spec); return { id: spec.definition.id } }),
     'def:getSpec': (id) => wrap(async () => deps.store.getDefinitionSpec(id)),
     'def:list': () => wrap(async () => deps.store.listDefinitions()),
+    'def:export': (ids) => wrap(async () => {
+      if (!deps.saveFile) throw new Error('file save not configured')
+      const specs = ids.map((id) => deps.store.getDefinitionSpec(id)).filter((s): s is DefinitionSpec => s !== null)
+      if (specs.length === 0) throw new Error('No definitions to export')
+      const bundle = buildExportBundle(specs, new Date().toISOString())
+      const defaultName = specs.length === 1
+        ? `${specs[0].definition.name.replace(/[^A-Za-z0-9._-]+/g, '-')}.sbx.json`
+        : `sandbox-definitions-${specs.length}.sbx.json`
+      const path = await deps.saveFile(defaultName, JSON.stringify(bundle, null, 2))
+      if (!path) return { canceled: true }
+      deps.log?.info(`Exported ${specs.length} definition(s) to ${path}`)
+      return { path, count: specs.length }
+    }),
+    'def:import': () => wrap(async () => {
+      if (!deps.openFile) throw new Error('file open not configured')
+      const file = await deps.openFile()
+      if (!file) return { canceled: true }
+      const { definitions, skipped } = parseImportBundle(file.contents)
+      const genId = deps.genId ?? randomUUID
+      const existing = new Set(deps.store.listDefinitions().map((d) => d.name))
+      const imported: string[] = []
+      for (const d of definitions) {
+        const name = dedupeName(d.definition.name, existing)
+        existing.add(name)
+        deps.store.insertDefinitionSpec({ ...d, definition: { ...d.definition, name, id: genId(), createdAt: new Date().toISOString() } })
+        imported.push(name)
+      }
+      deps.log?.info(`Imported ${imported.length} definition(s)${skipped ? `, skipped ${skipped}` : ''} from ${file.path}`)
+      return { imported, skipped }
+    }),
     'instance:launch': (definitionId, name, sessionName, opener) => wrap(() => launchDefinition(
       {
         adapter: deps.adapter,
@@ -252,6 +289,8 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('def:update', (_e, spec: DefinitionSpec) => handlers['def:update'](spec))
   ipcMain.handle('def:getSpec', (_e, id: string) => handlers['def:getSpec'](id))
   ipcMain.handle('def:list', () => handlers['def:list']())
+  ipcMain.handle('def:export', (_e, ids: string[]) => handlers['def:export'](ids))
+  ipcMain.handle('def:import', () => handlers['def:import']())
   ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => handlers['instance:launch'](id, name, sessionName, opener))
   ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:attach'](name, opener))
   ipcMain.handle('instance:commands', (_e, name: string) => handlers['instance:commands'](name))

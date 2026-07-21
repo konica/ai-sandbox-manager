@@ -102,6 +102,44 @@ describe('buildHandlers', () => {
     }
   })
 
+  it('def:export builds a bundle for selected ids and writes it via saveFile', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec({ definition: { id: 'd1', name: 'Alpha', description: '', baseImage: 'i:t', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    let written = ''
+    const saveFile = async (_name: string, contents: string): Promise<string | null> => { written = contents; return '/tmp/out.sbx.json' }
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {}, saveFile })
+    const r = await h['def:export'](['d1'])
+    expect(r.ok && r.data.path).toBe('/tmp/out.sbx.json')
+    expect(r.ok && r.data.count).toBe(1)
+    expect(JSON.parse(written).kind).toBe('sandbox-definitions')
+    expect(JSON.parse(written).definitions[0].definition.name).toBe('Alpha')
+  })
+  it('def:export returns canceled when the save dialog is dismissed', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec({ definition: { id: 'd1', name: 'Alpha', description: '', baseImage: 'i', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {}, saveFile: async () => null })
+    const r = await h['def:export'](['d1'])
+    expect(r.ok && r.data.canceled).toBe(true)
+  })
+  it('def:import inserts each definition as a new copy with a fresh id and deduped name', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec({ definition: { id: 'existing', name: 'Alpha', description: '', baseImage: 'i', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    const bundle = JSON.stringify({ formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now', definitions: [
+      { definition: { name: 'Alpha', description: '', baseImage: 'i', tier: 'locked' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] }
+    ] })
+    let n = 0
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {}, openFile: async () => ({ path: '/tmp/in.sbx.json', contents: bundle }), genId: () => `new-${n++}` })
+    const r = await h['def:import']()
+    expect(r.ok && r.data.imported).toEqual(['Alpha (imported)'])
+    expect(store.listDefinitions().map((d) => d.name).sort()).toEqual(['Alpha', 'Alpha (imported)'])
+    expect(store.getDefinitionSpec('new-0')).not.toBeNull()
+  })
+  it('def:import surfaces an error for a malformed file', async () => {
+    const h = buildHandlers({ adapter, store: openStore(':memory:'), probes, openTerminal: () => {}, openFile: async () => ({ path: '/tmp/x', contents: 'not json' }) })
+    const r = await h['def:import']()
+    expect(r.ok).toBe(false)
+  })
+
   it('wraps thrown errors as {ok:false}', async () => {
     const boom: SbxAdapter = { ...adapter, listSandboxes: async () => { throw new Error('kaboom') } }
     const h = buildHandlers({ adapter: boom, store: openStore(":memory:"), probes, openTerminal: () => {} })
