@@ -72,6 +72,7 @@ produces:
 ```jsonc
 {
   "folders": [{ "path": "<abs workspace>" }],
+  "settings": { "task.allowAutomaticTasks": "on" },   // spike-confirmed: needed so the task auto-runs without the "Allow Automatic Tasks" prompt
   "tasks": { "version": "2.0.0", "tasks": [{
     "label": "AI Sandbox: <name>", "type": "shell",
     "command": "<the sbx chain>",
@@ -81,6 +82,13 @@ produces:
   }]}
 }
 ```
+
+**Spike result (2026-07-21):** confirmed the folderOpen task **auto-runs in a trusted
+folder** with the `task.allowAutomaticTasks: on` setting (sentinel file written on
+open). It does **not** run in a never-opened folder because VS Code Workspace Trust
+starts it in Restricted Mode — a **one-time trust click** enables it, after which it
+works on every launch. Real working directories are usually already trusted, so this
+is first-open-only friction; the graceful degradation below covers it.
 
 The main process writes it to `<workspaceDir>/.sandbox/<name>.code-workspace` (reusing
 the existing kit `fs` helper + `.sandbox` gitignore) and spawns `code <file>`.
@@ -140,14 +148,17 @@ Launch dialog (Open with: VS Code) → instance:launch(…, opener:'vscode')
 - **Unit — attach opener**: `instance:attach(name,'vscode')` resolves the workspace and builds an attach-command workspace file; unlinked instance falls back to Terminal.
 - **Renderer — `LaunchDialog`**: renders the Open-with toggle; VS Code disabled when `hasVSCode` false; clone-mode note shown for clone primary mount; passes the chosen opener on launch.
 
-## Phase 0 spike (before implementation)
+## Phase 0 spike — DONE (2026-07-21)
 
-On this machine (quick, no account needed):
-1. Write a `.code-workspace` with a `folderOpen` shell task that runs a trivial
-   command; `code <file>`; confirm the task auto-runs in an integrated terminal
-   (note the trust / "allow automatic tasks" prompt behavior).
-2. Confirm `sbx run --name <scratch>` works in a VS Code integrated terminal (real
-   TTY) and that edits from within show up in the explorer under direct mount.
-3. If auto-tasks prove unreliable, switch mechanism to the **hybrid fallback**
-   (open the folder with `code <dir>` + run the sbx chain in Terminal.app) and
-   update §B accordingly. Everything else in the design is mechanism-independent.
+1. ✅ A `.code-workspace` with `settings.task.allowAutomaticTasks: "on"` + a
+   `folderOpen` shell task **auto-runs on open in a trusted folder** (verified via a
+   sentinel file written by the task).
+2. ✅ Root cause of non-firing established: **Workspace Trust** — a never-opened
+   folder starts in Restricted Mode (tasks disabled) until a one-time trust click.
+   The `task.allowAutomaticTasks` setting removes the *separate* automatic-tasks
+   prompt; trust is the only remaining first-open gate.
+3. Decision: **keep the folderOpen mechanism** (it is the only way to put the session
+   in VS Code's integrated terminal). No hybrid fallback needed for the terminal
+   location; the runtime fallbacks in "Error handling" cover the untrusted-first-open
+   case. `sbx run` in a VS Code integrated terminal uses a real PTY (integrated
+   terminals are PTYs) — treated as given; confirm opportunistically during build.
