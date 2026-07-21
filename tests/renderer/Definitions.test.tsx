@@ -41,3 +41,39 @@ describe('Definitions screen', () => {
     expect(onEdit).toHaveBeenCalledWith('d1')
   })
 })
+
+const two: Definition[] = [
+  { id: 'd1', name: 'Alpha', description: '', baseImage: 'i:t', tier: 'locked', createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'd2', name: 'Beta', description: '', baseImage: 'i:t', tier: 'open', createdAt: '2026-01-02T00:00:00Z' }
+]
+
+describe('Definitions import/export', () => {
+  it('Export is disabled until a row is selected, then exports selected ids', () => {
+    const onExport = vi.fn()
+    render(<Definitions definitions={two} onCreate={() => {}} onImport={vi.fn()} onExport={onExport} />)
+    const headerExport = screen.getByRole('button', { name: /export selected/i })
+    expect(headerExport).toBeDisabled()
+    fireEvent.click(screen.getByLabelText('Select Alpha'))
+    expect(headerExport).not.toBeDisabled()
+    fireEvent.click(headerExport)
+    expect(onExport).toHaveBeenCalledWith(['d1'])
+  })
+  it('select-all selects every row and shows the count', () => {
+    render(<Definitions definitions={two} onCreate={() => {}} onImport={vi.fn()} onExport={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Select all'))
+    expect(screen.getByText(/2 selected/i)).toBeInTheDocument()
+  })
+  it('per-row Export exports just that definition', () => {
+    const onExport = vi.fn()
+    render(<Definitions definitions={two} onCreate={() => {}} onImport={vi.fn()} onExport={onExport} />)
+    // Header button has aria-label "Export selected"; per-row buttons are named "Export".
+    fireEvent.click(screen.getAllByRole('button', { name: /^export$/i })[0]) // first row (Alpha)
+    expect(onExport).toHaveBeenCalledWith(['d1'])
+  })
+  it('Import calls onImport', () => {
+    const onImport = vi.fn()
+    render(<Definitions definitions={two} onCreate={() => {}} onImport={onImport} onExport={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    expect(onImport).toHaveBeenCalled()
+  })
+})

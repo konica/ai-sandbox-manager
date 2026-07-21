@@ -43,6 +43,7 @@ export default function App(): JSX.Element {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
   const [hasVSCode, setHasVSCode] = useState(false)
+  const [defFlash, setDefFlash] = useState<{ kind: 'info' | 'error'; text: string } | null>(null)
   const [launchCloneMode, setLaunchCloneMode] = useState(false)
   const t = useT()
 
@@ -90,6 +91,22 @@ export default function App(): JSX.Element {
     if (r.ok && r.data) setWizard({ spec: r.data })
     else if (r.ok) setNotice({ kind: 'error', text: t('instances.actionFailed', { message: 'Definition not found' }) })
     else setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
+  }
+
+  async function onImportDefs(): Promise<void> {
+    const r = await api.defImport()
+    if (!r.ok) { setDefFlash({ kind: 'error', text: t('definitions.importError') }); return }
+    if (r.data.canceled) return
+    await loadDefs()
+    const count = r.data.imported?.length ?? 0
+    const skipped = r.data.skipped ?? 0
+    setDefFlash({ kind: 'info', text: skipped > 0 ? t('definitions.importedSkipped', { count, skipped }) : t('definitions.imported', { count }) })
+  }
+  async function onExportDefs(ids: string[]): Promise<void> {
+    const r = await api.defExport(ids)
+    if (!r.ok) { setDefFlash({ kind: 'error', text: t('definitions.exportError') }); return }
+    if (r.data.canceled) return
+    setDefFlash({ kind: 'info', text: t('definitions.exported', { count: r.data.count ?? 0 }) })
   }
 
   async function openLaunchDialog(definitionId: string): Promise<void> {
@@ -168,7 +185,7 @@ export default function App(): JSX.Element {
       {screen === 'definitions' && (
         wizard
           ? <CreateDefinition initial={wizard.spec} onDone={() => { setWizard(null); void loadDefs() }} onCancel={() => setWizard(null)} />
-          : <Definitions definitions={defs} onCreate={() => setWizard({})} onLaunch={(id) => void openLaunchDialog(id)} onEdit={(id) => void openEditor(id)} launchingId={busyId} />
+          : <Definitions definitions={defs} onCreate={() => setWizard({})} onLaunch={(id) => void openLaunchDialog(id)} onEdit={(id) => void openEditor(id)} onImport={() => void onImportDefs()} onExport={(ids) => void onExportDefs(ids)} flash={defFlash} launchingId={busyId} />
       )}
       {screen === 'instances' && (() => {
         const detail = detailName ? instances.find((i) => i.name === detailName) : null

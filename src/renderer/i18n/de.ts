@@ -40,7 +40,20 @@ export const de: Dict = {
     colActions: 'Aktionen',
     launch: 'Starten',
     launching: 'Wird gestartet…',
-    edit: 'Bearbeiten'
+    edit: 'Bearbeiten',
+    export: 'Exportieren',
+    exportSelected: 'Ausgewählte exportieren',
+    import: 'Importieren',
+    exportHint: 'Definitionen zum Exportieren auswählen',
+    selectAll: 'Alle auswählen',
+    selectOne: '{name} auswählen',
+    selectedCount: '{count} ausgewählt',
+    clearSelection: 'Auswahl aufheben',
+    exported: '{count} Definition(en) exportiert.',
+    imported: '{count} Definition(en) importiert.',
+    importedSkipped: '{count} importiert, {skipped} übersprungen.',
+    exportError: 'Die ausgewählten Definitionen konnten nicht exportiert werden.',
+    importError: 'Keine gültige .sbx.json-Definitionsdatei.'
   },
   instances: {
     title: 'Instanzen',

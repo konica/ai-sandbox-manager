@@ -38,7 +38,20 @@ export const en = {
     colActions: 'Actions',
     launch: 'Launch',
     launching: 'Launching…',
-    edit: 'Edit'
+    edit: 'Edit',
+    export: 'Export',
+    exportSelected: 'Export selected',
+    import: 'Import',
+    exportHint: 'Select definitions to export',
+    selectAll: 'Select all',
+    selectOne: 'Select {name}',
+    selectedCount: '{count} selected',
+    clearSelection: 'Clear selection',
+    exported: 'Exported {count} definition(s).',
+    imported: 'Imported {count} definition(s).',
+    importedSkipped: 'Imported {count}, skipped {skipped}.',
+    exportError: 'Could not export the selected definitions.',
+    importError: 'Not a valid .sbx.json definition file.'
   },
   instances: {
     title: 'Instances',
