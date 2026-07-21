@@ -11,6 +11,7 @@ import { AppShell, type NavScreen } from './components/AppShell'
 import { ConfirmModal } from './components/ConfirmModal'
 import { LaunchDialog } from './components/LaunchDialog'
 import { AuthNudge } from './components/AuthNudge'
+import { OpenWithDialog } from './components/OpenWithDialog'
 import { useT } from './i18n'
 
 type Phase =
@@ -27,6 +28,7 @@ export default function App(): JSX.Element {
   const [pending, setPending] = useState<{ kind: 'stop' | 'remove'; name: string } | null>(null)
   const [launchFor, setLaunchFor] = useState<Definition | null>(null)
   const [nudgeFor, setNudgeFor] = useState<Definition | null>(null)
+  const [attachFor, setAttachFor] = useState<string | null>(null)
   const [detailName, setDetailName] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
@@ -116,7 +118,7 @@ export default function App(): JSX.Element {
     if (!r.ok && r.error) setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
     await loadInstances()
   }
-  function onAttach(name: string): void { void runAction(api.instanceAttach(name)) }
+  function onAttach(name: string): void { setAttachFor(name) }
   function onShell(name: string): void { void runAction(api.instanceShell(name)) }
   function onConfirmPending(): void {
     const p = pending
@@ -206,6 +208,14 @@ export default function App(): JSX.Element {
           onSignIn={() => { setNudgeFor(null); void api.authStartLogin() }}
           onUseKey={() => { const d = nudgeFor; setNudgeFor(null); void openEditor(d.id) }}
           onCancel={() => setNudgeFor(null)}
+        />
+      )}
+      {attachFor && (
+        <OpenWithDialog
+          title={t('launch.attachTitle', { name: attachFor })}
+          hasVSCode={hasVSCode}
+          onChoose={(opener) => { const n = attachFor; setAttachFor(null); void runAction(api.instanceAttach(n, opener)) }}
+          onCancel={() => setAttachFor(null)}
         />
       )}
     </AppShell>
