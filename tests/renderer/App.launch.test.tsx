@@ -18,13 +18,15 @@ vi.mock('../../src/renderer/ipc/client', () => ({
     instancesList: () => instancesList(),
     defList: () => defList(),
     defCreate: async () => ({ ok: true, data: { id: 'id1' } }),
-    instanceLaunch: (id: string, name?: string, session?: string) => instanceLaunch(id, name, session),
-    instanceAttach: (n: string) => instanceAttach(n),
+    defGetSpec: async () => ({ ok: true, data: { definition: { id: 'd1', name: 'My Project', description: '', baseImage: 'img:tag', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] } }),
+    instanceLaunch: (id: string, name?: string, session?: string, opener?: string) => instanceLaunch(id, name, session, opener),
+    instanceAttach: (n: string, opener?: string) => instanceAttach(n, opener),
     instanceShell: (n: string) => instanceShell(n),
     instanceStop: (n: string) => instanceStop(n),
     instanceRemove: (n: string) => instanceRemove(n),
     authLaunchPrecheck: (id: string) => authLaunchPrecheck(id),
-    authStartLogin: () => authStartLogin()
+    authStartLogin: () => authStartLogin(),
+    envHasVSCode: async () => ({ ok: true, data: { present: true } })
   }
 }))
 
@@ -55,7 +57,7 @@ describe('App launch & lifecycle wiring', () => {
     const dialog = await screen.findByRole('dialog')
     fireEvent.change(within(dialog).getByLabelText('Session name'), { target: { value: 'Refactor auth' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Launch' }))
-    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', undefined, 'Refactor auth'))
+    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', undefined, 'Refactor auth', 'terminal'))
   })
 
   it('shows the OAuth nudge (not the launch dialog) when Claude has no credential', async () => {

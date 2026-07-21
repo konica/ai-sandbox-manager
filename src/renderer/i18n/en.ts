@@ -72,6 +72,12 @@ export const en = {
     sessionLabel: 'Session name (optional)',
     sessionPlaceholder: 'e.g. Refactor auth',
     sessionSub: 'Display name for the Claude Code session (claude --name).',
+    openWith: 'Open with',
+    openTerminal: 'Terminal',
+    openVSCode: 'VS Code',
+    openVSCodeUnavailable: 'VS Code CLI (code) not found on PATH.',
+    openVSCodeCloneNote: 'VS Code shows the host folder. In clone mode the agent edits an in-container copy, so its changes appear via the sandbox-<name> git remote, not live.',
+    attachTitle: 'Open agent session for “{name}”',
     launch: 'Launch',
     cancel: 'Cancel'
   },

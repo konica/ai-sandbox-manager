@@ -30,7 +30,11 @@ export default function App(): JSX.Element {
   const [detailName, setDetailName] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
+  const [hasVSCode, setHasVSCode] = useState(false)
+  const [launchCloneMode, setLaunchCloneMode] = useState(false)
   const t = useT()
+
+  useEffect(() => { void api.envHasVSCode().then((r) => { if (r.ok) setHasVSCode(r.data.present) }) }, [])
 
   const loadDefs = useCallback(async () => {
     const r = await api.defList()
@@ -82,17 +86,20 @@ export default function App(): JSX.Element {
     setNotice(null)
     // Nudge a host-side OAuth sign-in when Claude has no credential (non-blocking).
     const pre = await api.authLaunchPrecheck(def.id)
+    // Clone-mode note: VS Code shows the host copy, not the agent's in-container clone.
+    const specR = await api.defGetSpec(def.id)
+    setLaunchCloneMode(specR.ok && !!specR.data && ((specR.data.mounts.find((m) => m.isPrimary) ?? specR.data.mounts[0])?.mode === 'clone'))
     if (pre.ok && pre.data.needsNudge) { setNudgeFor(def); return }
     setLaunchFor(def)
     void loadInstances() // refresh existing sandbox names for the dialog
   }
 
-  async function submitLaunch(definition: Definition, sessionName: string): Promise<void> {
+  async function submitLaunch(definition: Definition, sessionName: string, opener: 'terminal' | 'vscode'): Promise<void> {
     setLaunchFor(null)
     setNotice(null)
     setBusyId(definition.id)
     try {
-      const r = await api.instanceLaunch(definition.id, undefined, sessionName)
+      const r = await api.instanceLaunch(definition.id, undefined, sessionName, opener)
       if (r.ok) {
         setNotice({ kind: 'info', text: t('instances.launched', { name: r.data.name }) })
         setScreen('instances')
@@ -186,7 +193,9 @@ export default function App(): JSX.Element {
       {launchFor && (
         <LaunchDialog
           definition={launchFor}
-          onLaunch={(session) => void submitLaunch(launchFor, session)}
+          hasVSCode={hasVSCode}
+          cloneMode={launchCloneMode}
+          onLaunch={(session, opener) => void submitLaunch(launchFor, session, opener)}
           onCancel={() => setLaunchFor(null)}
         />
       )}

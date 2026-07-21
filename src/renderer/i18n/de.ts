@@ -74,6 +74,12 @@ export const de: Dict = {
     sessionLabel: 'Session-Name (optional)',
     sessionPlaceholder: 'z. B. Auth überarbeiten',
     sessionSub: 'Anzeigename für die Claude-Code-Session (claude --name).',
+    openWith: 'Öffnen mit',
+    openTerminal: 'Terminal',
+    openVSCode: 'VS Code',
+    openVSCodeUnavailable: 'VS-Code-CLI (code) nicht im PATH gefunden.',
+    openVSCodeCloneNote: 'VS Code zeigt den Host-Ordner. Im Clone-Modus bearbeitet der Agent eine Kopie im Container; seine Änderungen erscheinen über das Git-Remote sandbox-<name>, nicht live.',
+    attachTitle: 'Agent-Session für „{name}“ öffnen',
     launch: 'Starten',
     cancel: 'Abbrechen'
   },
