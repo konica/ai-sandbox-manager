@@ -1,8 +1,9 @@
 import { useT } from '../i18n'
 
 /**
- * Minimal opener chooser for attach / open-agent-session. Terminal is primary; VS Code
- * is disabled when the `code` CLI isn't available. Reuses the launch.* i18n keys.
+ * Minimal opener chooser for attach / open-agent-session. VS Code is the primary
+ * (default) action when the `code` CLI is available; otherwise Terminal is primary
+ * and VS Code is disabled. Reuses the launch.* i18n keys.
  */
 export function OpenWithDialog({ title, hasVSCode, onChoose, onCancel }: {
   title: string
@@ -11,14 +12,17 @@ export function OpenWithDialog({ title, hasVSCode, onChoose, onCancel }: {
   onCancel: () => void
 }): JSX.Element {
   const t = useT()
+  // The primary (rightmost, emphasised) button is the default opener: VS Code when
+  // available, Terminal otherwise.
+  const terminalBtn = <button className={`btn ${hasVSCode ? 'btn-secondary' : 'btn-primary'}`} onClick={() => onChoose('terminal')}>{t('launch.openTerminal')}</button>
+  const vscodeBtn = <button className={`btn ${hasVSCode ? 'btn-primary' : 'btn-secondary'}`} disabled={!hasVSCode} onClick={() => onChoose('vscode')}>{t('launch.openVSCode')}</button>
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label={title} onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3 className="modal-title">{title}</h3>
         <div className="modal-actions" style={{ marginTop: 'var(--space-4)', gap: 'var(--space-2)' }}>
           <button className="btn btn-secondary" onClick={onCancel}>{t('launch.cancel')}</button>
-          <button className="btn btn-secondary" disabled={!hasVSCode} onClick={() => onChoose('vscode')}>{t('launch.openVSCode')}</button>
-          <button className="btn btn-primary" onClick={() => onChoose('terminal')}>{t('launch.openTerminal')}</button>
+          {hasVSCode ? <>{terminalBtn}{vscodeBtn}</> : <>{vscodeBtn}{terminalBtn}</>}
         </div>
         {!hasVSCode && <p className="section-desc" style={{ fontSize: 11, margin: '8px 0 0' }}>{t('launch.openVSCodeUnavailable')}</p>}
       </div>
