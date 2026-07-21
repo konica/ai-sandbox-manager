@@ -97,6 +97,9 @@ export function CreateDefinition({
   }
 
   const row = { display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' } as const
+  const folderRowStyle = { display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '8px 12px', background: 'var(--surface-2, rgba(127,127,127,.08))', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' } as const
+  const accessPillStyle = { flexShrink: 0, border: '1px solid var(--border)', borderRadius: 999, padding: '2px 12px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', background: 'var(--surface, #fff)', color: 'var(--text-secondary)', cursor: 'pointer' } as const
+  const folderRemoveStyle = { flexShrink: 0, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 2 } as const
   const stepKeys = ['workspace', 'baseImage', 'network', 'credentials', 'ports', 'review']
 
   return (
@@ -151,17 +154,24 @@ export function CreateDefinition({
               </div>
               {draft.extraFolders.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 'var(--space-2)' }}>
-                  {draft.extraFolders.map((f, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                      <span className="code-inline" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.path}>{f.path}</span>
-                      <select aria-label={`Access for ${f.path}`} className="input" style={{ maxWidth: 140, fontSize: 12 }} value={f.mode === 'direct' ? 'rw' : 'ro'}
-                        onChange={(e) => dispatch({ type: 'setExtraFolderMode', index: i, mode: e.target.value === 'rw' ? 'direct' : 'clone' })}>
-                        <option value="ro">{t('wizard.modeReadOnly')}</option>
-                        <option value="rw">{t('wizard.modeReadWrite')}</option>
-                      </select>
-                      <button className="btn btn-ghost btn-sm" aria-label={`Remove ${f.path}`} style={{ color: 'var(--danger)' }} onClick={() => dispatch({ type: 'removeExtraFolder', index: i })}>✕</button>
-                    </div>
-                  ))}
+                  {draft.extraFolders.map((f, i) => {
+                    const rw = f.mode === 'direct'
+                    return (
+                      <div key={i} style={folderRowStyle}>
+                        <span style={{ flex: '1 1 auto', fontFamily: 'var(--font-mono, monospace)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.path}>{f.path}</span>
+                        <button
+                          type="button"
+                          aria-label={`Access for ${f.path}: ${rw ? t('wizard.modeReadWrite') : t('wizard.modeReadOnly')} (click to toggle)`}
+                          title={t('wizard.folderAccessToggle')}
+                          style={accessPillStyle}
+                          onClick={() => dispatch({ type: 'setExtraFolderMode', index: i, mode: rw ? 'clone' : 'direct' })}
+                        >
+                          {rw ? t('wizard.modeReadWrite') : t('wizard.modeReadOnly')}
+                        </button>
+                        <button type="button" aria-label={`Remove ${f.path}`} style={folderRemoveStyle} onClick={() => dispatch({ type: 'removeExtraFolder', index: i })}>✕</button>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </>

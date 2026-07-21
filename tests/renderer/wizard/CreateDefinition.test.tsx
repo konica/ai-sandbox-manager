@@ -23,6 +23,14 @@ beforeEach(() => {
 })
 
 describe('CreateDefinition wizard', () => {
+  it('adds an extra folder (default read-only) and toggles its access to read-write', () => {
+    render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Extra folder path'), { target: { value: '/home/u/shared' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add Folder' }))
+    const pill = screen.getByRole('button', { name: /home\/u\/shared: read-only/i })
+    fireEvent.click(pill)
+    expect(screen.getByRole('button', { name: /home\/u\/shared: read-write/i })).toBeInTheDocument()
+  })
   it('disables Next on step 1 until a working directory is entered', () => {
     render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
     expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()

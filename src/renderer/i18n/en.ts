@@ -264,6 +264,7 @@ export const en = {
     extraFolders: 'Extra folders',
     extraPlaceholder: '/path/to/extra/folder',
     addFolder: 'Add Folder',
+    folderAccessToggle: 'Click to toggle read-only / read-write',
     builtinTemplates: 'Built-in templates',
     customOption: 'Custom registry image…',
     imageRefLabel: 'Image reference',

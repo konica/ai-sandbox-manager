@@ -266,6 +266,7 @@ export const de: Dict = {
     extraFolders: 'Zusätzliche Ordner',
     extraPlaceholder: '/pfad/zum/zusätzlichen/ordner',
     addFolder: 'Ordner hinzufügen',
+    folderAccessToggle: 'Klicken zum Umschalten schreibgeschützt / Lese-Schreib',
     builtinTemplates: 'Integrierte Vorlagen',
     customOption: 'Eigenes Registry-Image…',
     imageRefLabel: 'Image-Referenz',
