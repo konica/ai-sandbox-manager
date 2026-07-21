@@ -105,7 +105,7 @@ export function CreateDefinition({
   return (
     <section className="screen active">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="section-title" style={{ marginBottom: 0 }}>{isEdit ? t('common.editSandbox') : t('common.createSandbox')}</h2>
+        <h2 className="section-title" style={{ marginBottom: 0 }}>{initial ? t('common.editSandboxNamed', { name: initial.definition.name }) : t('common.createSandbox')}</h2>
         <button className="btn btn-ghost" onClick={onCancel}>{t('common.cancel')}</button>
       </div>
 
@@ -115,10 +115,11 @@ export function CreateDefinition({
             const n = idx + 1
             const cls = n === draft.step ? 'active' : n < draft.step ? 'completed' : ''
             return (
-              <div key={n} className={`wizard-step ${cls}`}>
+              <button key={n} type="button" className={`wizard-step ${cls}`} onClick={() => dispatch({ type: 'goToStep', step: n })}
+                style={{ background: 'none', border: 'none', font: 'inherit', cursor: 'pointer' }}>
                 <span className="wizard-step-num">{n}</span>
                 {t(`wizard.steps.${stepKeys[idx]}`)}
-              </div>
+              </button>
             )
           })}
         </div>

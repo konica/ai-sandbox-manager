@@ -31,6 +31,16 @@ describe('CreateDefinition wizard', () => {
     fireEvent.click(pill)
     expect(screen.getByRole('button', { name: /home\/u\/shared: read-write/i })).toBeInTheDocument()
   })
+  it('jumps to a step when its header is clicked', () => {
+    render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /base image/i }))
+    expect(screen.getByLabelText(/built-in templates/i)).toBeInTheDocument()
+  })
+  it('shows the sandbox name in the title when editing', () => {
+    const spec = { definition: { id: 'd1', name: 'full-stack-project-template', description: '', baseImage: 'img:tag', tier: 'locked' as const, createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct' as const, isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] }
+    render(<CreateDefinition initial={spec} onDone={() => {}} onCancel={() => {}} />)
+    expect(screen.getByRole('heading', { name: /edit sandbox: full-stack-project-template/i })).toBeInTheDocument()
+  })
   it('disables Next on step 1 until a working directory is entered', () => {
     render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
     expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()

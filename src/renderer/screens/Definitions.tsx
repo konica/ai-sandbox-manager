@@ -11,15 +11,6 @@ function PlusIcon(): JSX.Element {
   )
 }
 
-function EditIcon(): JSX.Element {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-    </svg>
-  )
-}
-
 function LaunchIcon(): JSX.Element {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -107,7 +98,7 @@ export function Definitions({ definitions, onCreate, onLaunch, onEdit, onImport,
                   <tr key={d.id} className={selected.has(d.id) ? 'selected' : undefined}>
                     <td style={{ width: 40, textAlign: 'center' }}><input type="checkbox" aria-label={t('definitions.selectOne', { name: d.name })} checked={selected.has(d.id)} onChange={() => toggle(d.id)} style={{ cursor: 'pointer' }} /></td>
                     <td>
-                      <strong style={{ fontSize: 13, fontWeight: 510 }}>{d.name}</strong>
+                      <button className="link-button" style={{ fontSize: 13, fontWeight: 510, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)' }} onClick={() => onEdit?.(d.id)}>{d.name}</button>
                       {d.description && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{d.description}</div>}
                     </td>
                     <td><span className="code-inline">{d.baseImage}</span></td>
@@ -115,7 +106,6 @@ export function Definitions({ definitions, onCreate, onLaunch, onEdit, onImport,
                     <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{d.createdAt.slice(0, 10)}</td>
                     <td>
                       <div className="flex" style={{ gap: 'var(--space-2)', whiteSpace: 'nowrap' }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => onEdit?.(d.id)}><EditIcon /> {t('definitions.edit')}</button>
                         <button className="btn btn-primary btn-sm" disabled={launchingId === d.id} onClick={() => onLaunch?.(d.id)}><LaunchIcon /> {launchingId === d.id ? t('definitions.launching') : t('definitions.launch')}</button>
                         <button className="btn btn-ghost btn-sm" aria-label={t('definitions.removeOne', { name: d.name })} style={{ color: 'var(--danger)' }} onClick={() => onRemove?.(d.id)}><TrashIcon /> {t('definitions.remove')}</button>
                       </div>

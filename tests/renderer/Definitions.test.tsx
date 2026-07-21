@@ -34,10 +34,11 @@ describe('Definitions screen', () => {
     expect(onLaunch).toHaveBeenCalledWith('d1')
   })
 
-  it('invokes onEdit with the definition id', () => {
+  it('opens the editor when the definition name is clicked (no Edit button)', () => {
     const onEdit = vi.fn()
     render(<Definitions definitions={defs} onCreate={() => {}} onEdit={onEdit} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'prj-alpha' }))
     expect(onEdit).toHaveBeenCalledWith('d1')
   })
 })

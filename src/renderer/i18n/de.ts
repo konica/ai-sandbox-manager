@@ -16,6 +16,7 @@ export const de: Dict = {
     browse: 'Durchsuchen…',
     createSandbox: 'Sandbox erstellen',
     editSandbox: 'Sandbox bearbeiten',
+    editSandboxNamed: 'Sandbox bearbeiten: {name}',
     save: 'Änderungen speichern'
   },
   prereq: {

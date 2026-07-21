@@ -14,6 +14,7 @@ export const en = {
     browse: 'Browse…',
     createSandbox: 'Create Sandbox',
     editSandbox: 'Edit Sandbox',
+    editSandboxNamed: 'Edit Sandbox: {name}',
     save: 'Save Changes'
   },
   prereq: {
