@@ -280,7 +280,7 @@ export const de: Dict = {
   },
   wizard: {
     stepOf: 'Schritt {n} von {total}',
-    steps: { workspace: 'Arbeitsverzeichnis', baseImage: 'Basis-Image', network: 'Netzwerk', ports: 'Ports', credentials: 'Anmeldedaten', review: 'Überprüfung' },
+    steps: { workspace: 'Arbeitsverzeichnis', baseImage: 'Basis-Image', network: 'Netzwerk', ports: 'Ports', credentials: 'Anmeldedaten', advanced: 'Erweitert', review: 'Überprüfung' },
     nameLabel: 'Sandbox-Name',
     namePlaceholder: 'meine-sandbox',
     nameHint: 'Leer lassen, um den Ordnernamen des Arbeitsverzeichnisses zu verwenden.',
@@ -328,7 +328,18 @@ export const de: Dict = {
     modeReadWrite: 'Lese-/Schreibzugriff',
     modeReadOnly: 'schreibgeschützt',
     error: 'Fehler',
-    stageFailed: 'Definition gespeichert, aber ein Anmeldedaten-Wert konnte nicht gespeichert werden: {message}'
+    stageFailed: 'Definition gespeichert, aber ein Anmeldedaten-Wert konnte nicht gespeichert werden: {message}',
+    advancedTitle: 'Erweiterte Einstellungen',
+    advancedSubtitle: 'Passen Sie die Sandbox mit einem Kit an — deklarative Konfiguration, die in das generierte Kit eingefügt wird.',
+    kitReference: 'Kit-Referenz →',
+    customKitYaml: 'Benutzerdefiniertes Kit-YAML',
+    customKitYamlHelp: 'Fügen Sie einen commands:-Block ein (install / startup / initFiles). Wird in das Kit dieser Definition eingefügt. Leer lassen zum Überspringen.',
+    reformat: 'Neu formatieren',
+    validate: 'Validieren',
+    kitReformatted: 'Formatiert.',
+    kitYamlInvalid: 'Benutzerdefiniertes Kit-YAML ist ungültig: {message}',
+    communityMixins: 'Community-Mixins',
+    communityMixinsComingSoon: 'Community-Mixin-Kits durchsuchen und anwenden — demnächst.'
   },
   tier: { open: 'Offen', balanced: 'Ausgewogen', locked: 'Abgeschottet', custom: 'Benutzerdefiniert' },
   status: { running: 'Läuft', stopped: 'Gestoppt', error: 'Fehler', unknown: 'Unbekannt' }

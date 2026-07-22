@@ -87,7 +87,7 @@ describe('draftReducer', () => {
     expect(d.step).toBe(1)
   })
   it('does not advance past the last step or before the first', () => {
-    expect(draftReducer({ ...initialDraft, step: 6 }, { type: 'next' }).step).toBe(6)
+    expect(draftReducer({ ...initialDraft, step: 7 }, { type: 'next' }).step).toBe(7)
     expect(draftReducer({ ...initialDraft, step: 1 }, { type: 'back' }).step).toBe(1)
   })
   it('adds and removes domains', () => {
@@ -119,6 +119,19 @@ describe('draftReducer', () => {
     // toSpec carries the chosen access into the mount (direct = read-write, clone = read-only)
     const spec = toSpec({ ...d, workspace: '/w', name: 'p' }, 'id', 't')
     expect(spec.mounts).toContainEqual({ hostPath: '/lib', mode: 'direct', isPrimary: false })
+  })
+})
+
+describe('kitCommandsYaml', () => {
+  it('round-trips kitCommandsYaml through toSpec/draftFromSpec', () => {
+    const d = { ...initialDraft, workspace: '/w', name: 'p', kitCommandsYaml: 'commands:\n  install: echo hi\n' }
+    const spec = toSpec(d, 'id', 't')
+    expect(spec.kitCommandsYaml).toBe('commands:\n  install: echo hi\n')
+    expect(draftFromSpec(spec).kitCommandsYaml).toBe('commands:\n  install: echo hi\n')
+  })
+  it('omits kitCommandsYaml from the spec when blank', () => {
+    const spec = toSpec({ ...initialDraft, workspace: '/w', name: 'p', kitCommandsYaml: '   ' }, 'id', 't')
+    expect(spec.kitCommandsYaml).toBeUndefined()
   })
 })
 

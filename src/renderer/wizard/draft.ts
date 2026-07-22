@@ -28,7 +28,7 @@ export interface DraftRegistryCred {
 }
 export type DraftCred = DraftServiceCred | DraftCustomCred | DraftRegistryCred
 
-export const TOTAL_STEPS = 6
+export const TOTAL_STEPS = 7
 
 export type BuiltinVariant = 'claude-code' | 'claude-code-docker' | 'claude-code-minimal' | 'opencode' | 'codex' | 'copilot'
 
@@ -64,6 +64,7 @@ export interface Draft {
   credentials: DraftCred[]
   sshForwardAgent: boolean
   sshCommitSigning: boolean
+  kitCommandsYaml: string
 }
 
 export const initialDraft: Draft = {
@@ -80,14 +81,15 @@ export const initialDraft: Draft = {
   hostServices: [],
   credentials: [],
   sshForwardAgent: true,
-  sshCommitSigning: false
+  sshCommitSigning: false,
+  kitCommandsYaml: ''
 }
 
 export type DraftAction =
   | { type: 'next' }
   | { type: 'back' }
   | { type: 'goToStep'; step: number }
-  | { type: 'setField'; field: 'name' | 'description' | 'customImageRef' | 'workspace'; value: string }
+  | { type: 'setField'; field: 'name' | 'description' | 'customImageRef' | 'workspace' | 'kitCommandsYaml'; value: string }
   | { type: 'setImageChoice'; value: BuiltinVariant | 'custom' }
   | { type: 'setTier'; tier: Tier }
   | { type: 'addExtraFolder'; path: string; mode: MountMode }
@@ -189,7 +191,8 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
       return { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: [...c.domains], value: '' }
     }),
     sshForwardAgent: (spec.ssh ?? DEFAULT_SSH).forwardAgent,
-    sshCommitSigning: (spec.ssh ?? DEFAULT_SSH).commitSigning
+    sshCommitSigning: (spec.ssh ?? DEFAULT_SSH).commitSigning,
+    kitCommandsYaml: spec.kitCommandsYaml ?? ''
   }
 }
 
@@ -208,6 +211,7 @@ export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec 
       if (c.kind === 'registry') return { kind: 'registry', id: c.id, host: c.host, username: c.username.trim() || undefined, scope: c.scope, store: 'sbx' }
       return { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: c.domains, store: 'encrypted' }
     }),
-    ssh: { forwardAgent: d.sshForwardAgent, commitSigning: d.sshForwardAgent && d.sshCommitSigning }
+    ssh: { forwardAgent: d.sshForwardAgent, commitSigning: d.sshForwardAgent && d.sshCommitSigning },
+    kitCommandsYaml: d.kitCommandsYaml.trim() ? d.kitCommandsYaml : undefined
   }
 }
