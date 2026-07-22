@@ -64,6 +64,7 @@ export interface PolicyEvent {
   host: string
   allowed: boolean
   reason: string
+  proxyType: string // proxy handling: forward | forward-bypass | transparent | network | browser-open | '' (absent/unknown)
   count: number // requests to this host since it was first seen
 }
 

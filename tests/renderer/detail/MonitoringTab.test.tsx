@@ -4,8 +4,8 @@ import { MonitoringTab } from '../../../src/renderer/screens/detail/MonitoringTa
 
 const summary = {
   allowed: 42, blocked: 5, events: [
-    { at: '2026-07-19T10:15:23', host: 'api.anthropic.com:443', allowed: true, reason: 'domain-allowed', count: 40 },
-    { at: '2026-07-19T10:15:15', host: 'telemetry.example.com:443', allowed: false, reason: 'default deny', count: 7 }
+    { at: '2026-07-19T10:15:23', host: 'api.anthropic.com:443', allowed: true, reason: 'domain-allowed', proxyType: '', count: 40 },
+    { at: '2026-07-19T10:15:15', host: 'telemetry.example.com:443', allowed: false, reason: 'default deny', proxyType: '', count: 7 }
   ]
 }
 const base = { onAllow: vi.fn(), onDeny: vi.fn() }
