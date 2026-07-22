@@ -336,8 +336,6 @@ export const en = {
     validate: 'Validate',
     kitReformatted: 'Formatted.',
     kitYamlInvalid: 'Custom kit YAML is invalid: {message}',
-    communityMixins: 'Community Mixins',
-    communityMixinsComingSoon: 'Browse and apply community mixin kits — coming soon.',
     saving: 'Saving…',
     saved: 'Saved ✓'
   },

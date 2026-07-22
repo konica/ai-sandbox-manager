@@ -299,10 +299,6 @@ export function CreateDefinition({
                 }}>{t('wizard.validate')}</button>
               </div>
               {kitMsg && <p style={{ fontSize: 12, marginTop: 'var(--space-2)', color: kitMsg.kind === 'error' ? 'var(--danger)' : 'var(--success, var(--accent))' }}>{kitMsg.text}</p>}
-              <div className="card" style={{ marginTop: 'var(--space-4)', opacity: 0.6 }}>
-                <strong style={{ fontSize: 13 }}>{t('wizard.communityMixins')}</strong>
-                <p className="section-desc" style={{ margin: 0 }}>{t('wizard.communityMixinsComingSoon')}</p>
-              </div>
             </>
           )}
 

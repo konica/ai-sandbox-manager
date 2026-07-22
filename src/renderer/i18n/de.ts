@@ -338,8 +338,6 @@ export const de: Dict = {
     validate: 'Validieren',
     kitReformatted: 'Formatiert.',
     kitYamlInvalid: 'Benutzerdefiniertes Kit-YAML ist ungültig: {message}',
-    communityMixins: 'Community-Mixins',
-    communityMixinsComingSoon: 'Community-Mixin-Kits durchsuchen und anwenden — demnächst.',
     saving: 'Speichern…',
     saved: 'Gespeichert ✓'
   },
