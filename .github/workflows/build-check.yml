@@ -12,6 +12,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # A transitive dep (@electron/node-gyp via electron-builder) is a GitHub git
+      # dependency; force HTTPS so a runner with no SSH key can fetch it.
+      - run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
