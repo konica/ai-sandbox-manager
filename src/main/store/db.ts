@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS definition (
   tier TEXT NOT NULL,
   created_at TEXT NOT NULL,
   ssh_forward_agent INTEGER NOT NULL DEFAULT 1,
-  ssh_commit_signing INTEGER NOT NULL DEFAULT 0
+  ssh_commit_signing INTEGER NOT NULL DEFAULT 0,
+  kit_commands_yaml TEXT
 );
 CREATE TABLE IF NOT EXISTS instance_meta (
   sbx_name TEXT PRIMARY KEY,
@@ -92,7 +93,7 @@ CREATE TABLE IF NOT EXISTS global_secret (
   store TEXT NOT NULL DEFAULT 'sbx',
   created_at TEXT NOT NULL
 );
-PRAGMA user_version = 7;
+PRAGMA user_version = 8;
 `
 
 export function openStore(filename: string): Store {
@@ -125,6 +126,10 @@ export function openStore(filename: string): Store {
   const imCols = (db.prepare(`PRAGMA table_info(instance_meta)`).all() as { name: string }[]).map((c) => c.name)
   if (!imCols.includes('cred_fingerprint')) {
     db.exec(`ALTER TABLE instance_meta ADD COLUMN cred_fingerprint TEXT;`)
+  }
+  // v7 → v8: definitions gain an optional custom kit commands block. Non-destructive.
+  if (!defCols.includes('kit_commands_yaml')) {
+    db.exec(`ALTER TABLE definition ADD COLUMN kit_commands_yaml TEXT;`)
   }
 
   // v3 → v4: port_intent gains `protocol` + nullable host_port; add host_service. Recreate
@@ -183,10 +188,10 @@ export function openStore(filename: string): Store {
       const insertAll = db.transaction((s: DefinitionSpec) => {
         const ssh = s.ssh ?? DEFAULT_SSH
         db.prepare(
-          `INSERT INTO definition (id, name, description, base_image, tier, created_at, ssh_forward_agent, ssh_commit_signing)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO definition (id, name, description, base_image, tier, created_at, ssh_forward_agent, ssh_commit_signing, kit_commands_yaml)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).run(s.definition.id, s.definition.name, s.definition.description, s.definition.baseImage, s.definition.tier, s.definition.createdAt,
-          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0)
+          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null)
         insertChildren(s)
       })
       insertAll(spec)
@@ -195,9 +200,9 @@ export function openStore(filename: string): Store {
       const updateAll = db.transaction((s: DefinitionSpec) => {
         const ssh = s.ssh ?? DEFAULT_SSH
         const res = db.prepare(
-          `UPDATE definition SET name = ?, description = ?, base_image = ?, tier = ?, ssh_forward_agent = ?, ssh_commit_signing = ? WHERE id = ?`
+          `UPDATE definition SET name = ?, description = ?, base_image = ?, tier = ?, ssh_forward_agent = ?, ssh_commit_signing = ?, kit_commands_yaml = ? WHERE id = ?`
         ).run(s.definition.name, s.definition.description, s.definition.baseImage, s.definition.tier,
-          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.definition.id)
+          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.id)
         if (res.changes === 0) throw new Error(`Definition ${s.definition.id} not found`)
         deleteChildren(s.definition.id)
         insertChildren(s)
@@ -225,7 +230,9 @@ export function openStore(filename: string): Store {
         })
       const sshRow = db.prepare(`SELECT ssh_forward_agent AS fwd, ssh_commit_signing AS sign FROM definition WHERE id = ?`).get(id) as { fwd: number; sign: number } | undefined
       const ssh = { forwardAgent: (sshRow?.fwd ?? 1) === 1, commitSigning: (sshRow?.sign ?? 0) === 1 }
-      return { definition: def, mounts, domains, ports, hostServices, credentials, ssh }
+      const kitRow = db.prepare(`SELECT kit_commands_yaml AS y FROM definition WHERE id = ?`).get(id) as { y: string | null } | undefined
+      const kitCommandsYaml = kitRow?.y ?? undefined
+      return { definition: def, mounts, domains, ports, hostServices, credentials, ssh, kitCommandsYaml }
     },
     deleteDefinition(id) {
       // FK cascade isn't enabled, so remove children explicitly, then the row.

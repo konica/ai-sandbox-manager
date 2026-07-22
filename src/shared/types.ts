@@ -157,6 +157,8 @@ export interface DefinitionSpec {
   hostServices: HostServiceIntent[]
   credentials: CredentialRef[]
   ssh?: SshConfig
+  /** Optional custom kit `commands:` block (install/startup/initFiles), normalized. */
+  kitCommandsYaml?: string
 }
 
 export interface InstanceView extends SbxInstance {
