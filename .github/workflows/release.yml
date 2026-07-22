@@ -29,16 +29,24 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Assert tag matches package.json version
+        shell: bash
+        run: |
+          PKG="v$(node -p "require('./package.json').version")"
+          TAG="${GITHUB_REF_NAME}"
+          [ "$PKG" = "$TAG" ] || { echo "tag $TAG != package.json $PKG"; exit 1; }
       - run: npm ci
       - name: Build renderer/main
         run: npm run build
-      - name: Package + publish (draft)
-        run: npx electron-builder ${{ matrix.builder_args }} --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Package
+        run: npx electron-builder ${{ matrix.builder_args }} --publish never
       - name: Smoke (Linux)
         if: matrix.smoke == 'xvfb'
         run: xvfb-run -a npm run smoke
       - name: Smoke (macOS/Windows)
         if: matrix.smoke == 'gui'
         run: npm run smoke
+      - name: Publish (draft)
+        run: npx electron-builder ${{ matrix.builder_args }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
