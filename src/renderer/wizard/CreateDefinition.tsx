@@ -328,16 +328,29 @@ export function CreateDefinition({
 
         <div className="wizard-actions">
           <button className="btn btn-ghost" onClick={() => void go(draft.step - 1)} disabled={draft.step === 1}>{t('common.back')}</button>
-          {draft.step < TOTAL_STEPS ? (
-            <button className="btn btn-primary" onClick={() => void go(draft.step + 1)} disabled={!canAdvance(draft)}>{t('common.next')}</button>
-          ) : (
-            <button className="btn btn-primary" onClick={() => void submit()} disabled={!draft.workspace.trim()} title={!draft.workspace.trim() ? t('wizard.workspaceRequired') : undefined}>{isEdit ? t('common.save') : t('common.createSandbox')}</button>
-          )}
-          {isEdit && saveState !== 'idle' && (
-            <span aria-live="polite" style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
-              {saveState === 'saving' ? t('wizard.saving') : t('wizard.saved')}
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            {isEdit && (
+              <span
+                aria-live="polite"
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text-muted)',
+                  whiteSpace: 'nowrap',
+                  minWidth: 64,
+                  textAlign: 'right',
+                  opacity: saveState === 'idle' ? 0 : 1,
+                  transition: 'opacity 150ms ease',
+                }}
+              >
+                {saveState === 'saving' ? t('wizard.saving') : saveState === 'saved' ? t('wizard.saved') : ''}
+              </span>
+            )}
+            {draft.step < TOTAL_STEPS ? (
+              <button className="btn btn-primary" onClick={() => void go(draft.step + 1)} disabled={!canAdvance(draft)}>{t('common.next')}</button>
+            ) : (
+              <button className="btn btn-primary" onClick={() => void submit()} disabled={!draft.workspace.trim()} title={!draft.workspace.trim() ? t('wizard.workspaceRequired') : undefined}>{isEdit ? t('common.save') : t('common.createSandbox')}</button>
+            )}
+          </div>
         </div>
       </div>
     </section>
