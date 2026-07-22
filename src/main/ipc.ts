@@ -5,6 +5,7 @@ import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
 import { reconcile } from './reconciler'
 import { launchDefinition } from './launch'
+import { SbxError } from '@shared/errors'
 import { registerCredentials } from './creds/register'
 import { agentAttachCommand, hostShellCommand, loginCommand } from './sbx/translate'
 import { claudeAuthStatus, claudeSignOut, needsAuthNudge } from './auth/manager'
@@ -63,6 +64,7 @@ export function buildHandlers(deps: Deps): {
   'def:remove': (id: string) => Promise<Result<{ removedInstances: number }>>
   'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
   'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
+  'instance:rebuild': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
   'instance:commands': (name: string) => Promise<Result<{ agent: string; shell: string }>>
   'instance:shell': (name: string) => Promise<Result<null>>
   'instance:stop': (name: string) => Promise<Result<null>>
@@ -88,6 +90,17 @@ export function buildHandlers(deps: Deps): {
   'ssh:detect': () => Promise<Result<{ present: boolean }>>
   'env:hasVSCode': () => Promise<Result<{ present: boolean }>>
 } {
+  // Deps for launchDefinition — shared by instance:launch and instance:rebuild.
+  const launchDeps = () => ({
+    adapter: deps.adapter,
+    store: deps.store,
+    creds: deps.creds ?? { getStaged: () => null },
+    materializeKit: deps.materializeKit ?? (() => undefined),
+    openTerminal: deps.openTerminal,
+    openVSCode: deps.openVSCode,
+    genHash: deps.genHash,
+    log: deps.log
+  })
   return {
     'prereq:check': () => wrap(() => checkPrereqs(deps.probes)),
     'instances:list': () => wrap(() => reconcile(deps.adapter, deps.store)),
@@ -137,16 +150,7 @@ export function buildHandlers(deps: Deps): {
       return { removedInstances: instances.length }
     }),
     'instance:launch': (definitionId, name, sessionName, opener) => wrap(() => launchDefinition(
-      {
-        adapter: deps.adapter,
-        store: deps.store,
-        creds: deps.creds ?? { getStaged: () => null },
-        materializeKit: deps.materializeKit ?? (() => undefined),
-        openTerminal: deps.openTerminal,
-        openVSCode: deps.openVSCode,
-        genHash: deps.genHash,
-        log: deps.log
-      },
+      launchDeps(),
       definitionId, name, sessionName, opener ?? 'terminal'
     )),
     'instance:attach': (name, opener) => wrap(async () => {
@@ -167,6 +171,16 @@ export function buildHandlers(deps: Deps): {
         deps.openTerminal(cmd)
       }
       return null
+    }),
+    'instance:rebuild': (name, opener) => wrap(async () => {
+      // Recreate the sandbox from its definition so config/credential changes (e.g. new
+      // custom-secret env vars, only injected at create time) take effect. Removes the old
+      // sandbox + its scoped secrets/.sandbox, then launches a fresh instance.
+      const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
+      if (!meta?.definitionId) throw new SbxError('not-found', `Instance "${name}" has no linked definition to rebuild from.`)
+      deps.log?.info(`Rebuilding instance "${name}" (recreate from definition ${meta.definitionId} to apply current config/credentials).`)
+      await cleanupInstance(deps, name)
+      return launchDefinition(launchDeps(), meta.definitionId, undefined, undefined, opener ?? 'terminal')
     }),
     'instance:shell': (name) => wrap(async () => {
       const cmd = hostShellCommand(name)
@@ -314,6 +328,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('def:remove', (_e, id: string) => handlers['def:remove'](id))
   ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => handlers['instance:launch'](id, name, sessionName, opener))
   ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:attach'](name, opener))
+  ipcMain.handle('instance:rebuild', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:rebuild'](name, opener))
   ipcMain.handle('instance:commands', (_e, name: string) => handlers['instance:commands'](name))
   ipcMain.handle('instance:shell', (_e, name: string) => handlers['instance:shell'](name))
   ipcMain.handle('instance:stop', (_e, name: string) => handlers['instance:stop'](name))

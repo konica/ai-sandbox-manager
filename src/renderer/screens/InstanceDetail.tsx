@@ -24,12 +24,13 @@ function tabStyle(active: boolean): React.CSSProperties {
  * the definition spec (fetched here) feeds the Terminals info sidebar and the Ports
  * host-services list.
  */
-export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, onRemove, onAttach, onShell }: {
+export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, onRemove, onRebuild, onAttach, onShell }: {
   instance: InstanceView
   hasVSCode?: boolean
   onBack: () => void
   onStop: (name: string) => void
   onRemove: (name: string) => void
+  onRebuild: (name: string) => void
   onAttach: (name: string, opener: 'terminal' | 'vscode') => void
   onShell: (name: string) => void
 }): JSX.Element {
@@ -97,6 +98,7 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
         )}
         <div className="detail-actions">
           <button className="btn btn-secondary btn-sm" disabled={!running} onClick={() => onStop(instance.name)}>■ {t('detail.stop')}</button>
+          <button className="btn btn-secondary btn-sm" title={t('detail.rebuildHint')} onClick={() => onRebuild(instance.name)}>↻ {t('detail.rebuild')}</button>
           <button className="btn btn-destructive btn-sm" onClick={() => onRemove(instance.name)}>✕ {t('detail.remove')}</button>
         </div>
       </div>

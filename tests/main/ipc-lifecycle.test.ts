@@ -66,6 +66,25 @@ describe('instance lifecycle IPC', () => {
     expect(d.openTerminal).toHaveBeenCalledWith("sbx run --name 'my-project-x' -- --continue")
   })
 
+  it('instance:rebuild removes the old sandbox and relaunches a fresh one from the definition', async () => {
+    const d = deps()
+    d.store.listInstanceMeta.mockReturnValue([{ sbxName: 'my-project-old', definitionId: 'd1', createdByApp: true, createdAt: 't' }] as never)
+    const h = buildHandlers(d as never)
+    const r = await h['instance:rebuild']('my-project-old')
+    expect(d.adapter.removeSandbox).toHaveBeenCalledWith('my-project-old') // old sandbox torn down
+    expect(r).toEqual({ ok: true, data: { name: 'my-project-3323dc52' } }) // fresh instance launched
+    expect(d.openTerminal).toHaveBeenCalled()
+  })
+
+  it('instance:rebuild fails cleanly when the instance has no linked definition', async () => {
+    const d = deps()
+    d.store.listInstanceMeta.mockReturnValue([{ sbxName: 'orphan', definitionId: null, createdByApp: true, createdAt: 't' }] as never)
+    const h = buildHandlers(d as never)
+    const r = await h['instance:rebuild']('orphan')
+    expect(r.ok).toBe(false)
+    expect(d.adapter.removeSandbox).not.toHaveBeenCalled()
+  })
+
   it('instance:stop calls the adapter', async () => {
     const d = deps()
     const h = buildHandlers(d as never)
