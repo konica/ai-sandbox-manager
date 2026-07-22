@@ -35,11 +35,6 @@ jobs:
           PKG="v$(node -p "require('./package.json').version")"
           TAG="${GITHUB_REF_NAME}"
           [ "$PKG" = "$TAG" ] || { echo "tag $TAG != package.json $PKG"; exit 1; }
-      # A transitive dep (@electron/node-gyp via electron-builder) is a GitHub git
-      # dependency; force HTTPS so a runner with no SSH key can fetch it.
-      - name: Prefer HTTPS for GitHub git dependencies
-        shell: bash
-        run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
       - run: npm ci
       - name: Build renderer/main
         run: npm run build

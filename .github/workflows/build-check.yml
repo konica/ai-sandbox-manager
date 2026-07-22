@@ -14,11 +14,7 @@ jobs:
           cache: npm
       # A transitive dep (@electron/node-gyp via electron-builder) is a GitHub git
       # dependency; force HTTPS so a runner with no SSH key can fetch it.
-      - run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
-      # --foreground-scripts serialises install scripts (better-sqlite3's node-gyp
-      # rebuild, electron's postinstall), working around npm's "Exit handler never
-      # called!" race; dump the debug log if it still fails so the cause is visible.
-      - run: npm ci --foreground-scripts || { echo '--- npm debug log ---'; cat "$HOME/.npm/_logs/"*-debug-0.log; exit 1; }
+      - run: npm ci
       - run: npm run typecheck
       - run: npm test
       # Build an unpacked app and smoke-test the native module under a virtual
