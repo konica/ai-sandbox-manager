@@ -84,6 +84,9 @@ export const en = {
     removeBody: 'This permanently removes “{name}”: its container, Git worktrees, and sandbox state. This cannot be undone.',
     removeSharedWarning: 'Other instances from the same definition share this workspace. Its generated .sandbox folder will be deleted and regenerated on the next launch.',
     confirmRemove: 'Remove',
+    rebuildTitle: 'Rebuild sandbox?',
+    rebuildBody: 'This recreates “{name}” from its definition to apply changes that only take effect at creation — such as newly added credentials (their env vars are injected when the sandbox is built). The current sandbox and its in-container state are removed and a fresh instance is launched; your workspace files are kept. Network/port changes don’t need a rebuild — they apply live.',
+    confirmRebuild: 'Rebuild',
     cancel: 'Cancel',
     launched: 'Launched “{name}” — a terminal is opening.',
     actionFailed: 'Action failed: {message}'
@@ -224,6 +227,8 @@ export const en = {
     sshAgent: 'SSH Agent',
     stop: 'Stop',
     remove: 'Remove',
+    rebuild: 'Rebuild',
+    rebuildHint: 'Recreate this instance from its definition to apply create-time changes (e.g. newly added credentials).',
     fromDefinition: 'from definition',
     tabTerminals: 'Terminals',
     tabPorts: 'Ports',

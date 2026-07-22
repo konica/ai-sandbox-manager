@@ -86,6 +86,9 @@ export const de: Dict = {
     removeBody: 'Entfernt „{name}“ dauerhaft: Container, Git-Worktrees und Sandbox-Status. Dies kann nicht rückgängig gemacht werden.',
     removeSharedWarning: 'Andere Instanzen derselben Definition teilen sich diesen Workspace. Der generierte Ordner .sandbox wird gelöscht und beim nächsten Start neu erzeugt.',
     confirmRemove: 'Entfernen',
+    rebuildTitle: 'Sandbox neu erstellen?',
+    rebuildBody: 'Erstellt „{name}“ aus ihrer Definition neu, um Änderungen anzuwenden, die nur bei der Erstellung wirksam werden — etwa neu hinzugefügte Anmeldedaten (deren Umgebungsvariablen werden beim Bau der Sandbox eingefügt). Die aktuelle Sandbox und ihr Container-Status werden entfernt und eine frische Instanz gestartet; Ihre Workspace-Dateien bleiben erhalten. Netzwerk-/Port-Änderungen brauchen keine Neuerstellung — sie werden live angewendet.',
+    confirmRebuild: 'Neu erstellen',
     cancel: 'Abbrechen',
     launched: '„{name}“ gestartet — ein Terminal wird geöffnet.',
     actionFailed: 'Aktion fehlgeschlagen: {message}'
@@ -226,6 +229,8 @@ export const de: Dict = {
     sshAgent: 'SSH-Agent',
     stop: 'Stoppen',
     remove: 'Entfernen',
+    rebuild: 'Neu erstellen',
+    rebuildHint: 'Diese Instanz aus ihrer Definition neu erstellen, um Änderungen zur Erstellungszeit anzuwenden (z. B. neu hinzugefügte Anmeldedaten).',
     fromDefinition: 'aus Definition',
     tabTerminals: 'Terminals',
     tabPorts: 'Ports',

@@ -35,7 +35,7 @@ export default function App(): JSX.Element {
   const [wizard, setWizard] = useState<{ spec?: DefinitionSpec } | null>(null)
   const [defs, setDefs] = useState<Definition[]>([])
   const [instances, setInstances] = useState<InstanceView[]>([])
-  const [pending, setPending] = useState<{ kind: 'stop' | 'remove'; name: string } | null>(null)
+  const [pending, setPending] = useState<{ kind: 'stop' | 'remove' | 'rebuild'; name: string } | null>(null)
   const [launchFor, setLaunchFor] = useState<Definition | null>(null)
   const [nudgeFor, setNudgeFor] = useState<Definition | null>(null)
   const [attachFor, setAttachFor] = useState<string | null>(null)
@@ -172,6 +172,13 @@ export default function App(): JSX.Element {
     const p = pending
     setPending(null)
     if (!p) return
+    if (p.kind === 'rebuild') {
+      // Rebuild removes the old sandbox and launches a fresh one (new name), so leave the
+      // now-stale detail view for the instances list.
+      setDetailName(null)
+      void runAction(api.instanceRebuild(p.name))
+      return
+    }
     void runAction(p.kind === 'stop' ? api.instanceStop(p.name) : api.instanceRemove(p.name))
   }
 
@@ -214,6 +221,7 @@ export default function App(): JSX.Element {
             onShell={onShell}
             onStop={(name) => setPending({ kind: 'stop', name })}
             onRemove={(name) => setPending({ kind: 'remove', name })}
+            onRebuild={(name) => setPending({ kind: 'rebuild', name })}
           />
         ) : (
           <Instances
@@ -229,14 +237,16 @@ export default function App(): JSX.Element {
       {screen === 'settings' && <Settings />}
       <ConfirmModal
         open={pending !== null}
-        title={pending?.kind === 'stop' ? t('instances.stopTitle') : t('instances.removeTitle')}
+        title={pending?.kind === 'stop' ? t('instances.stopTitle') : pending?.kind === 'rebuild' ? t('instances.rebuildTitle') : t('instances.removeTitle')}
         body={
           pending?.kind === 'stop'
             ? t('instances.stopBody', { name: pending.name })
-            : t('instances.removeBody', { name: pending?.name ?? '' }) +
-              (pending?.kind === 'remove' && hasSiblingInstances(instances, pending.name) ? ` ${t('instances.removeSharedWarning')}` : '')
+            : pending?.kind === 'rebuild'
+              ? t('instances.rebuildBody', { name: pending.name })
+              : t('instances.removeBody', { name: pending?.name ?? '' }) +
+                (pending?.kind === 'remove' && hasSiblingInstances(instances, pending.name) ? ` ${t('instances.removeSharedWarning')}` : '')
         }
-        confirmLabel={pending?.kind === 'stop' ? t('instances.confirmStop') : t('instances.confirmRemove')}
+        confirmLabel={pending?.kind === 'stop' ? t('instances.confirmStop') : pending?.kind === 'rebuild' ? t('instances.confirmRebuild') : t('instances.confirmRemove')}
         cancelLabel={t('instances.cancel')}
         destructive={pending?.kind !== 'stop'}
         onConfirm={onConfirmPending}
