@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useState } from 'react'
 import type { Tier, DefinitionSpec } from '@shared/types'
 import { serviceById } from '@shared/services'
+import { normalizeCommandsYaml } from '@shared/kit-commands'
 import { api } from '../ipc/client'
 import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant, type DraftCred } from './draft'
 import { CredentialsStep } from './CredentialsStep'
@@ -62,6 +63,7 @@ export function CreateDefinition({
   const [envHits, setEnvHits] = useState<EnvHit[]>([])
   const [sshDetected, setSshDetected] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [kitMsg, setKitMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
 
   // Scan the host environment for known service API keys + SSH agent when the Credentials step opens.
   useEffect(() => {
@@ -74,6 +76,8 @@ export function CreateDefinition({
 
   async function submit(): Promise<void> {
     if (!draft.workspace.trim()) { dispatch({ type: 'goToStep', step: 1 }); setError(t('wizard.workspaceRequired')); return }
+    const kitCheck = normalizeCommandsYaml(draft.kitCommandsYaml)
+    if (!kitCheck.ok) { dispatch({ type: 'goToStep', step: 6 }); setKitMsg({ kind: 'error', text: t('wizard.kitYamlInvalid', { message: kitCheck.error }) }); return }
     const spec = initial
       ? toSpec(draft, initial.definition.id, initial.definition.createdAt)
       : toSpec(draft, createId(), now())
@@ -101,7 +105,7 @@ export function CreateDefinition({
   const folderRowStyle = { display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '8px 12px', background: 'var(--surface-2, rgba(127,127,127,.08))', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' } as const
   const accessPillStyle = { flexShrink: 0, border: '1px solid var(--border)', borderRadius: 999, padding: '2px 12px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', background: 'var(--surface, #fff)', color: 'var(--text-secondary)', cursor: 'pointer' } as const
   const folderRemoveStyle = { flexShrink: 0, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 2 } as const
-  const stepKeys = ['workspace', 'baseImage', 'network', 'credentials', 'ports', 'review']
+  const stepKeys = ['workspace', 'baseImage', 'network', 'credentials', 'ports', 'advanced', 'review']
 
   return (
     <section className="screen active">
@@ -243,6 +247,39 @@ export function CreateDefinition({
           )}
 
           {draft.step === 6 && (
+            <>
+              <h3 style={{ fontSize: 15, marginBottom: 'var(--space-1)' }}>{t('wizard.advancedTitle')}</h3>
+              <p className="section-desc" style={{ marginTop: 0 }}>{t('wizard.advancedSubtitle')} <a href="https://docs.docker.com/ai/sandboxes/customize/kit-reference/" target="_blank" rel="noreferrer">{t('wizard.kitReference')}</a></p>
+              <label htmlFor="kit-yaml">{t('wizard.customKitYaml')}</label>
+              <textarea
+                id="kit-yaml" aria-label="Custom kit YAML" className="input input-mono"
+                style={{ minHeight: 160, resize: 'vertical', fontFamily: 'var(--font-mono, monospace)' }}
+                placeholder={'commands:\n  install: |\n    apt-get update && apt-get install -y ...\n  startup: |\n    ...\n  initFiles:\n    - path: /home/agent/.config/tool.yaml\n      contents: |\n        ...'}
+                value={draft.kitCommandsYaml}
+                onChange={(e) => { dispatch({ type: 'setField', field: 'kitCommandsYaml', value: e.target.value }); setKitMsg(null) }}
+              />
+              <p className="section-desc" style={{ fontSize: 11, marginTop: 'var(--space-1)' }}>{t('wizard.customKitYamlHelp')}</p>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                <button className="btn btn-secondary btn-sm" type="button" onClick={() => {
+                  const r = normalizeCommandsYaml(draft.kitCommandsYaml)
+                  if (r.ok) { dispatch({ type: 'setField', field: 'kitCommandsYaml', value: r.yaml }); setKitMsg({ kind: 'ok', text: t('wizard.kitReformatted') }) }
+                  else setKitMsg({ kind: 'error', text: r.error })
+                }}>{t('wizard.reformat')}</button>
+                <button className="btn btn-secondary btn-sm" type="button" onClick={async () => {
+                  const res = await api.kitValidate(draft.kitCommandsYaml)
+                  if (!res.ok) { setKitMsg({ kind: 'error', text: res.error.message }); return }
+                  setKitMsg({ kind: res.data.status === 'invalid' ? 'error' : 'ok', text: res.data.message })
+                }}>{t('wizard.validate')}</button>
+              </div>
+              {kitMsg && <p style={{ fontSize: 12, marginTop: 'var(--space-2)', color: kitMsg.kind === 'error' ? 'var(--danger)' : 'var(--success, var(--accent))' }}>{kitMsg.text}</p>}
+              <div className="card" style={{ marginTop: 'var(--space-4)', opacity: 0.6 }}>
+                <strong style={{ fontSize: 13 }}>{t('wizard.communityMixins')}</strong>
+                <p className="section-desc" style={{ margin: 0 }}>{t('wizard.communityMixinsComingSoon')}</p>
+              </div>
+            </>
+          )}
+
+          {draft.step === 7 && (
             <>
               <h3 style={{ fontSize: 15, marginBottom: 'var(--space-2)' }}>{t('wizard.review')}</h3>
               <p className="section-desc">{t('wizard.reviewSubtitle')}</p>

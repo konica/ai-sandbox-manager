@@ -278,7 +278,7 @@ export const en = {
   },
   wizard: {
     stepOf: 'Step {n} of {total}',
-    steps: { workspace: 'Workspace', baseImage: 'Base Image', network: 'Network', ports: 'Ports', credentials: 'Credentials', review: 'Review' },
+    steps: { workspace: 'Workspace', baseImage: 'Base Image', network: 'Network', ports: 'Ports', credentials: 'Credentials', advanced: 'Advanced', review: 'Review' },
     nameLabel: 'Sandbox name',
     namePlaceholder: 'my-sandbox',
     nameHint: "Leave blank to use the working directory's folder name.",
@@ -326,7 +326,18 @@ export const en = {
     modeReadWrite: 'read-write',
     modeReadOnly: 'read-only',
     error: 'Error',
-    stageFailed: 'Definition saved, but a credential value could not be stored: {message}'
+    stageFailed: 'Definition saved, but a credential value could not be stored: {message}',
+    advancedTitle: 'Advanced Settings',
+    advancedSubtitle: 'Customize the sandbox with a kit — declarative config merged into the generated kit.',
+    kitReference: 'Kit reference →',
+    customKitYaml: 'Custom kit YAML',
+    customKitYamlHelp: 'Paste a commands: block (install / startup / initFiles). Merged into this definition’s kit. Leave empty to skip.',
+    reformat: 'Reformat',
+    validate: 'Validate',
+    kitReformatted: 'Formatted.',
+    kitYamlInvalid: 'Custom kit YAML is invalid: {message}',
+    communityMixins: 'Community Mixins',
+    communityMixinsComingSoon: 'Browse and apply community mixin kits — coming soon.'
   },
   tier: { open: 'Open', balanced: 'Balanced', locked: 'Locked Down', custom: 'Custom' },
   status: { running: 'Running', stopped: 'Stopped', error: 'Error', unknown: 'Unknown' }
