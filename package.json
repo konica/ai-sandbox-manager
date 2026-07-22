@@ -23,7 +23,9 @@
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
-    "better-sqlite3": "^12.11.1"
+    "@types/js-yaml": "^4.0.9",
+    "better-sqlite3": "^12.11.1",
+    "js-yaml": "^4.3.0"
   },
   "overrides": {
     "@electron/node-gyp": "10.2.0-electron.2"
