@@ -1,6 +1,12 @@
 appId: net.mgm-tp.ai-sandbox-manager
 productName: AI Sandbox Manager
 copyright: © mgm technology partners
+# We rebuild the native module ourselves (electron-rebuild, via the predist hook
+# locally and an explicit step in CI) so it is deterministically built for the
+# runner's own arch + Electron ABI. electron-builder's own auto-rebuild proved
+# non-deterministic across its package/publish invocations and shipped an x86_64
+# better-sqlite3 inside the arm64 build — so disable it and package what we built.
+npmRebuild: false
 directories:
   output: dist
   buildResources: build

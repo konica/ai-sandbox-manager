@@ -36,10 +36,27 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           [ "$PKG" = "$TAG" ] || { echo "tag $TAG != package.json $PKG"; exit 1; }
       - run: npm ci
+      # Build better-sqlite3 for this runner's arch + the Electron ABI, deterministically.
+      # (npx electron-builder bypasses the predist hook that does this locally, and its
+      # own auto-rebuild is disabled via npmRebuild:false in electron-builder.yml.)
+      - name: Rebuild native module
+        run: npm run rebuild
       - name: Build renderer/main
         run: npm run build
       - name: Package
         run: npx electron-builder ${{ matrix.builder_args }} --publish never
+      # Hard guard: a wrong-arch native module must never ship again. v0.1.0's arm64
+      # dmg shipped an x86_64 better-sqlite3 and passed smoke, so verify the packaged
+      # binary's arch matches the target before publishing.
+      - name: Verify packaged native arch (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          want=$([[ "${{ matrix.builder_args }}" == *arm64* ]] && echo arm64 || echo x86_64)
+          node_file=$(find dist -name better_sqlite3.node | head -1)
+          got=$(lipo -archs "$node_file")
+          echo "expected=$want got='$got' file=$node_file"
+          echo "$got" | tr ' ' '\n' | grep -qx "$want" || { echo "::error::packaged better-sqlite3 arch '$got' != expected '$want'"; exit 1; }
       - name: Smoke (Linux)
         if: matrix.smoke == 'xvfb'
         run: xvfb-run -a npm run smoke
