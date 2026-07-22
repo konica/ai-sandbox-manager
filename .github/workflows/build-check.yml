@@ -7,13 +7,11 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-      # A transitive dep (@electron/node-gyp via electron-builder) is a GitHub git
-      # dependency; force HTTPS so a runner with no SSH key can fetch it.
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
