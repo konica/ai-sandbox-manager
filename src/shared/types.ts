@@ -186,3 +186,9 @@ export interface PrereqResult {
 export type Result<T> =
   | { ok: true; data: T }
   | { ok: false; error: { kind: string; message: string } }
+
+/** Advisory result of `sbx kit validate` on a user-supplied kit `commands:` block. */
+export interface KitValidation {
+  status: 'valid' | 'invalid' | 'unavailable'
+  message: string
+}

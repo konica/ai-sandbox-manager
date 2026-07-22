@@ -1,5 +1,5 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, ClaudeAuthKind } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, ClaudeAuthKind, KitValidation } from '@shared/types'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
@@ -18,6 +18,10 @@ import { applyPortEdit, applyHostServiceEdit, applyDomainEdit } from './detail/p
 import { serviceById } from '@shared/services'
 import type { CredentialManager } from './creds/manager'
 import type { Logger } from './log'
+import { normalizeCommandsYaml } from '@shared/kit-commands'
+import * as nodeFs from 'node:fs'
+import os from 'node:os'
+import { join } from 'node:path'
 
 interface Deps {
   adapter: SbxAdapter
@@ -89,6 +93,7 @@ export function buildHandlers(deps: Deps): {
   'auth:launchPrecheck': (definitionId: string) => Promise<Result<{ needsNudge: boolean; status: ClaudeAuthKind }>>
   'ssh:detect': () => Promise<Result<{ present: boolean }>>
   'env:hasVSCode': () => Promise<Result<{ present: boolean }>>
+  'kit:validate': (yaml: string) => Promise<Result<KitValidation>>
 } {
   // Deps for launchDefinition — shared by instance:launch and instance:rebuild.
   const launchDeps = () => ({
@@ -273,7 +278,22 @@ export function buildHandlers(deps: Deps): {
       return { needsNudge, status: anthropic }
     }),
     'ssh:detect': () => wrap(async () => ({ present: sshAuthSockPresent(deps.readLoginEnv?.() ?? {}) })),
-    'env:hasVSCode': () => wrap(async () => ({ present: codeCliPresent() }))
+    'env:hasVSCode': () => wrap(async () => ({ present: codeCliPresent() })),
+    'kit:validate': (yaml) => wrap(async () => {
+      const norm = normalizeCommandsYaml(yaml)
+      if (!norm.ok) return { status: 'invalid', message: norm.error } as KitValidation
+      // Build a minimal kit spec.yaml carrying just these commands and validate it.
+      const specYaml = `schemaVersion: "1"\nkind: mixin\nname: kit-validate\n${norm.yaml}`
+      const dir = nodeFs.mkdtempSync(join(os.tmpdir(), 'sbx-kit-'))
+      try {
+        nodeFs.writeFileSync(join(dir, 'spec.yaml'), specYaml, { mode: 0o644 })
+        const r = await deps.adapter.validateKit(dir)
+        if (!r.ran) return { status: 'unavailable', message: 'Validation unavailable (sbx not found).' } as KitValidation
+        return { status: r.code === 0 ? 'valid' : 'invalid', message: r.out || (r.code === 0 ? 'Valid kit.' : `sbx kit validate exited ${r.code}`) } as KitValidation
+      } finally {
+        try { nodeFs.rmSync(dir, { recursive: true, force: true }) } catch { /* best effort */ }
+      }
+    })
   }
 }
 
@@ -353,6 +373,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('auth:launchPrecheck', (_e, id: string) => handlers['auth:launchPrecheck'](id))
   ipcMain.handle('ssh:detect', () => handlers['ssh:detect']())
   ipcMain.handle('env:hasVSCode', () => handlers['env:hasVSCode']())
+  ipcMain.handle('kit:validate', (_e, yaml: string) => handlers['kit:validate'](yaml))
   ipcMain.handle('dialog:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }

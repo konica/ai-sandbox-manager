@@ -1,4 +1,4 @@
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, ClaudeAuthKind } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, ClaudeAuthKind, KitValidation } from '@shared/types'
 
 interface Api {
   prereqCheck(): Promise<Result<PrereqResult>>
@@ -38,6 +38,7 @@ interface Api {
   authLaunchPrecheck(definitionId: string): Promise<Result<{ needsNudge: boolean; status: ClaudeAuthKind }>>
   sshDetect(): Promise<Result<{ present: boolean }>>
   envHasVSCode(): Promise<Result<{ present: boolean }>>
+  kitValidate(yaml: string): Promise<Result<KitValidation>>
 }
 
 export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
@@ -77,5 +78,6 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   authLaunchPrecheck: async () => ({ ok: true, data: { needsNudge: false, status: 'none' } }),
   sshDetect: async () => ({ ok: true, data: { present: false } }),
   envHasVSCode: async () => ({ ok: true, data: { present: false } }),
-  instanceCommands: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } })
+  instanceCommands: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  kitValidate: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } })
 }

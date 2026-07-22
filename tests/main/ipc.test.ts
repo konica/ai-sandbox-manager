@@ -23,7 +23,8 @@ const adapter: SbxAdapter = {
   setRegistrySecret: async () => {},
   removeRegistrySecret: async () => {},
     listPorts: async () => [], publishPort: async () => {}, unpublishPort: async () => {}, allowNetwork: async () => {}, removeNetwork: async () => {}, policyLog: async () => ({ allowed: 0, blocked: 0, events: [] }),
-  checkDockerAuth: async () => 'pass'
+  checkDockerAuth: async () => 'pass',
+  validateKit: async () => ({ code: 0, out: 'ok', ran: true })
 }
 const probes: Probes = {
   dockerVersion: async () => 'Docker version 24.0.7', sbxVersion: async () => 'sbx 1.0', sbxAuthed: async () => true,
@@ -153,6 +154,12 @@ describe('buildHandlers', () => {
     const h = buildHandlers({ adapter, store: openStore(':memory:'), probes, openTerminal: () => {}, openFile: async () => ({ path: '/tmp/x', contents: 'not json' }) })
     const r = await h['def:import']()
     expect(r.ok).toBe(false)
+  })
+
+  it('kit:validate returns invalid for unparseable YAML without shelling out', async () => {
+    const h = buildHandlers({ adapter, store: openStore(':memory:'), probes, openTerminal: () => {} } as never)
+    const r = await h['kit:validate']('commands: [oops')
+    expect(r).toEqual({ ok: true, data: { status: 'invalid', message: expect.stringMatching(/YAML/i) } })
   })
 
   it('wraps thrown errors as {ok:false}', async () => {
