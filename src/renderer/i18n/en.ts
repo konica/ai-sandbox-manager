@@ -337,7 +337,9 @@ export const en = {
     kitReformatted: 'Formatted.',
     kitYamlInvalid: 'Custom kit YAML is invalid: {message}',
     communityMixins: 'Community Mixins',
-    communityMixinsComingSoon: 'Browse and apply community mixin kits — coming soon.'
+    communityMixinsComingSoon: 'Browse and apply community mixin kits — coming soon.',
+    saving: 'Saving…',
+    saved: 'Saved ✓'
   },
   tier: { open: 'Open', balanced: 'Balanced', locked: 'Locked Down', custom: 'Custom' },
   status: { running: 'Running', stopped: 'Stopped', error: 'Error', unknown: 'Unknown' }

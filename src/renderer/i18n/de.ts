@@ -339,7 +339,9 @@ export const de: Dict = {
     kitReformatted: 'Formatiert.',
     kitYamlInvalid: 'Benutzerdefiniertes Kit-YAML ist ungültig: {message}',
     communityMixins: 'Community-Mixins',
-    communityMixinsComingSoon: 'Community-Mixin-Kits durchsuchen und anwenden — demnächst.'
+    communityMixinsComingSoon: 'Community-Mixin-Kits durchsuchen und anwenden — demnächst.',
+    saving: 'Speichern…',
+    saved: 'Gespeichert ✓'
   },
   tier: { open: 'Offen', balanced: 'Ausgewogen', locked: 'Abgeschottet', custom: 'Benutzerdefiniert' },
   status: { running: 'Läuft', stopped: 'Gestoppt', error: 'Fehler', unknown: 'Unbekannt' }

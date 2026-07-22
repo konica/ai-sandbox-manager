@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 const defCreate = vi.fn()
+const defUpdate = vi.fn()
 const credStageValue = vi.fn()
-vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v), kitValidate: async () => ({ ok: true, data: { status: 'valid', message: 'ok' } }) } }))
+vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), defUpdate: (s: unknown) => defUpdate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v), kitValidate: async () => ({ ok: true, data: { status: 'valid', message: 'ok' } }) } }))
 
 import { CreateDefinition, sshSummary } from '../../../src/renderer/wizard/CreateDefinition'
 
@@ -19,6 +20,7 @@ describe('sshSummary', () => {
 
 beforeEach(() => {
   defCreate.mockReset(); defCreate.mockResolvedValue({ ok: true, data: { id: 'id1' } })
+  defUpdate.mockReset(); defUpdate.mockResolvedValue({ ok: true, data: { id: 'd1' } })
   credStageValue.mockReset(); credStageValue.mockResolvedValue({ ok: true, data: null })
 })
 
@@ -33,22 +35,56 @@ describe('CreateDefinition wizard', () => {
   })
   const editSpec = { definition: { id: 'd1', name: 'full-stack-project-template', description: '', baseImage: 'img:tag', tier: 'locked' as const, createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct' as const, isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] }
 
-  it('jumps to a step when its header is clicked — edit mode only', () => {
+  it('jumps to a step when its header is clicked — edit mode only', async () => {
     render(<CreateDefinition initial={editSpec} onDone={() => {}} onCancel={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /base image/i }))
-    expect(screen.getByLabelText(/built-in templates/i)).toBeInTheDocument()
+    expect(await screen.findByLabelText(/built-in templates/i)).toBeInTheDocument()
   })
   it('does not make step headers clickable when creating', () => {
     render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
     expect(screen.queryByRole('button', { name: /base image/i })).toBeNull()
   })
-  it('disables the create button and blocks submit when the working directory is cleared (edit mode)', () => {
+  it('blocks navigation and does not save when the working directory is cleared (edit mode)', async () => {
     render(<CreateDefinition initial={editSpec} onDone={() => {}} onCancel={() => {}} />)
-    // On step 1 (Workspace), clear the working directory, then jump to Review.
     fireEvent.change(screen.getByLabelText(/workspace/i), { target: { value: '' } })
-    fireEvent.click(screen.getByRole('button', { name: /review/i }))
-    expect(screen.getByRole('button', { name: /save/i })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: /review/i })) // attempt to leave step 1
+    expect(await screen.findByText(/working directory is required/i)).toBeInTheDocument()
+    expect(defUpdate).not.toHaveBeenCalled()
+    expect(screen.getByLabelText(/workspace/i)).toBeInTheDocument() // still on step 1
+  })
+
+  it('auto-saves the current draft when leaving a step in edit mode', async () => {
+    render(<CreateDefinition initial={editSpec} onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'edited desc' } })
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 1 -> 2, auto-save
+    await waitFor(() => expect(defUpdate).toHaveBeenCalled())
+    expect(defUpdate.mock.calls[0][0].definition).toMatchObject({ id: 'd1', description: 'edited desc' })
+    expect(await screen.findByText(/saved/i)).toBeInTheDocument()
+  })
+
+  it('does NOT auto-save on navigation in create mode', () => {
+    render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.change(screen.getByLabelText(/workspace/i), { target: { value: '/home/u/alpha' } })
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 1 -> 2
+    expect(defUpdate).not.toHaveBeenCalled()
     expect(defCreate).not.toHaveBeenCalled()
+    expect(screen.getByLabelText(/built-in templates/i)).toBeInTheDocument() // advanced to step 2
+  })
+
+  it('header-jump auto-saves in edit mode', async () => {
+    render(<CreateDefinition initial={editSpec} onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /ports/i })) // header jump to Ports
+    await waitFor(() => expect(defUpdate).toHaveBeenCalled())
+  })
+
+  it('blocks navigation + auto-save when the Advanced kit YAML is unparseable (edit mode)', async () => {
+    render(<CreateDefinition initial={editSpec} onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /advanced/i })) // jump to Advanced (auto-saves current valid draft)
+    await waitFor(() => expect(defUpdate).toHaveBeenCalledTimes(1))
+    fireEvent.change(screen.getByLabelText('Custom kit YAML'), { target: { value: 'commands: [oops' } })
+    fireEvent.click(screen.getByRole('button', { name: /review/i })) // try to leave Advanced
+    expect(await screen.findByText(/kit YAML is invalid/i)).toBeInTheDocument()
+    expect(defUpdate).toHaveBeenCalledTimes(1) // no second save; navigation aborted
   })
   it('shows the sandbox name in the title when editing', () => {
     render(<CreateDefinition initial={editSpec} onDone={() => {}} onCancel={() => {}} />)
