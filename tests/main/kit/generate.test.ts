@@ -2,11 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { buildKitSpec, buildLoginKit } from '../../../src/main/kit/generate'
 import type { DefinitionSpec } from '../../../src/shared/types'
 
-function spec(creds: DefinitionSpec['credentials'], tier: DefinitionSpec['definition']['tier'] = 'locked', domains: string[] = []): DefinitionSpec {
+function spec(creds: DefinitionSpec['credentials'], tier: DefinitionSpec['definition']['tier'] = 'locked', domains: string[] = [], kitCommandsYaml?: string): DefinitionSpec {
   return {
     definition: { id: 'd1', name: 'Proj Alpha', description: '', baseImage: 'img:tag', tier, createdAt: '2026-07-19T00:00:00.000Z' },
     mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
-    domains, ports: [], hostServices: [], credentials: creds
+    domains, ports: [], hostServices: [], credentials: creds,
+    ...(kitCommandsYaml !== undefined ? { kitCommandsYaml } : {})
   }
 }
 
@@ -68,5 +69,16 @@ describe('buildKitSpec', () => {
   it('emits no secretFiles ever (kit carries no secrets)', () => {
     const k = buildKitSpec(spec([{ kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', store: 'sbx' }]))
     expect(k.secretFiles).toEqual([])
+  })
+  it('appends the commands block when the spec has kitCommandsYaml', () => {
+    const s = spec([], 'locked', ['a.com'], 'commands:\n  install: echo hi\n')
+    const y = buildKitSpec(s).specYaml
+    expect(y).toContain('commands:')
+    expect(y).toContain('echo hi')
+    expect(y).toContain('allowedDomains') // app still owns network
+  })
+  it('omits commands when kitCommandsYaml is absent', () => {
+    const s = spec([], 'locked', ['a.com'])
+    expect(buildKitSpec(s).specYaml).not.toContain('commands:')
   })
 })
