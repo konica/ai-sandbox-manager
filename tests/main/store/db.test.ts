@@ -26,4 +26,18 @@ describe('metadata-store', () => {
     store.deleteInstanceMeta('sbx-a')
     expect(store.listInstanceMeta()).toHaveLength(0)
   })
+
+  it('persists and reads kitCommandsYaml on a definition', () => {
+    const store = openStore(':memory:')
+    const spec = {
+      definition: { id: 'k1', name: 'k', description: '', baseImage: 'img', tier: 'locked' as const, createdAt: 't' },
+      mounts: [{ hostPath: '/w', mode: 'direct' as const, isPrimary: true }],
+      domains: [], ports: [], hostServices: [], credentials: [],
+      kitCommandsYaml: 'commands:\n  install: echo hi\n'
+    }
+    store.insertDefinitionSpec(spec)
+    expect(store.getDefinitionSpec('k1')?.kitCommandsYaml).toBe('commands:\n  install: echo hi\n')
+    store.updateDefinitionSpec({ ...spec, kitCommandsYaml: 'commands:\n  startup: echo bye\n' })
+    expect(store.getDefinitionSpec('k1')?.kitCommandsYaml).toBe('commands:\n  startup: echo bye\n')
+  })
 })
