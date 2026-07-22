@@ -57,6 +57,20 @@ describe('parseImportBundle', () => {
   })
 })
 
+describe('kitCommandsYaml round-trip', () => {
+  it('preserves kitCommandsYaml through export + import', () => {
+    const withKit: DefinitionSpec = { ...spec('d1', 'Alpha'), kitCommandsYaml: 'commands:\n  install: echo hi\n' }
+    const bundle = buildExportBundle([withKit], 'now')
+    const { definitions } = parseImportBundle(JSON.stringify(bundle))
+    expect(definitions[0].kitCommandsYaml).toBe('commands:\n  install: echo hi\n')
+  })
+  it('yields undefined (not a crash) when the entry has no kitCommandsYaml', () => {
+    const bundle = buildExportBundle([spec('d1', 'Alpha')], 'now')
+    const { definitions } = parseImportBundle(JSON.stringify(bundle))
+    expect(definitions[0].kitCommandsYaml).toBeUndefined()
+  })
+})
+
 describe('dedupeName', () => {
   it('leaves a free name unchanged; suffixes on collision', () => {
     expect(dedupeName('Alpha', new Set())).toBe('Alpha')
