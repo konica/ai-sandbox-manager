@@ -115,9 +115,14 @@ app.whenReady().then(() => {
   // Packaged-app smoke test: when SBX_SMOKE_TEST is set, exercise the native
   // module and exit before opening a window. Used by scripts/smoke.mjs in CI.
   if (process.env.SBX_SMOKE_TEST) {
-    const ok = runSmoke()
-    console.log(ok ? 'SMOKE OK' : 'SMOKE FAIL')
-    app.exit(ok ? 0 : 1)
+    try {
+      const ok = runSmoke()
+      console.log(ok ? 'SMOKE OK' : 'SMOKE FAIL')
+      app.exit(ok ? 0 : 1)
+    } catch (e) {
+      console.error('SMOKE FAIL:', (e as Error).message)
+      app.exit(1)
+    }
     return
   }
   const store = openStore(join(app.getPath('userData'), 'sandbox-manager.db'))

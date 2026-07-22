@@ -16,7 +16,9 @@
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "use:electron-abi": "node scripts/ensure-abi.mjs electron --force",
     "use:node-abi": "node scripts/ensure-abi.mjs node --force",
+    "predist": "node scripts/ensure-abi.mjs electron",
     "dist": "electron-vite build && electron-builder",
+    "predist:dir": "node scripts/ensure-abi.mjs electron",
     "dist:dir": "electron-vite build && electron-builder --dir",
     "smoke": "node scripts/smoke.mjs"
   },
