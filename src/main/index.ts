@@ -13,6 +13,7 @@ import { createCredentialManager } from './creds/manager'
 import { buildKitSpec, buildLoginKit } from './kit/generate'
 import { buildCodeWorkspace, openInVSCode } from './vscode'
 import { writeKit } from './kit/write'
+import { runSmoke } from './smoke'
 import type { DefinitionSpec } from '@shared/types'
 
 const kitFs = {
@@ -111,6 +112,14 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // Packaged-app smoke test: when SBX_SMOKE_TEST is set, exercise the native
+  // module and exit before opening a window. Used by scripts/smoke.mjs in CI.
+  if (process.env.SBX_SMOKE_TEST) {
+    const ok = runSmoke()
+    console.log(ok ? 'SMOKE OK' : 'SMOKE FAIL')
+    app.exit(ok ? 0 : 1)
+    return
+  }
   const store = openStore(join(app.getPath('userData'), 'sandbox-manager.db'))
   const logFile = join(app.getPath('userData'), 'sandbox-manager.log')
   const logger = createLogger({ file: logFile })
