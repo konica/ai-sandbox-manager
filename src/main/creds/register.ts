@@ -11,6 +11,26 @@ export interface RegisterDeps {
   log?: Logger
 }
 
+/**
+ * Stable fingerprint of the credential set that sbx bakes into a sandbox at CREATE time
+ * (env vars for service/custom creds, registry auth). Used to detect when an instance is
+ * out of sync with its definition's credentials and needs a rebuild. Order-independent and
+ * value-independent (a changed secret VALUE is re-registered live, no rebuild). Deliberately
+ * covers ONLY credentials — network domains/ports apply live and must never trigger a rebuild.
+ */
+export function credFingerprint(credentials: Cred[]): string {
+  return credentials
+    .map((c) =>
+      c.kind === 'service'
+        ? `service:${c.serviceId}:${c.envVar}`
+        : c.kind === 'registry'
+          ? `registry:${c.host}:${c.scope}`
+          : `custom:${c.envVar}:${[...c.domains].sort().join(',')}`
+    )
+    .sort()
+    .join('|')
+}
+
 /** Vault key for a credential's staged value — must match the renderer's submit staging. */
 export function stageKey(defId: string, c: Cred): string {
   if (c.kind === 'service') return `${defId}:service:${c.serviceId}`

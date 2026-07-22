@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { reconcile } from '@main/reconciler'
 import { openStore } from '@main/store/db'
+import { credFingerprint } from '@main/creds/register'
 import type { SbxAdapter } from '@main/sbx/adapter'
 
 function fakeAdapter(names: string[]): SbxAdapter {
@@ -30,6 +31,35 @@ describe('reconcile', () => {
     store.upsertInstanceMeta({ sbxName: 'sbx-a', definitionId: 'd1', createdByApp: true, createdAt: 't' })
     const views = await reconcile(fakeAdapter(['sbx-a']), store)
     expect(views[0]).toMatchObject({ name: 'sbx-a', definitionName: 'prj-alpha', tier: 'locked' })
+  })
+
+  it('flags credential drift when the definition gains a credential since the instance was created', async () => {
+    const store = openStore(':memory:')
+    const base = { id: 'd1', name: 'prj', description: '', baseImage: 'img', tier: 'locked' as const, createdAt: 't' }
+    const spec0 = { definition: base, mounts: [{ hostPath: '/w', mode: 'direct' as const, isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [{ kind: 'custom' as const, id: 'a', label: 'A', envVar: 'A', domains: ['a.com'], store: 'encrypted' as const }] }
+    store.insertDefinitionSpec(spec0)
+    // Instance created with just credential A → fingerprint captured from spec0.
+    store.upsertInstanceMeta({ sbxName: 'sbx-a', definitionId: 'd1', createdByApp: true, createdAt: 't', credFingerprint: credFingerprint(spec0.credentials) })
+
+    // No drift while the definition is unchanged.
+    let views = await reconcile(fakeAdapter(['sbx-a']), store)
+    expect(views[0].credsDrift).toBe(false)
+
+    // Add a second credential to the definition → drift.
+    store.updateDefinitionSpec({ ...spec0, credentials: [...spec0.credentials, { kind: 'custom' as const, id: 'b', label: 'B', envVar: 'B', domains: ['b.com'], store: 'encrypted' as const }] })
+    views = await reconcile(fakeAdapter(['sbx-a']), store)
+    expect(views[0].credsDrift).toBe(true)
+  })
+
+  it('never flags drift for a change in network domains (applies live, no rebuild)', async () => {
+    const store = openStore(':memory:')
+    const base = { id: 'd2', name: 'prj2', description: '', baseImage: 'img', tier: 'locked' as const, createdAt: 't' }
+    const spec0 = { definition: base, mounts: [{ hostPath: '/w', mode: 'direct' as const, isPrimary: true }], domains: ['x.com'], ports: [], hostServices: [], credentials: [] }
+    store.insertDefinitionSpec(spec0)
+    store.upsertInstanceMeta({ sbxName: 'sbx-b', definitionId: 'd2', createdByApp: true, createdAt: 't', credFingerprint: credFingerprint(spec0.credentials) })
+    store.updateDefinitionSpec({ ...spec0, domains: ['x.com', 'y.com'] }) // domain change only
+    const views = await reconcile(fakeAdapter(['sbx-b']), store)
+    expect(views[0].credsDrift).toBe(false)
   })
 
   it('shows externally-created instances with no definition and custom tier', async () => {

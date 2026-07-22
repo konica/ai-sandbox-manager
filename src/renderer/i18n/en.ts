@@ -229,6 +229,7 @@ export const en = {
     remove: 'Remove',
     rebuild: 'Rebuild',
     rebuildHint: 'Recreate this instance from its definition to apply create-time changes (e.g. newly added credentials).',
+    credsDriftNotice: 'This definition’s credentials changed since this instance was created. Their env vars are injected only when the sandbox is built — rebuild to apply them.',
     fromDefinition: 'from definition',
     tabTerminals: 'Terminals',
     tabPorts: 'Ports',
