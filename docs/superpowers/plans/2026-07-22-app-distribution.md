@@ -471,7 +471,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 # Installing AI Sandbox Manager
 
 Download the installer for your OS from the
-[latest release](https://github.com/mgm-tp/ai-sandbox-manager/releases/latest).
+[latest release](https://github.com/konica/ai-sandbox-manager/releases/latest).
 
 ## Prerequisites
 
