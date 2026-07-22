@@ -1,0 +1,44 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            builder_args: --mac --arm64
+            smoke: gui
+          - os: macos-13
+            builder_args: --mac --x64
+            smoke: gui
+          - os: windows-latest
+            builder_args: --win --x64
+            smoke: gui
+          - os: ubuntu-latest
+            builder_args: --linux --x64
+            smoke: xvfb
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build renderer/main
+        run: npm run build
+      - name: Package + publish (draft)
+        run: npx electron-builder ${{ matrix.builder_args }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Smoke (Linux)
+        if: matrix.smoke == 'xvfb'
+        run: xvfb-run -a npm run smoke
+      - name: Smoke (macOS/Windows)
+        if: matrix.smoke == 'gui'
+        run: npm run smoke
