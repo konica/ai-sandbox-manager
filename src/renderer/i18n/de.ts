@@ -276,7 +276,21 @@ export const de: Dict = {
     domainPlaceholder: 'api.example.com',
     colTime: 'Zeit',
     colHost: 'Host',
-    colReason: 'Grund'
+    colReason: 'Grund',
+    colProxy: 'Proxy',
+    proxyLegendTitle: 'Proxy-Typen',
+    proxyLegendLearnMore: 'Mehr erfahren',
+    proxyUnknownMeaning: 'Vom Sandbox-Proxy verarbeitet.',
+    proxyForwardLabel: 'Forward',
+    proxyForwardMeaning: 'Forward-Proxy — unterstützt Credential-Injektion.',
+    proxyForwardBypassLabel: 'Forward (Bypass)',
+    proxyForwardBypassMeaning: 'Forward-Proxy ohne Credential-Injektion.',
+    proxyTransparentLabel: 'Transparent',
+    proxyTransparentMeaning: 'Transparenter Proxy — Richtlinie erzwungen, keine Credential-Injektion.',
+    proxyNetworkLabel: 'Netzwerk',
+    proxyNetworkMeaning: 'Nicht-HTTP-Verkehr (rohes TCP/UDP/ICMP). UDP und ICMP werden immer blockiert.',
+    proxyBrowserOpenLabel: 'Browser öffnen',
+    proxyBrowserOpenMeaning: 'Ein Sandbox-Prozess wollte eine URL im Host-Browser öffnen.'
   },
   wizard: {
     stepOf: 'Schritt {n} von {total}',
