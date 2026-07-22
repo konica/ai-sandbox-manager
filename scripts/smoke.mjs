@@ -28,8 +28,12 @@ if (!exe) {
   process.exit(1)
 }
 
+// --no-sandbox: the smoke test only boots Electron to exercise the native module;
+// on Linux CI, Chromium's setuid sandbox helper isn't root-owned in an unpacked
+// build, so Electron aborts at startup without this. It affects only this test
+// harness, never the shipped app.
 console.log(`smoke: launching ${exe}`)
-const res = spawnSync(exe, [], {
+const res = spawnSync(exe, ['--no-sandbox'], {
   env: { ...process.env, SBX_SMOKE_TEST: '1' },
   stdio: 'inherit',
   timeout: 60_000
