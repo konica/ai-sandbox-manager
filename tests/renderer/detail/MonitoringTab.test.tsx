@@ -4,8 +4,8 @@ import { MonitoringTab } from '../../../src/renderer/screens/detail/MonitoringTa
 
 const summary = {
   allowed: 42, blocked: 5, events: [
-    { at: '2026-07-19T10:15:23', host: 'api.anthropic.com:443', allowed: true, reason: 'domain-allowed', count: 40 },
-    { at: '2026-07-19T10:15:15', host: 'telemetry.example.com:443', allowed: false, reason: 'default deny', count: 7 }
+    { at: '2026-07-19T10:15:23', host: 'api.anthropic.com:443', allowed: true, reason: 'domain-allowed', proxyType: 'forward', count: 40 },
+    { at: '2026-07-19T10:15:15', host: 'telemetry.example.com:443', allowed: false, reason: 'default deny', proxyType: 'forward-bypass', count: 7 }
   ]
 }
 const base = { onAllow: vi.fn(), onDeny: vi.fn() }
@@ -38,6 +38,25 @@ describe('MonitoringTab', () => {
   })
   it('shows an empty state with no events', () => {
     render(<MonitoringTab summary={{ allowed: 0, blocked: 0, events: [] }} {...base} />)
-    expect(screen.getByText(/no.*traffic/i)).toBeInTheDocument()
+    expect(screen.getByText(/no traffic recorded/i)).toBeInTheDocument()
+  })
+  it('shows the proxy type as a badge with an explanatory tooltip', () => {
+    render(<MonitoringTab summary={summary} {...base} />)
+    const forward = screen.getAllByText('Forward')
+    expect(forward.length).toBeGreaterThanOrEqual(1)
+    expect(forward[0]).toHaveAttribute('title', expect.stringContaining('credential injection'))
+  })
+  it('color-codes the proxy tone (forward-bypass = warn)', () => {
+    render(<MonitoringTab summary={summary} {...base} />)
+    const bypass = screen.getAllByText('Forward (bypass)')
+    expect(bypass.some((el) => el.className.includes('proxy-badge') && el.className.includes('warn'))).toBe(true)
+  })
+  it('renders the proxy-types legend with all five entries and a docs link', () => {
+    render(<MonitoringTab summary={summary} {...base} />)
+    expect(screen.getByText('Proxy types')).toBeInTheDocument()
+    expect(screen.getByText('Transparent')).toBeInTheDocument()
+    expect(screen.getByText('Network')).toBeInTheDocument()
+    expect(screen.getByText('Browser open')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /learn more/i })).toHaveAttribute('href', expect.stringContaining('docs.docker.com'))
   })
 })

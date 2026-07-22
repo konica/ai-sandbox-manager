@@ -4,10 +4,10 @@ import { parsePolicyLog } from '../../../src/main/sbx/policy-log'
 // Shape from the Phase 0 spike: `sbx policy log <name> --json` → { blocked_hosts, allowed_hosts }.
 const sample = JSON.stringify({
   blocked_hosts: [
-    { host: 'telemetry.example.com:443', vm_name: 'box', reason: 'No matching allow rule (default deny)', last_seen: '2026-07-19T21:42:54+07:00', count_since: 2 }
+    { host: 'telemetry.example.com:443', vm_name: 'box', proxy_type: 'forward-bypass', reason: 'No matching allow rule (default deny)', last_seen: '2026-07-19T21:42:54+07:00', count_since: 2 }
   ],
   allowed_hosts: [
-    { host: 'api.anthropic.com:443', vm_name: 'box', reason: 'domain-allowed', last_seen: '2026-07-19T21:42:20+07:00', count_since: 5 }
+    { host: 'api.anthropic.com:443', vm_name: 'box', proxy_type: 'forward', reason: 'domain-allowed', last_seen: '2026-07-19T21:42:20+07:00', count_since: 5 }
   ]
 })
 
@@ -34,5 +34,14 @@ describe('parsePolicyLog', () => {
     expect(s.blocked).toBe(0)
     expect(s.events).toHaveLength(1)
     expect(s.events[0].allowed).toBe(true)
+  })
+  it('parses proxy_type into each event (allowed + blocked)', () => {
+    const s = parsePolicyLog(sample)
+    expect(s.events.find((e) => e.host.includes('api.anthropic.com'))?.proxyType).toBe('forward')
+    expect(s.events.find((e) => e.host.includes('telemetry'))?.proxyType).toBe('forward-bypass')
+  })
+  it('defaults proxyType to "" when the field is absent', () => {
+    const s = parsePolicyLog(JSON.stringify({ allowed_hosts: [{ host: 'x.com:443', last_seen: 'a', count_since: 1 }], blocked_hosts: [] }))
+    expect(s.events[0].proxyType).toBe('')
   })
 })
