@@ -64,6 +64,7 @@ export function CreateDefinition({
   const [sshDetected, setSshDetected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [kitMsg, setKitMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
 
   // Scan the host environment for known service API keys + SSH agent when the Credentials step opens.
   useEffect(() => {
@@ -74,15 +75,25 @@ export function CreateDefinition({
     return () => { alive = false }
   }, [draft.step])
 
-  async function submit(): Promise<void> {
-    if (!draft.workspace.trim()) { dispatch({ type: 'goToStep', step: 1 }); setError(t('wizard.workspaceRequired')); return }
+  // Reset the "saved" indicator to idle shortly after it shows.
+  useEffect(() => {
+    if (saveState !== 'saved') return
+    const id = setTimeout(() => setSaveState('idle'), 2000)
+    return () => clearTimeout(id)
+  }, [saveState])
+
+  // Persist the current draft (edit → defUpdate, create → defCreate) + stage entered
+  // credential values. Runs the same gates as the final Save. Returns false (and shows an
+  // inline error) on a gate/IPC failure; performs no navigation and never closes the wizard.
+  async function persist(): Promise<boolean> {
+    if (!draft.workspace.trim()) { dispatch({ type: 'goToStep', step: 1 }); setError(t('wizard.workspaceRequired')); return false }
     const kitCheck = normalizeCommandsYaml(draft.kitCommandsYaml)
-    if (!kitCheck.ok) { dispatch({ type: 'goToStep', step: 6 }); setKitMsg({ kind: 'error', text: t('wizard.kitYamlInvalid', { message: kitCheck.error }) }); return }
+    if (!kitCheck.ok) { dispatch({ type: 'goToStep', step: 6 }); setKitMsg({ kind: 'error', text: t('wizard.kitYamlInvalid', { message: kitCheck.error }) }); return false }
     const spec = initial
       ? toSpec(draft, initial.definition.id, initial.definition.createdAt)
       : toSpec(draft, createId(), now())
     const res = initial ? await api.defUpdate(spec) : await api.defCreate(spec)
-    if (!res.ok) { setError(res.error.message); return }
+    if (!res.ok) { setError(res.error.message); return false }
     // Stage each secret value into the host vault, keyed by definition so it survives
     // relaunches and never collides across definitions (never persisted to the spec).
     // Typed values go straight through; imported service creds have their real value
@@ -92,13 +103,29 @@ export function CreateDefinition({
       const key = `${spec.definition.id}:${sub}`
       if (c.value.trim()) {
         const staged = await api.credStageValue(key, c.value)
-        if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return }
+        if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return false }
       } else if (c.kind === 'service' && c.fromEnv) {
         const staged = await api.credStageFromEnv(key, c.serviceId)
-        if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return }
+        if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return false }
       }
     }
-    onDone()
+    return true
+  }
+
+  async function submit(): Promise<void> {
+    if (await persist()) onDone()
+  }
+
+  // Navigate between steps. In edit mode this auto-saves the current draft first and aborts
+  // the move if saving fails a gate; in create mode it's a plain step change (persist only at
+  // the final Create). Kept snappy: saving is a local IPC + SQLite write.
+  async function go(step: number): Promise<void> {
+    if (!isEdit) { dispatch({ type: 'goToStep', step }); return }
+    setSaveState('saving')
+    const ok = await persist()
+    if (!ok) { setSaveState('idle'); return } // stay put; error already shown by persist()
+    dispatch({ type: 'goToStep', step })
+    setSaveState('saved')
   }
 
   const row = { display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' } as const
@@ -123,7 +150,7 @@ export function CreateDefinition({
             // during create the flow stays linear (Next/Back).
             const content = <><span className="wizard-step-num">{n}</span>{t(`wizard.steps.${stepKeys[idx]}`)}</>
             return isEdit ? (
-              <button key={n} type="button" className={`wizard-step ${cls}`} onClick={() => dispatch({ type: 'goToStep', step: n })}
+              <button key={n} type="button" className={`wizard-step ${cls}`} onClick={() => void go(n)}
                 style={{ background: 'none', border: 'none', font: 'inherit', cursor: 'pointer' }}>
                 {content}
               </button>
@@ -304,11 +331,16 @@ export function CreateDefinition({
         </div>
 
         <div className="wizard-actions">
-          <button className="btn btn-ghost" onClick={() => dispatch({ type: 'back' })} disabled={draft.step === 1}>{t('common.back')}</button>
+          <button className="btn btn-ghost" onClick={() => void go(draft.step - 1)} disabled={draft.step === 1}>{t('common.back')}</button>
           {draft.step < TOTAL_STEPS ? (
-            <button className="btn btn-primary" onClick={() => dispatch({ type: 'next' })} disabled={!canAdvance(draft)}>{t('common.next')}</button>
+            <button className="btn btn-primary" onClick={() => void go(draft.step + 1)} disabled={!canAdvance(draft)}>{t('common.next')}</button>
           ) : (
             <button className="btn btn-primary" onClick={() => void submit()} disabled={!draft.workspace.trim()} title={!draft.workspace.trim() ? t('wizard.workspaceRequired') : undefined}>{isEdit ? t('common.save') : t('common.createSandbox')}</button>
+          )}
+          {isEdit && saveState !== 'idle' && (
+            <span aria-live="polite" style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
+              {saveState === 'saving' ? t('wizard.saving') : t('wizard.saved')}
+            </span>
           )}
         </div>
       </div>
