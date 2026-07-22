@@ -1083,3 +1083,23 @@ label {
 
 /* Detail: port protocol suffix */
 .port-proto { color: var(--text-muted); font-size: 11px; }
+
+/* Proxy-type badges + legend (Monitoring tab) */
+.proxy-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.proxy-badge.ok      { color: var(--success);    background: var(--success-bg); }
+.proxy-badge.warn    { color: var(--warning);    background: var(--warning-bg); }
+.proxy-badge.info    { color: var(--info);       background: var(--accent-muted); }
+.proxy-badge.neutral { color: var(--text-muted); background: rgba(127, 127, 127, 0.12); }
+
+.proxy-legend { margin-top: var(--space-5); font-size: 12px; }
+.proxy-legend summary { cursor: pointer; color: var(--text-muted); font-weight: 600; }
+.proxy-legend-body { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
+.proxy-legend-row { display: flex; align-items: center; gap: var(--space-3); }
