@@ -34,6 +34,8 @@ export interface SbxAdapter {
   removeRegistrySecret(host: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   /** Docker sign-in / governance registration state (via `sbx diagnose`). 'unknown' never blocks. */
   checkDockerAuth(): Promise<AuthCheck>
+  /** Run `sbx kit validate <dir>`; non-throwing. Missing sbx → resolves, never rejects. */
+  validateKit(dir: string): Promise<{ code: number; out: string; ran: boolean }>
 }
 
 export const defaultSpawn: SpawnFn = (cmd, args, opts) =>
@@ -174,5 +176,16 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     }
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth }
+  async function validateKit(dir: string): Promise<{ code: number; out: string; ran: boolean }> {
+    logger?.command(['kit', 'validate', dir])
+    try {
+      const res = await spawnFn('sbx', ['kit', 'validate', dir], {})
+      return { code: res.code, out: (res.stdout + res.stderr).trim(), ran: true }
+    } catch (e) {
+      logger?.error(`sbx kit validate unavailable: ${(e as Error).message}`)
+      return { code: -1, out: (e as Error).message, ran: false }
+    }
+  }
+
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, validateKit }
 }

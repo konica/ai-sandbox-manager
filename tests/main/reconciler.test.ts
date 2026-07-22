@@ -20,7 +20,8 @@ function fakeAdapter(names: string[]): SbxAdapter {
     removeCustomSecret: async () => {},
   setRegistrySecret: async () => {},
   removeRegistrySecret: async () => {},
-    listPorts: async () => [], publishPort: async () => {}, unpublishPort: async () => {}, allowNetwork: async () => {}, removeNetwork: async () => {}, policyLog: async () => ({ allowed: 0, blocked: 0, events: [] }), checkDockerAuth: async () => 'pass'
+    listPorts: async () => [], publishPort: async () => {}, unpublishPort: async () => {}, allowNetwork: async () => {}, removeNetwork: async () => {}, policyLog: async () => ({ allowed: 0, blocked: 0, events: [] }), checkDockerAuth: async () => 'pass',
+    validateKit: async () => ({ code: 0, out: 'ok', ran: true })
   }
 }
 

@@ -19,7 +19,8 @@ function deps() {
     listPorts: vi.fn(async () => []), publishPort: vi.fn(async () => {}), unpublishPort: vi.fn(async () => {}),
     allowNetwork: vi.fn(async () => {}), removeNetwork: vi.fn(async () => {}),
     policyLog: vi.fn(async () => ({ allowed: 0, blocked: 0, events: [] })),
-    checkDockerAuth: vi.fn(async () => 'pass')
+    checkDockerAuth: vi.fn(async () => 'pass'),
+    validateKit: vi.fn(async () => ({ code: 0, out: 'ok', ran: true }))
   }
   const store = {
     getDefinitionSpec: vi.fn(() => spec),

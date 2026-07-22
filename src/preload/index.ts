@@ -38,7 +38,8 @@ const api = {
   authStartLogin: () => ipcRenderer.invoke('auth:startLogin'),
   authLaunchPrecheck: (definitionId: string) => ipcRenderer.invoke('auth:launchPrecheck', definitionId),
   sshDetect: () => ipcRenderer.invoke('ssh:detect'),
-  envHasVSCode: () => ipcRenderer.invoke('env:hasVSCode')
+  envHasVSCode: () => ipcRenderer.invoke('env:hasVSCode'),
+  kitValidate: (yaml: string) => ipcRenderer.invoke('kit:validate', yaml)
 }
 
 contextBridge.exposeInMainWorld('api', api)
