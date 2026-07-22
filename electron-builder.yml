@@ -1,0 +1,38 @@
+appId: net.mgm-tp.ai-sandbox-manager
+productName: AI Sandbox Manager
+copyright: © mgm technology partners
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+# better-sqlite3 is a native module: its .node must sit on disk, not inside asar.
+asarUnpack:
+  - "**/node_modules/better-sqlite3/**"
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  category: public.app-category.developer-tools
+  icon: build/icon.png
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  category: Development
+  icon: build/icon.png
+  # Pin the executable name so the unpacked binary is dist/linux-unpacked/ai-sandbox-manager
+  # (default would be the spaced productName), matching scripts/smoke.mjs.
+  executableName: ai-sandbox-manager
+publish:
+  provider: github

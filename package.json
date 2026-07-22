@@ -15,7 +15,10 @@
     "test:watch": "vitest",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "use:electron-abi": "node scripts/ensure-abi.mjs electron --force",
-    "use:node-abi": "node scripts/ensure-abi.mjs node --force"
+    "use:node-abi": "node scripts/ensure-abi.mjs node --force",
+    "dist": "electron-vite build && electron-builder",
+    "dist:dir": "electron-vite build && electron-builder --dir",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1"
