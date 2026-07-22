@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS instance_meta (
   definition_id TEXT,
   created_by_app INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
+  cred_fingerprint TEXT,
   FOREIGN KEY (definition_id) REFERENCES definition(id) ON DELETE SET NULL
 );
 CREATE TABLE IF NOT EXISTS app_prefs (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -91,7 +92,7 @@ CREATE TABLE IF NOT EXISTS global_secret (
   store TEXT NOT NULL DEFAULT 'sbx',
   created_at TEXT NOT NULL
 );
-PRAGMA user_version = 6;
+PRAGMA user_version = 7;
 `
 
 export function openStore(filename: string): Store {
@@ -118,6 +119,12 @@ export function openStore(filename: string): Store {
   if (!defCols.includes('ssh_forward_agent')) {
     db.exec(`ALTER TABLE definition ADD COLUMN ssh_forward_agent INTEGER NOT NULL DEFAULT 1;`)
     db.exec(`ALTER TABLE definition ADD COLUMN ssh_commit_signing INTEGER NOT NULL DEFAULT 0;`)
+  }
+  // v6 → v7: instance_meta records the credential fingerprint at create time so we can flag
+  // credential drift (→ needs rebuild). Non-destructive; existing rows stay null (no drift shown).
+  const imCols = (db.prepare(`PRAGMA table_info(instance_meta)`).all() as { name: string }[]).map((c) => c.name)
+  if (!imCols.includes('cred_fingerprint')) {
+    db.exec(`ALTER TABLE instance_meta ADD COLUMN cred_fingerprint TEXT;`)
   }
 
   // v3 → v4: port_intent gains `protocol` + nullable host_port; add host_service. Recreate
@@ -230,17 +237,18 @@ export function openStore(filename: string): Store {
     },
     upsertInstanceMeta(m) {
       db.prepare(
-        `INSERT INTO instance_meta (sbx_name, definition_id, created_by_app, created_at)
-         VALUES (@sbxName, @definitionId, @createdByApp, @createdAt)
+        `INSERT INTO instance_meta (sbx_name, definition_id, created_by_app, created_at, cred_fingerprint)
+         VALUES (@sbxName, @definitionId, @createdByApp, @createdAt, @credFingerprint)
          ON CONFLICT(sbx_name) DO UPDATE SET
            definition_id = excluded.definition_id,
            created_by_app = excluded.created_by_app,
-           created_at = excluded.created_at`
-      ).run({ ...m, createdByApp: m.createdByApp ? 1 : 0 })
+           created_at = excluded.created_at,
+           cred_fingerprint = excluded.cred_fingerprint`
+      ).run({ ...m, createdByApp: m.createdByApp ? 1 : 0, credFingerprint: m.credFingerprint ?? null })
     },
     listInstanceMeta() {
-      const rows = db.prepare(`SELECT sbx_name AS sbxName, definition_id AS definitionId, created_by_app AS createdByApp, created_at AS createdAt FROM instance_meta`).all() as Array<Record<string, unknown>>
-      return rows.map((r) => ({ sbxName: String(r.sbxName), definitionId: r.definitionId ? String(r.definitionId) : null, createdByApp: r.createdByApp === 1, createdAt: String(r.createdAt) }))
+      const rows = db.prepare(`SELECT sbx_name AS sbxName, definition_id AS definitionId, created_by_app AS createdByApp, created_at AS createdAt, cred_fingerprint AS credFingerprint FROM instance_meta`).all() as Array<Record<string, unknown>>
+      return rows.map((r) => ({ sbxName: String(r.sbxName), definitionId: r.definitionId ? String(r.definitionId) : null, createdByApp: r.createdByApp === 1, createdAt: String(r.createdAt), credFingerprint: r.credFingerprint != null ? String(r.credFingerprint) : null }))
     },
     deleteInstanceMeta(sbxName) {
       db.prepare(`DELETE FROM instance_meta WHERE sbx_name = ?`).run(sbxName)

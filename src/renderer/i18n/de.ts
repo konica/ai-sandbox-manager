@@ -231,6 +231,7 @@ export const de: Dict = {
     remove: 'Entfernen',
     rebuild: 'Neu erstellen',
     rebuildHint: 'Diese Instanz aus ihrer Definition neu erstellen, um Änderungen zur Erstellungszeit anzuwenden (z. B. neu hinzugefügte Anmeldedaten).',
+    credsDriftNotice: 'Die Anmeldedaten dieser Definition haben sich seit Erstellung dieser Instanz geändert. Deren Umgebungsvariablen werden nur beim Bau der Sandbox eingefügt — zum Anwenden neu erstellen.',
     fromDefinition: 'aus Definition',
     tabTerminals: 'Terminals',
     tabPorts: 'Ports',

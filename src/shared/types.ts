@@ -24,6 +24,8 @@ export interface InstanceMeta {
   definitionId: string | null
   createdByApp: boolean
   createdAt: string
+  /** Credential fingerprint captured at create time; used to flag credential drift (→ rebuild). Null for pre-v7 rows. */
+  credFingerprint?: string | null
 }
 
 export type MountMode = 'direct' | 'clone'
@@ -161,6 +163,8 @@ export interface InstanceView extends SbxInstance {
   definitionId: string | null
   definitionName: string | null
   tier: Tier | 'custom'
+  /** The definition's credentials changed since this instance was created — rebuild to apply. */
+  credsDrift?: boolean
 }
 
 // Structured prerequisite result. The main process reports the id, pass/fail,

@@ -5,7 +5,7 @@ import type { Logger } from './log'
 import type { DefinitionSpec } from '@shared/types'
 import { randomBytes } from 'crypto'
 import { resolveSandboxName, hashedSandboxName, launchCommand } from './sbx/translate'
-import { registerCredentials } from './creds/register'
+import { registerCredentials, credFingerprint } from './creds/register'
 import { toSbxName } from '@shared/names'
 import { SbxError } from '@shared/errors'
 
@@ -82,7 +82,10 @@ export async function launchDefinition(
     sbxName: name,
     definitionId,
     createdByApp: true,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    // Record the credential set baked into this sandbox so later credential changes to the
+    // definition can be flagged as drift (→ needs rebuild). See reconcile().
+    credFingerprint: credFingerprint(spec.credentials)
   })
   const primary = spec.mounts.find((m) => m.isPrimary) ?? spec.mounts[0]
   const workspaceDir = primary?.hostPath?.trim()

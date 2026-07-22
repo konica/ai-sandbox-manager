@@ -1,6 +1,7 @@
 import type { InstanceView } from '@shared/types'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
+import { credFingerprint } from './creds/register'
 
 /**
  * Keep app-created metadata this long after creation even when the sandbox is
@@ -31,11 +32,20 @@ export async function reconcile(
   return instances.map((inst) => {
     const meta = metaByName.get(inst.name) ?? null
     const def = meta?.definitionId ? store.getDefinition(meta.definitionId) : null
+    // Credential drift: the definition's credentials changed since this instance was created,
+    // so its baked-in env vars are stale (→ rebuild). Only credentials count — network/ports
+    // apply live. Null fingerprint (pre-v7 instances) → unknown, so never flagged.
+    let credsDrift = false
+    if (meta?.credFingerprint != null && meta.definitionId) {
+      const spec = store.getDefinitionSpec(meta.definitionId)
+      if (spec) credsDrift = credFingerprint(spec.credentials) !== meta.credFingerprint
+    }
     return {
       ...inst,
       definitionId: def?.id ?? null,
       definitionName: def?.name ?? null,
-      tier: def?.tier ?? 'custom'
+      tier: def?.tier ?? 'custom',
+      credsDrift
     }
   })
 }
