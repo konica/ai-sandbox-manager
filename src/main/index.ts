@@ -14,6 +14,7 @@ import { buildKitSpec, buildLoginKit } from './kit/generate'
 import { buildCodeWorkspace, openInVSCode } from './vscode'
 import { writeKit } from './kit/write'
 import { runSmoke } from './smoke'
+import { mergePaths } from './env-path'
 import type { DefinitionSpec } from '@shared/types'
 
 const kitFs = {
@@ -124,6 +125,12 @@ app.whenReady().then(() => {
       app.exit(1)
     }
     return
+  }
+  // Repair PATH for a Finder/Explorer-launched app: it inherits a minimal PATH
+  // that omits Homebrew etc., so the prereq probes and the sbx adapter can't find
+  // docker/sbx/code. Merge in the login shell's PATH before anything spawns.
+  if (process.platform !== 'win32') {
+    process.env.PATH = mergePaths(readLoginEnv().PATH, process.env.PATH)
   }
   const store = openStore(join(app.getPath('userData'), 'sandbox-manager.db'))
   const logFile = join(app.getPath('userData'), 'sandbox-manager.log')
