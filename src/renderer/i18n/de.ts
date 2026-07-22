@@ -338,6 +338,8 @@ export const de: Dict = {
     validate: 'Validieren',
     kitReformatted: 'Formatiert.',
     kitYamlInvalid: 'Benutzerdefiniertes Kit-YAML ist ungültig: {message}',
+    kitEnvTipTitle: 'Geheime Env-Platzhalter verwenden',
+    kitEnvTipBody: 'Platzhalter wie ${MY_SECRET} funktionieren nur in install-/startup-Befehlsskripten — diese laufen als Shell in der Sandbox, wo die Env-Variable verfügbar ist. In initFiles-Inhalten sind sie NICHT erlaubt; dort ersetzt sbx nur ${WORKDIR}. Um eine Datei zu schreiben, die ein Geheimnis benötigt (z. B. ~/.npmrc mit einem Token), erstelle sie über einen install-Befehl (cat > datei <<\'EOF\' … EOF) statt über einen initFiles-Eintrag.',
     saving: 'Speichern…',
     saved: 'Gespeichert ✓'
   },
