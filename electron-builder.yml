@@ -17,9 +17,12 @@ files:
 asarUnpack:
   - "**/node_modules/better-sqlite3/**"
 mac:
-  target:
-    - target: dmg
-      arch: [arm64, x64]
+  # No arch here on purpose: each CI job selects one arch via the electron-builder
+  # CLI (--arm64 on the arm64 runner, --x64 on the Intel runner), and local builds
+  # target the host arch. Hardcoding [arm64, x64] made the arm64 runner build BOTH
+  # bundles, and with npmRebuild:false the single host-arch better-sqlite3 landed in
+  # the x64 bundle too (arch mismatch). One arch per runner keeps the module correct.
+  target: [dmg]
   category: public.app-category.developer-tools
   icon: build/icon.png
 win:
