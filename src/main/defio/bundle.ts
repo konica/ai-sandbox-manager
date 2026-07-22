@@ -42,7 +42,8 @@ function normalizeEntry(raw: unknown): ExportableDefinition | null {
     },
     mounts: arr(e.mounts), domains: arr(e.domains), ports: arr(e.ports),
     hostServices: arr(e.hostServices), credentials: arr(e.credentials),
-    ssh: (e.ssh && typeof e.ssh === 'object' ? e.ssh : undefined) as ExportableDefinition['ssh']
+    ssh: (e.ssh && typeof e.ssh === 'object' ? e.ssh : undefined) as ExportableDefinition['ssh'],
+    kitCommandsYaml: typeof e.kitCommandsYaml === 'string' ? e.kitCommandsYaml : undefined
   }
 }
 
