@@ -286,6 +286,10 @@ export function CreateDefinition({
                 onChange={(e) => { dispatch({ type: 'setField', field: 'kitCommandsYaml', value: e.target.value }); setKitMsg(null) }}
               />
               <p className="section-desc" style={{ fontSize: 11, marginTop: 'var(--space-1)' }}>{t('wizard.customKitYamlHelp')}</p>
+              <div className="card" style={{ marginTop: 'var(--space-3)', padding: 'var(--space-3)', background: 'var(--bg-subtle, var(--bg-2))' }}>
+                <strong style={{ fontSize: 12 }}>💡 {t('wizard.kitEnvTipTitle')}</strong>
+                <p className="section-desc" style={{ fontSize: 12, margin: 'var(--space-1) 0 0' }}>{t('wizard.kitEnvTipBody')}</p>
+              </div>
               <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
                 <button className="btn btn-secondary btn-sm" type="button" onClick={() => {
                   const r = normalizeCommandsYaml(draft.kitCommandsYaml)

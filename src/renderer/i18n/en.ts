@@ -336,6 +336,8 @@ export const en = {
     validate: 'Validate',
     kitReformatted: 'Formatted.',
     kitYamlInvalid: 'Custom kit YAML is invalid: {message}',
+    kitEnvTipTitle: 'Using secret env placeholders',
+    kitEnvTipBody: 'Placeholders like ${MY_SECRET} only work inside install / startup command scripts — those run as a shell in the sandbox where the env var is live. They are NOT allowed in initFiles content; there sbx only substitutes ${WORKDIR}. To write a file that needs a secret (e.g. ~/.npmrc with a token), create it from an install command (cat > file <<\'EOF\' … EOF) instead of an initFiles entry.',
     saving: 'Saving…',
     saved: 'Saved ✓'
   },
