@@ -8,6 +8,7 @@
 // (see Task 11), not through the kit. No secret ever enters the kit.
 import type { DefinitionSpec } from '@shared/types'
 import { serviceById } from '@shared/services'
+import { normalizeCommandsYaml } from '@shared/kit-commands'
 import { BALANCED_BASELINE } from '../sbx/translate'
 
 // The app always launches the `claude` agent, so every sandbox must reach Anthropic
@@ -59,6 +60,12 @@ export function buildKitSpec(spec: DefinitionSpec): GeneratedKit {
     lines.push('network:', '  allowedDomains:')
     for (const d of domains) lines.push(`    - ${q(d)}`)
   }
+
+  // Merge the user's custom kit commands (install/startup/initFiles). Disjoint top-level
+  // key from network/name, so a normalized append is a valid merge. Defensive: skip if it
+  // somehow doesn't normalize (the wizard save gate blocks invalid YAML upstream).
+  const norm = normalizeCommandsYaml(spec.kitCommandsYaml ?? '')
+  if (norm.ok && norm.yaml.trim()) lines.push(norm.yaml.trimEnd())
 
   return { name, specYaml: lines.join('\n') + '\n', secretFiles: [] }
 }
