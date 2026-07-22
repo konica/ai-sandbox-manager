@@ -274,7 +274,21 @@ export const en = {
     domainPlaceholder: 'api.example.com',
     colTime: 'Time',
     colHost: 'Host',
-    colReason: 'Reason'
+    colReason: 'Reason',
+    colProxy: 'Proxy',
+    proxyLegendTitle: 'Proxy types',
+    proxyLegendLearnMore: 'Learn more',
+    proxyUnknownMeaning: 'Handled by the sandbox proxy.',
+    proxyForwardLabel: 'Forward',
+    proxyForwardMeaning: 'Forward proxy — supports credential injection.',
+    proxyForwardBypassLabel: 'Forward (bypass)',
+    proxyForwardBypassMeaning: 'Forward proxy without credential injection.',
+    proxyTransparentLabel: 'Transparent',
+    proxyTransparentMeaning: 'Transparent proxy — policy enforced, no credential injection.',
+    proxyNetworkLabel: 'Network',
+    proxyNetworkMeaning: 'Non-HTTP traffic (raw TCP/UDP/ICMP). UDP and ICMP are always blocked.',
+    proxyBrowserOpenLabel: 'Browser open',
+    proxyBrowserOpenMeaning: 'A sandbox process requested opening a URL in the host browser.'
   },
   wizard: {
     stepOf: 'Step {n} of {total}',

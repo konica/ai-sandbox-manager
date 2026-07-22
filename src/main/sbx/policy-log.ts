@@ -2,7 +2,7 @@ import type { PolicyEvent, PolicySummary } from '@shared/types'
 
 const EMPTY: PolicySummary = { allowed: 0, blocked: 0, events: [] }
 
-interface RawRow { host?: unknown; reason?: unknown; last_seen?: unknown; count_since?: unknown }
+interface RawRow { host?: unknown; reason?: unknown; last_seen?: unknown; count_since?: unknown; proxy_type?: unknown }
 
 function toEvents(rows: unknown, allowed: boolean, skip?: Set<string>): { events: PolicyEvent[]; count: number } {
   if (!Array.isArray(rows)) return { events: [], count: 0 }
@@ -15,7 +15,7 @@ function toEvents(rows: unknown, allowed: boolean, skip?: Set<string>): { events
     if (!host || skip?.has(host)) continue
     const n = typeof o.count_since === 'number' ? o.count_since : 1
     count += n
-    events.push({ at: typeof o.last_seen === 'string' ? o.last_seen : '', host, allowed, reason: typeof o.reason === 'string' ? o.reason : '', count: n })
+    events.push({ at: typeof o.last_seen === 'string' ? o.last_seen : '', host, allowed, reason: typeof o.reason === 'string' ? o.reason : '', proxyType: typeof o.proxy_type === 'string' ? o.proxy_type : '', count: n })
   }
   return { events, count }
 }
