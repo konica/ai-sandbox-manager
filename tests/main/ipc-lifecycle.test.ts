@@ -14,6 +14,7 @@ function deps() {
     runSbx: vi.fn(), listSandboxes: vi.fn(async () => []),
     createSandbox: vi.fn(), applyPolicy: vi.fn(), publishPorts: vi.fn(),
     stopSandbox: vi.fn(async () => {}), removeSandbox: vi.fn(async () => {}),
+    setSecret: vi.fn(async () => {}), setCustomSecret: vi.fn(async () => {}), setRegistrySecret: vi.fn(async () => {}),
     removeSecret: vi.fn(async () => {}), removeCustomSecret: vi.fn(async () => {}),
     listPorts: vi.fn(async () => []), publishPort: vi.fn(async () => {}), unpublishPort: vi.fn(async () => {}),
     allowNetwork: vi.fn(async () => {}), removeNetwork: vi.fn(async () => {}),
@@ -26,9 +27,10 @@ function deps() {
     deleteInstanceMeta: vi.fn(),
     listInstanceMeta: vi.fn(() => [])
   }
+  const creds = { getStaged: vi.fn(() => 'secret-val') }
   const probes = {} as never
   const cleanupKit = vi.fn()
-  return { adapter, store, probes, openTerminal, cleanupKit, genHash: () => '3323dc52' }
+  return { adapter, store, creds, probes, openTerminal, cleanupKit, genHash: () => '3323dc52' }
 }
 
 describe('instance lifecycle IPC', () => {
@@ -49,6 +51,19 @@ describe('instance lifecycle IPC', () => {
     await h['instance:shell']('my-project')
     expect(d.openTerminal).toHaveBeenNthCalledWith(1, "sbx run --name 'my-project' -- --continue")
     expect(d.openTerminal).toHaveBeenNthCalledWith(2, "sbx exec -it 'my-project' bash")
+  })
+
+  it('instance:attach re-registers the definition\'s current credentials scoped to the instance (picks up creds added since launch)', async () => {
+    const d = deps()
+    d.store.listInstanceMeta.mockReturnValue([{ sbxName: 'my-project-x', definitionId: 'd1', createdByApp: true, createdAt: 't' }] as never)
+    d.store.getDefinitionSpec.mockReturnValue({
+      ...spec, hostServices: [],
+      credentials: [{ kind: 'custom', id: 'dock', label: 'Docker', envVar: 'DOCKER_REGISTRY_AUTH_TOKEN', domains: ['dockerregistry.mgm-tp.com'], store: 'encrypted' }]
+    } as never)
+    const h = buildHandlers(d as never)
+    await h['instance:attach']('my-project-x')
+    expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['dockerregistry.mgm-tp.com'], 'DOCKER_REGISTRY_AUTH_TOKEN', 'secret-val', { sandbox: 'my-project-x' })
+    expect(d.openTerminal).toHaveBeenCalledWith("sbx run --name 'my-project-x' -- --continue")
   })
 
   it('instance:stop calls the adapter', async () => {

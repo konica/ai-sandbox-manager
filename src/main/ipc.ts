@@ -5,6 +5,7 @@ import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
 import { reconcile } from './reconciler'
 import { launchDefinition } from './launch'
+import { registerCredentials } from './creds/register'
 import { agentAttachCommand, hostShellCommand, loginCommand } from './sbx/translate'
 import { claudeAuthStatus, claudeSignOut, needsAuthNudge } from './auth/manager'
 import { sshAuthSockPresent } from './ssh/detect'
@@ -152,6 +153,11 @@ export function buildHandlers(deps: Deps): {
       const cmd = agentAttachCommand(name)
       const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
       const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
+      // Re-register the definition's current credentials scoped to this instance so any
+      // added/changed since the initial launch are synced into sbx before the agent runs.
+      if (spec && deps.creds && meta?.definitionId && spec.credentials.length > 0) {
+        await registerCredentials({ adapter: deps.adapter, creds: deps.creds, log: deps.log }, meta.definitionId, spec.credentials, name)
+      }
       const workspaceDir = (spec?.mounts.find((m) => m.isPrimary) ?? spec?.mounts[0])?.hostPath?.trim()
       if (opener === 'vscode' && deps.openVSCode && workspaceDir) {
         deps.log?.info(`Opening VS Code at ${workspaceDir} to attach "${name}"`)
