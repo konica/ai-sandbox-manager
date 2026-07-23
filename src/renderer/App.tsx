@@ -139,12 +139,12 @@ export default function App(): JSX.Element {
     void loadInstances() // refresh existing sandbox names for the dialog
   }
 
-  async function submitLaunch(definition: Definition, sessionName: string, opener: 'terminal' | 'vscode'): Promise<void> {
+  async function submitLaunch(definition: Definition, sessionName: string, opener: 'terminal' | 'vscode', yolo: boolean): Promise<void> {
     setLaunchFor(null)
     setNotice(null)
     setBusyId(definition.id)
     try {
-      const r = await api.instanceLaunch(definition.id, undefined, sessionName, opener)
+      const r = await api.instanceLaunch(definition.id, undefined, sessionName, opener, yolo)
       if (r.ok) {
         setNotice({ kind: 'info', text: t('instances.launched', { name: r.data.name }) })
         setScreen('instances')
@@ -163,8 +163,8 @@ export default function App(): JSX.Element {
   }
   // With an explicit opener (the detail screen's two buttons) attach directly; without one
   // (the Instances list) pop the Open-with chooser.
-  function onAttach(name: string, opener?: 'terminal' | 'vscode'): void {
-    if (opener) void runAction(api.instanceAttach(name, opener))
+  function onAttach(name: string, opener?: 'terminal' | 'vscode', yolo?: boolean): void {
+    if (opener) void runAction(api.instanceAttach(name, opener, yolo ?? true))
     else setAttachFor(name)
   }
   function onShell(name: string): void { void runAction(api.instanceShell(name)) }
@@ -266,7 +266,7 @@ export default function App(): JSX.Element {
           definition={launchFor}
           hasVSCode={hasVSCode}
           cloneMode={launchCloneMode}
-          onLaunch={(session, opener) => void submitLaunch(launchFor, session, opener)}
+          onLaunch={(session, opener, yolo) => void submitLaunch(launchFor, session, opener, yolo)}
           onCancel={() => setLaunchFor(null)}
         />
       )}
@@ -283,7 +283,7 @@ export default function App(): JSX.Element {
         <OpenWithDialog
           title={t('launch.attachTitle', { name: attachFor })}
           hasVSCode={hasVSCode}
-          onChoose={(opener) => { const n = attachFor; setAttachFor(null); void runAction(api.instanceAttach(n, opener)) }}
+          onChoose={(opener, yolo) => { const n = attachFor; setAttachFor(null); void runAction(api.instanceAttach(n, opener, yolo)) }}
           onCancel={() => setAttachFor(null)}
         />
       )}

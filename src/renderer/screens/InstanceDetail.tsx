@@ -31,7 +31,7 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
   onStop: (name: string) => void
   onRemove: (name: string) => void
   onRebuild: (name: string) => void
-  onAttach: (name: string, opener: 'terminal' | 'vscode') => void
+  onAttach: (name: string, opener: 'terminal' | 'vscode', yolo: boolean) => void
   onShell: (name: string) => void
 }): JSX.Element {
   const t = useT()

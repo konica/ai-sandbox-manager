@@ -15,8 +15,8 @@ describe('TerminalsTab', () => {
   it('opens the agent in Terminal or VS Code and a shell', () => {
     const onAttach = vi.fn(); const onShell = vi.fn()
     render(<TerminalsTab instance={inst} spec={spec} hasVSCode onAttach={onAttach} onShell={onShell} />)
-    fireEvent.click(screen.getByRole('button', { name: /agent in terminal/i })); expect(onAttach).toHaveBeenCalledWith('sbx-a', 'terminal')
-    fireEvent.click(screen.getByRole('button', { name: /agent in vs code/i })); expect(onAttach).toHaveBeenCalledWith('sbx-a', 'vscode')
+    fireEvent.click(screen.getByRole('button', { name: /agent in terminal/i })); expect(onAttach).toHaveBeenCalledWith('sbx-a', 'terminal', true)
+    fireEvent.click(screen.getByRole('button', { name: /agent in vs code/i })); expect(onAttach).toHaveBeenCalledWith('sbx-a', 'vscode', true)
     fireEvent.click(screen.getByRole('button', { name: /shell/i })); expect(onShell).toHaveBeenCalledWith('sbx-a')
   })
   it('disables the VS Code agent button when the code CLI is unavailable', () => {
@@ -36,7 +36,7 @@ describe('TerminalsTab', () => {
     const agentTerminal = screen.getByRole('button', { name: /start agent in terminal/i })
     expect(agentTerminal).not.toBeDisabled()
     fireEvent.click(agentTerminal)
-    expect(onAttach).toHaveBeenCalledWith('sbx-a', 'terminal')
+    expect(onAttach).toHaveBeenCalledWith('sbx-a', 'terminal', true)
     expect(screen.getByRole('button', { name: /shell/i })).toBeDisabled()
   })
   it('copies the manual agent / shell commands to the clipboard', () => {
