@@ -11,8 +11,8 @@ interface Api {
   defImport(): Promise<Result<{ canceled?: boolean; imported?: string[]; skipped?: number }>>
   defRemove(id: string): Promise<Result<{ removedInstances: number }>>
   pickFolder(): Promise<string | null>
-  instanceLaunch(definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
-  instanceAttach(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<null>>
+  instanceLaunch(definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', yolo?: boolean): Promise<Result<{ name: string }>>
+  instanceAttach(name: string, opener?: 'terminal' | 'vscode', yolo?: boolean): Promise<Result<null>>
   instanceRebuild(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
   instanceCommands(name: string): Promise<Result<{ agent: string; shell: string }>>
   instanceShell(name: string): Promise<Result<null>>
