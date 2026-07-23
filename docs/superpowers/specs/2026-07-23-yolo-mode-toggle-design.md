@@ -37,30 +37,35 @@ sanity check after implementation (see Testing).
 | Control model | **Per-launch / per-attach choice, chosen each time, NOT persisted.** |
 | Default | **ON** (yolo) — preserves today's behavior. |
 | Scope | Applies to **start (launch)** and **re-attach**. `instance:rebuild` is unchanged (implicitly ON). |
-| Flag mechanism | Append a Claude Code flag after `--`: **ON → `--dangerously-skip-permissions`**; **OFF → `--permission-mode default`**. Explicit both ways for determinism. |
+| Flag mechanism | **ON → append nothing** (the sandbox already defaults to yolo via `IS_SANDBOX=1`, so ON = today's exact command). **OFF → append `--permission-mode default`** after `--`. Additive-only, so ON-path commands (and their existing tests) are unchanged. |
+| Parameter shape | `yolo` is **optional, default `true`** on the command builders and `launchDefinition`, so `rebuild` and existing callers/tests keep current behavior; the UI always passes an explicit value. |
 
 ## Architecture / components
 
 ### Command builders — `src/main/sbx/translate.ts`
-A single helper turns the boolean into the flag tokens:
+A single helper turns the boolean into the (possibly empty) flag tokens:
 
 ```ts
-// Claude Code permission args appended after `--`. ON is explicit (permitted by
-// IS_SANDBOX=1); OFF forces normal prompting.
+// Claude Code permission args appended after `--`. ON = nothing (the sandbox
+// already yolos by default via IS_SANDBOX=1); OFF forces normal prompting.
 export function yoloAgentArgs(yolo: boolean): string[] {
-  return yolo ? ['--dangerously-skip-permissions'] : ['--permission-mode', 'default']
+  return yolo ? [] : ['--permission-mode', 'default']
 }
 ```
 
-- **`launchCommand(spec, name, sessionName, kitDir, yolo)`** — the `sbx run`
-  attach step becomes: base `['sbx','run','--name',name]`, then a single `--`
-  followed by the optional session-name args **and** `yoloAgentArgs(yolo)`.
-  The `--` is emitted once, only when there is at least one agent arg (always
-  true now, since a permission flag is always present).
-- **`agentAttachCommand(name, yolo)`** — `sbx run --name <name> -- --continue <yoloArgs>`.
+- **`launchCommand(spec, name?, sessionName?, kitDir?, yolo = true)`** — the
+  `sbx run` attach step builds `['sbx','run','--name',name]`, then the agent-arg
+  tail = optional session-name args (`--name <session>`) **concatenated with**
+  `yoloAgentArgs(yolo)`. Emit the `--` separator once, only when that tail is
+  non-empty. So: ON + no session → `sbx run --name <name>` (unchanged); OFF →
+  `… -- --permission-mode default`; ON + session → `… -- --name '<session>'`
+  (unchanged); OFF + session → `… -- --name '<session>' --permission-mode default`.
+- **`agentAttachCommand(name, yolo = true)`** — ON →
+  `sbx run --name <name> -- --continue` (unchanged); OFF →
+  `sbx run --name <name> -- --continue --permission-mode default`.
 
-`yolo` is a required parameter on both (no default) so every caller is forced to
-decide; callers pass the UI value or an explicit `true`.
+`yolo` is **optional, default `true`** on both, so `rebuild` and every existing
+caller/test keep today's behavior; the UI passes an explicit value.
 
 ### IPC — `src/main/ipc.ts` + `src/renderer/ipc/client.ts`
 - `instance:launch(definitionId, name?, sessionName?, opener?, yolo)` — add `yolo: boolean`.
@@ -100,11 +105,12 @@ agent, which bypasses (ON) or prompts (OFF).
 - Rebuild preserves ON (no behavior change, no new prompt surface).
 
 ## Testing
-- **`translate` unit tests:** `yoloAgentArgs(true)` → `['--dangerously-skip-permissions']`;
-  `yoloAgentArgs(false)` → `['--permission-mode','default']`. `launchCommand(..., true)`
-  contains `-- … --dangerously-skip-permissions`; `launchCommand(..., false)` contains
-  `--permission-mode default`. `agentAttachCommand(name, true/false)` contains
-  `--continue` plus the correct flag, with a single `--`.
+- **`translate` unit tests:** `yoloAgentArgs(true)` → `[]`; `yoloAgentArgs(false)`
+  → `['--permission-mode','default']`. `launchCommand(spec, name, undefined, undefined, false)`
+  ends `… -- --permission-mode default`; with a session name + OFF →
+  `… -- --name '<session>' --permission-mode default`. `agentAttachCommand(name, false)`
+  → `… -- --continue --permission-mode default`. The existing ON-default
+  assertions (no flag) stay green and must NOT be modified.
 - **Dialog tests:** `LaunchDialog` / `OpenWithDialog` render the Yolo checkbox
   checked by default; unticking and confirming passes `yolo:false` to the
   callback; default confirm passes `yolo:true`. `TerminalsTab`: the inline
