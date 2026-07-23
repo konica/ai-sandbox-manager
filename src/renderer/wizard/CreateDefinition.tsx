@@ -42,6 +42,11 @@ function Chip({ text, onRemove }: { text: string; onRemove: () => void }): JSX.E
   )
 }
 
+/** A small ⓘ help marker whose hover/focus reveals an explanatory tooltip. */
+function InfoDot({ tip }: { tip: string }): JSX.Element {
+  return <span className="info-dot" tabIndex={0} role="img" aria-label={tip} title={tip}>ⓘ</span>
+}
+
 export function CreateDefinition({
   onDone,
   onCancel,
@@ -225,7 +230,7 @@ export function CreateDefinition({
 
           {draft.step === 3 && (
             <>
-              <label>{t('wizard.networkTier')}</label>
+              <label>{t('wizard.networkTier')}<InfoDot tip={t('wizard.networkTierTip')} /></label>
               <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
                 {TIERS.map((tr) => (
                   <label key={tr.value} style={{ flex: 1, display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start', padding: 'var(--space-3)', border: `1px solid ${draft.tier === tr.value ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>
@@ -234,7 +239,7 @@ export function CreateDefinition({
                   </label>
                 ))}
               </div>
-              <label>{t('wizard.allowlist')}</label>
+              <label>{t('wizard.allowlist')}<InfoDot tip={t('wizard.allowlistTip')} /></label>
               <div style={row}>
                 <input aria-label="Domain" className="input input-mono" placeholder={t('wizard.domainPlaceholder')} value={domainInput} onChange={(e) => setDomainInput(e.target.value)} />
                 <button className="btn btn-secondary btn-sm" onClick={() => { if (domainInput.trim()) { dispatch({ type: 'addDomain', host: domainInput.trim() }); setDomainInput('') } }}>{t('wizard.addDomain')}</button>

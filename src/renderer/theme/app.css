@@ -1103,3 +1103,15 @@ label {
 .proxy-legend summary { cursor: pointer; color: var(--text-muted); font-weight: 600; }
 .proxy-legend-body { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
 .proxy-legend-row { display: flex; align-items: center; gap: var(--space-3); }
+
+/* Inline ⓘ help marker (wizard labels) */
+.info-dot {
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: normal;
+  cursor: help;
+  user-select: none;
+}
+.info-dot:hover, .info-dot:focus-visible { color: var(--accent); outline: none; }
