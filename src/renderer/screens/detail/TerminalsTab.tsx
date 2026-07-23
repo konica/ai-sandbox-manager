@@ -23,7 +23,7 @@ export function TerminalsTab({ instance, spec, hasVSCode, agentCommand, shellCom
   hasVSCode: boolean
   agentCommand?: string
   shellCommand?: string
-  onAttach: (name: string, opener: 'terminal' | 'vscode') => void
+  onAttach: (name: string, opener: 'terminal' | 'vscode', yolo: boolean) => void
   onShell: (name: string) => void
   onAllowDomain?: (domain: string) => void
   onDenyDomain?: (domain: string) => void
@@ -32,6 +32,7 @@ export function TerminalsTab({ instance, spec, hasVSCode, agentCommand, shellCom
   const running = instance.status === 'running'
   const [domainInput, setDomainInput] = useState('')
   const [copied, setCopied] = useState<'agent' | 'shell' | null>(null)
+  const [yolo, setYolo] = useState(true)
 
   function copy(which: 'agent' | 'shell', cmd: string): void {
     void navigator.clipboard?.writeText(cmd)
@@ -54,11 +55,16 @@ export function TerminalsTab({ instance, spec, hasVSCode, agentCommand, shellCom
         <div className="card">
           <div className="card-header"><div className="card-title">{t('detail.terminals')}</div></div>
           <p className="section-desc" style={{ marginTop: 0 }}>{t('detail.nativeNote')} <span className="os-tag" style={{ fontSize: 10 }}>macOS</span></p>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, marginTop: 'var(--space-2)' }}>
+            <input type="checkbox" aria-label="Yolo mode" checked={yolo} onChange={(e) => setYolo(e.target.checked)} />
+            {t('launch.yoloLabel')}
+            <span className="info-dot" tabIndex={0} role="img" aria-label={t('launch.yoloHint')} title={t('launch.yoloHint')}>ⓘ</span>
+          </label>
           <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-3)', flexWrap: 'wrap' }}>
             {/* Agent uses `sbx run --name … -- --continue`, which starts a stopped sandbox → always enabled.
                 Two openers: native Terminal.app, or VS Code (folder + integrated terminal). */}
-            <button className="btn btn-primary btn-sm" onClick={() => onAttach(instance.name, 'terminal')}>{running ? t('detail.openAgentTerminal') : t('detail.startAgentTerminal')}</button>
-            <button className="btn btn-primary btn-sm" disabled={!hasVSCode} title={hasVSCode ? undefined : t('launch.openVSCodeUnavailable')} onClick={() => onAttach(instance.name, 'vscode')}>{running ? t('detail.openAgentVSCode') : t('detail.startAgentVSCode')}</button>
+            <button className="btn btn-primary btn-sm" onClick={() => onAttach(instance.name, 'terminal', yolo)}>{running ? t('detail.openAgentTerminal') : t('detail.startAgentTerminal')}</button>
+            <button className="btn btn-primary btn-sm" disabled={!hasVSCode} title={hasVSCode ? undefined : t('launch.openVSCodeUnavailable')} onClick={() => onAttach(instance.name, 'vscode', yolo)}>{running ? t('detail.openAgentVSCode') : t('detail.startAgentVSCode')}</button>
             {/* Shell uses `sbx exec`, which needs a running VM → disabled until running. */}
             <button className="btn btn-secondary btn-sm" disabled={!running} onClick={() => onShell(instance.name)}>{t('detail.openShell')}</button>
           </div>
