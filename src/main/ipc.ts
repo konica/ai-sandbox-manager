@@ -66,8 +66,8 @@ export function buildHandlers(deps: Deps): {
   'def:export': (ids: string[]) => Promise<Result<{ canceled?: boolean; path?: string; count?: number }>>
   'def:import': () => Promise<Result<{ canceled?: boolean; imported?: string[]; skipped?: number }>>
   'def:remove': (id: string) => Promise<Result<{ removedInstances: number }>>
-  'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', yolo?: boolean) => Promise<Result<{ name: string }>>
-  'instance:attach': (name: string, opener?: 'terminal' | 'vscode', yolo?: boolean) => Promise<Result<null>>
+  'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
+  'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
   'instance:rebuild': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
   'instance:commands': (name: string) => Promise<Result<{ agent: string; shell: string }>>
   'instance:shell': (name: string) => Promise<Result<null>>
@@ -154,12 +154,12 @@ export function buildHandlers(deps: Deps): {
       deps.log?.info(`Deleted definition ${id} and ${instances.length} instance(s).`)
       return { removedInstances: instances.length }
     }),
-    'instance:launch': (definitionId, name, sessionName, opener, yolo) => wrap(() => launchDefinition(
+    'instance:launch': (definitionId, name, sessionName, opener) => wrap(() => launchDefinition(
       launchDeps(),
-      definitionId, name, sessionName, opener ?? 'terminal', yolo ?? true
+      definitionId, name, sessionName, opener ?? 'terminal'
     )),
-    'instance:attach': (name, opener, yolo) => wrap(async () => {
-      const cmd = agentAttachCommand(name, yolo ?? true)
+    'instance:attach': (name, opener) => wrap(async () => {
+      const cmd = agentAttachCommand(name)
       const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
       const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
       // Re-register the definition's current credentials scoped to this instance so any
@@ -346,8 +346,8 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('def:export', (_e, ids: string[]) => handlers['def:export'](ids))
   ipcMain.handle('def:import', () => handlers['def:import']())
   ipcMain.handle('def:remove', (_e, id: string) => handlers['def:remove'](id))
-  ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', yolo?: boolean) => handlers['instance:launch'](id, name, sessionName, opener, yolo))
-  ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode', yolo?: boolean) => handlers['instance:attach'](name, opener, yolo))
+  ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => handlers['instance:launch'](id, name, sessionName, opener))
+  ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:attach'](name, opener))
   ipcMain.handle('instance:rebuild', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:rebuild'](name, opener))
   ipcMain.handle('instance:commands', (_e, name: string) => handlers['instance:commands'](name))
   ipcMain.handle('instance:shell', (_e, name: string) => handlers['instance:shell'](name))

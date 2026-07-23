@@ -23,7 +23,7 @@ describe('LaunchDialog', () => {
     const { onLaunch } = setup()
     expect(screen.getByLabelText('VS Code')).toBeChecked()
     fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    expect(onLaunch).toHaveBeenCalledWith('', 'vscode', true)
+    expect(onLaunch).toHaveBeenCalledWith('', 'vscode')
   })
 
   it('passes the typed session name (trimmed) and chosen opener', () => {
@@ -31,7 +31,7 @@ describe('LaunchDialog', () => {
     fireEvent.change(screen.getByLabelText('Session name'), { target: { value: '  Refactor auth  ' } })
     fireEvent.click(screen.getByLabelText('Terminal'))
     fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    expect(onLaunch).toHaveBeenCalledWith('Refactor auth', 'terminal', true)
+    expect(onLaunch).toHaveBeenCalledWith('Refactor auth', 'terminal')
   })
 
   it('disables the VS Code option and defaults to Terminal when the code CLI is unavailable', () => {
@@ -39,7 +39,7 @@ describe('LaunchDialog', () => {
     expect(screen.getByLabelText('VS Code')).toBeDisabled()
     expect(screen.getByLabelText('Terminal')).toBeChecked()
     fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    expect(onLaunch).toHaveBeenCalledWith('', 'terminal', true)
+    expect(onLaunch).toHaveBeenCalledWith('', 'terminal')
   })
 
   it('shows the clone-mode note only when VS Code is selected in clone mode', () => {

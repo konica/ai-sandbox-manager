@@ -106,9 +106,7 @@ export const de: Dict = {
     openVSCodeCloneNote: 'VS Code zeigt den Host-Ordner. Im Clone-Modus bearbeitet der Agent eine Kopie im Container; seine Änderungen erscheinen über das Git-Remote sandbox-<name>, nicht live.',
     attachTitle: 'Agent-Session für „{name}“ öffnen',
     launch: 'Starten',
-    cancel: 'Abbrechen',
-    yoloLabel: 'Yolo-Modus',
-    yoloHint: 'Der Agent überspringt Berechtigungsabfragen und genehmigt Aktionen automatisch. Die Sandbox ist die Sicherheitsgrenze. Deaktivieren, um vor jeder Aktion gefragt zu werden.'
+    cancel: 'Abbrechen'
   },
   settings: {
     title: 'Einstellungen',

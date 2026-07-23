@@ -12,7 +12,6 @@ import {
   shellCommand,
   launchCommand,
   agentAttachCommand,
-  yoloAgentArgs,
   hostShellCommand
 } from '../../../src/main/sbx/translate'
 import type { DefinitionSpec } from '../../../src/shared/types'
@@ -166,24 +165,5 @@ describe('launchCommand', () => {
   })
   it('omits the session args when no session name is given', () => {
     expect(launchCommand(spec(), 'my-project', '  ')).toMatch(/&& sbx run --name my-project$/)
-  })
-})
-
-describe('yolo permission args', () => {
-  it('ON appends nothing; OFF forces --permission-mode default', () => {
-    expect(yoloAgentArgs(true)).toEqual([])
-    expect(yoloAgentArgs(false)).toEqual(['--permission-mode', 'default'])
-  })
-  it('agentAttachCommand: OFF adds the flag after --continue with a single --', () => {
-    expect(agentAttachCommand('my-project', true)).toBe("sbx run --name 'my-project' -- --continue")
-    expect(agentAttachCommand('my-project', false)).toBe("sbx run --name 'my-project' -- --continue --permission-mode default")
-  })
-  it('launchCommand: OFF appends --permission-mode default after --', () => {
-    expect(launchCommand(spec(), 'my-project', undefined, undefined, false))
-      .toMatch(/&& sbx run --name my-project -- --permission-mode default$/)
-  })
-  it('launchCommand: OFF with a session name keeps one -- then session then flag', () => {
-    expect(launchCommand(spec(), 'my-project', 'Refactor auth', undefined, false))
-      .toMatch(/&& sbx run --name my-project -- --name 'Refactor auth' --permission-mode default$/)
   })
 })
