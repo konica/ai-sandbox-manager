@@ -12,7 +12,8 @@ import {
   shellCommand,
   launchCommand,
   agentAttachCommand,
-  hostShellCommand
+  hostShellCommand,
+  sshHostKeySetupCommand
 } from '../../../src/main/sbx/translate'
 import type { DefinitionSpec } from '../../../src/shared/types'
 
@@ -141,7 +142,7 @@ describe('shell command builders', () => {
 describe('launchCommand', () => {
   it('chains create then run for a locked sandbox with no allowlist', () => {
     expect(launchCommand(spec())).toBe(
-      'sbx create claude /home/u/proj --name my-project --template docker.io/docker/sandbox-templates:claude-code && sbx run --name my-project'
+      `sbx create claude /home/u/proj --name my-project --template docker.io/docker/sandbox-templates:claude-code && ${sshHostKeySetupCommand('my-project')} && sbx run --name my-project`
     )
   })
   it('inserts a policy step and quotes the wildcard for the open tier', () => {
