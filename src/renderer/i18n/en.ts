@@ -104,7 +104,9 @@ export const en = {
     openVSCodeCloneNote: 'VS Code shows the host folder. In clone mode the agent edits an in-container copy, so its changes appear via the sandbox-<name> git remote, not live.',
     attachTitle: 'Open agent session for “{name}”',
     launch: 'Launch',
-    cancel: 'Cancel'
+    cancel: 'Cancel',
+    yoloLabel: 'Yolo mode',
+    yoloHint: 'The agent skips permission prompts and auto-approves actions. The sandbox is the safety boundary. Uncheck to be asked before each action.'
   },
   settings: {
     title: 'Settings',
