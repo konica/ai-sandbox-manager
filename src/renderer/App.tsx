@@ -176,7 +176,9 @@ export default function App(): JSX.Element {
       // Rebuild removes the old sandbox and launches a fresh one (new name), so leave the
       // now-stale detail view for the instances list.
       setDetailName(null)
-      void runAction(api.instanceRebuild(p.name))
+      // Reopen in VS Code by default (fall back to Terminal when the code CLI isn't present),
+      // matching launch/attach behaviour.
+      void runAction(api.instanceRebuild(p.name, hasVSCode ? 'vscode' : 'terminal'))
       return
     }
     void runAction(p.kind === 'stop' ? api.instanceStop(p.name) : api.instanceRemove(p.name))
