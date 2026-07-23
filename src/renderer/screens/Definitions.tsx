@@ -98,7 +98,7 @@ export function Definitions({ definitions, onCreate, onLaunch, onEdit, onImport,
                   <tr key={d.id} className={selected.has(d.id) ? 'selected' : undefined}>
                     <td style={{ width: 40, textAlign: 'center' }}><input type="checkbox" aria-label={t('definitions.selectOne', { name: d.name })} checked={selected.has(d.id)} onChange={() => toggle(d.id)} style={{ cursor: 'pointer' }} /></td>
                     <td>
-                      <button className="link-button" style={{ fontSize: 13, fontWeight: 510, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)' }} onClick={() => onEdit?.(d.id)}>{d.name}</button>
+                      <button className="link-button" style={{ display: 'block', textAlign: 'left', fontSize: 13, fontWeight: 510, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)' }} onClick={() => onEdit?.(d.id)}>{d.name}</button>
                       {d.description && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{d.description}</div>}
                     </td>
                     <td><span className="code-inline">{d.baseImage}</span></td>
