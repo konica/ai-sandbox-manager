@@ -126,12 +126,26 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
   if (sessionName && sessionName.trim()) runArgs.push('--', '--name', sessionName.trim())
   steps.push(shellCommand(runArgs))
 
-  // SSH: commit-signing setup runs inside the sandbox right after create; forward opt-out
-  // strips SSH_AUTH_SOCK from the launching shell so sbx doesn't forward the agent.
+  // SSH: when the agent is forwarded, set up host-key trust (and optionally commit
+  // signing) inside the sandbox right after create. Forward opt-out strips
+  // SSH_AUTH_SOCK from the launching shell so sbx doesn't forward the agent.
   const ssh = spec.ssh ?? DEFAULT_SSH
-  if (ssh.forwardAgent && ssh.commitSigning) steps.splice(1, 0, commitSigningExecCommand(name))
+  if (ssh.forwardAgent) {
+    const post = [sshHostKeySetupCommand(name)]
+    if (ssh.commitSigning) post.push(commitSigningExecCommand(name))
+    steps.splice(1, 0, ...post)
+  }
   const chain = steps.join(' && ')
   return ssh.forwardAgent ? chain : `unset SSH_AUTH_SOCK ; ${chain}`
+}
+
+// Make Git-over-SSH work non-interactively in the sandbox. The forwarded agent carries
+// the private key, but the sandbox has no known_hosts of its own — so a first push hits
+// "Host key verification failed" (no TTY/askpass to accept the key). Create ~/.ssh and set
+// StrictHostKeyChecking=accept-new: first-seen host keys are trusted, a later CHANGED key is
+// still rejected. Single-quoted so it runs inside the sandbox; idempotent via the grep guard.
+export function sshHostKeySetupCommand(name: string): string {
+  return `sbx exec ${name} bash -lc 'mkdir -p ~/.ssh && chmod 700 ~/.ssh; grep -qs "StrictHostKeyChecking accept-new" ~/.ssh/config || printf "Host *\\n\\tStrictHostKeyChecking accept-new\\n" >> ~/.ssh/config; chmod 600 ~/.ssh/config'`
 }
 
 // SSH-based commit signing setup, run INSIDE the sandbox against the forwarded agent.
