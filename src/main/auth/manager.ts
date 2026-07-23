@@ -1,11 +1,11 @@
 import type { DefinitionSpec } from '@shared/types'
-import { parseClaudeAuth, type AuthStatus, type ClaudeAuthKind } from './status'
+import { parseClaudeAuth, type AuthStatus } from './status'
 
 export async function claudeAuthStatus(deps: { listGlobalSecretsRaw: () => Promise<string> }): Promise<AuthStatus> {
   try {
     return { anthropic: parseClaudeAuth(await deps.listGlobalSecretsRaw()) }
   } catch {
-    return { anthropic: 'none' } // fail open to the nudge; never block on detection
+    return { anthropic: 'none' } // best-effort detection; never block on it
   }
 }
 
@@ -15,8 +15,4 @@ export async function claudeSignOut(deps: { removeSecret: (s: string, o: { globa
 
 export function hasAnthropicCredential(spec: DefinitionSpec): boolean {
   return spec.credentials.some((c) => c.kind === 'service' && c.serviceId === 'anthropic')
-}
-
-export function needsAuthNudge(status: ClaudeAuthKind, spec: DefinitionSpec): boolean {
-  return status === 'none' && !hasAnthropicCredential(spec)
 }

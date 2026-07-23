@@ -52,19 +52,6 @@ describe('buildHandlers', () => {
     expect(r.ok && r.data.anthropic).toBe('oauth')
   })
 
-  it('auth:launchPrecheck flags a nudge for a no-credential definition when signed out', async () => {
-    const store = openStore(":memory:")
-    store.insertDefinitionSpec({
-      definition: { id: 'd', name: 'n', description: '', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
-      mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
-    })
-    const signedOut: SbxAdapter = { ...adapter, listGlobalSecretsRaw: async () => 'No secrets found for scope "(global)".' }
-    const h = buildHandlers({ adapter: signedOut, store, probes, openTerminal: () => {} })
-    const r = await h['auth:launchPrecheck']('d')
-    expect(r.ok && r.data.needsNudge).toBe(true)
-    expect(r.ok && r.data.status).toBe('none')
-  })
-
   it('ssh:detect reports whether SSH_AUTH_SOCK is present', async () => {
     const h = buildHandlers({ adapter, store: openStore(":memory:"), probes, openTerminal: () => {}, readLoginEnv: () => ({ SSH_AUTH_SOCK: '/tmp/s.sock' }) })
     const r = await h['ssh:detect']()

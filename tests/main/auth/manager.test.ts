@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { claudeAuthStatus, claudeSignOut, hasAnthropicCredential, needsAuthNudge } from '../../../src/main/auth/manager'
+import { claudeAuthStatus, claudeSignOut, hasAnthropicCredential } from '../../../src/main/auth/manager'
 import type { DefinitionSpec } from '../../../src/shared/types'
 
 const spec = (creds: DefinitionSpec['credentials']): DefinitionSpec => ({
@@ -24,11 +24,5 @@ describe('auth manager', () => {
   it('hasAnthropicCredential is true when a service anthropic cred exists', () => {
     expect(hasAnthropicCredential(spec([{ kind: 'service', serviceId: 'anthropic', envVar: 'ANTHROPIC_API_KEY', store: 'sbx' }]))).toBe(true)
     expect(hasAnthropicCredential(spec([]))).toBe(false)
-  })
-  it('needsAuthNudge only when none AND no definition anthropic cred', () => {
-    expect(needsAuthNudge('none', spec([]))).toBe(true)
-    expect(needsAuthNudge('oauth', spec([]))).toBe(false)
-    expect(needsAuthNudge('apikey', spec([]))).toBe(false)
-    expect(needsAuthNudge('none', spec([{ kind: 'service', serviceId: 'anthropic', envVar: 'ANTHROPIC_API_KEY', store: 'sbx' }]))).toBe(false)
   })
 })

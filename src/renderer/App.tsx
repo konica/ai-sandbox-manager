@@ -10,7 +10,6 @@ import { CreateDefinition } from './wizard/CreateDefinition'
 import { AppShell, type NavScreen } from './components/AppShell'
 import { ConfirmModal } from './components/ConfirmModal'
 import { LaunchDialog } from './components/LaunchDialog'
-import { AuthNudge } from './components/AuthNudge'
 import { OpenWithDialog } from './components/OpenWithDialog'
 import { useT } from './i18n'
 
@@ -37,7 +36,6 @@ export default function App(): JSX.Element {
   const [instances, setInstances] = useState<InstanceView[]>([])
   const [pending, setPending] = useState<{ kind: 'stop' | 'remove' | 'rebuild'; name: string } | null>(null)
   const [launchFor, setLaunchFor] = useState<Definition | null>(null)
-  const [nudgeFor, setNudgeFor] = useState<Definition | null>(null)
   const [attachFor, setAttachFor] = useState<string | null>(null)
   const [detailName, setDetailName] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -129,12 +127,12 @@ export default function App(): JSX.Element {
     const def = defs.find((d) => d.id === definitionId)
     if (!def) return
     setNotice(null)
-    // Nudge a host-side OAuth sign-in when Claude has no credential (non-blocking).
-    const pre = await api.authLaunchPrecheck(def.id)
+    // Launch goes straight to the dialog. Claude's OAuth sign-in is a host-side flow that
+    // happens when the session opens (/login) — the token never enters the sandbox — so
+    // there's no need to gate launch on a credential being configured first.
     // Clone-mode note: VS Code shows the host copy, not the agent's in-container clone.
     const specR = await api.defGetSpec(def.id)
     setLaunchCloneMode(specR.ok && !!specR.data && ((specR.data.mounts.find((m) => m.isPrimary) ?? specR.data.mounts[0])?.mode === 'clone'))
-    if (pre.ok && pre.data.needsNudge) { setNudgeFor(def); return }
     setLaunchFor(def)
     void loadInstances() // refresh existing sandbox names for the dialog
   }
@@ -270,15 +268,6 @@ export default function App(): JSX.Element {
           cloneMode={launchCloneMode}
           onLaunch={(session, opener) => void submitLaunch(launchFor, session, opener)}
           onCancel={() => setLaunchFor(null)}
-        />
-      )}
-      {nudgeFor && (
-        <AuthNudge
-          definition={nudgeFor}
-          onProceed={() => { const d = nudgeFor; setNudgeFor(null); setLaunchFor(d); void loadInstances() }}
-          onSignIn={() => { setNudgeFor(null); void api.authStartLogin() }}
-          onUseKey={() => { const d = nudgeFor; setNudgeFor(null); void openEditor(d.id) }}
-          onCancel={() => setNudgeFor(null)}
         />
       )}
       {attachFor && (

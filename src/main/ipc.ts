@@ -1,5 +1,5 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, ClaudeAuthKind, KitValidation } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, KitValidation } from '@shared/types'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
@@ -8,7 +8,7 @@ import { launchDefinition } from './launch'
 import { SbxError } from '@shared/errors'
 import { registerCredentials } from './creds/register'
 import { agentAttachCommand, hostShellCommand, loginCommand } from './sbx/translate'
-import { claudeAuthStatus, claudeSignOut, needsAuthNudge } from './auth/manager'
+import { claudeAuthStatus, claudeSignOut } from './auth/manager'
 import { sshAuthSockPresent } from './ssh/detect'
 import { codeCliPresent } from './vscode'
 import { buildExportBundle, parseImportBundle, dedupeName } from './defio/bundle'
@@ -90,7 +90,6 @@ export function buildHandlers(deps: Deps): {
   'auth:status': () => Promise<Result<AuthStatus>>
   'auth:signOut': () => Promise<Result<null>>
   'auth:startLogin': () => Promise<Result<{ name: string }>>
-  'auth:launchPrecheck': (definitionId: string) => Promise<Result<{ needsNudge: boolean; status: ClaudeAuthKind }>>
   'ssh:detect': () => Promise<Result<{ present: boolean }>>
   'env:hasVSCode': () => Promise<Result<{ present: boolean }>>
   'kit:validate': (yaml: string) => Promise<Result<KitValidation>>
@@ -271,12 +270,6 @@ export function buildHandlers(deps: Deps): {
       deps.openTerminal(cmd)
       return { name }
     }),
-    'auth:launchPrecheck': (definitionId) => wrap(async () => {
-      const spec = deps.store.getDefinitionSpec(definitionId)
-      const { anthropic } = await claudeAuthStatus(deps.adapter)
-      const needsNudge = spec ? needsAuthNudge(anthropic, spec) : false
-      return { needsNudge, status: anthropic }
-    }),
     'ssh:detect': () => wrap(async () => ({ present: sshAuthSockPresent(deps.readLoginEnv?.() ?? {}) })),
     'env:hasVSCode': () => wrap(async () => ({ present: codeCliPresent() })),
     'kit:validate': (yaml) => wrap(async () => {
@@ -370,7 +363,6 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('auth:status', () => handlers['auth:status']())
   ipcMain.handle('auth:signOut', () => handlers['auth:signOut']())
   ipcMain.handle('auth:startLogin', () => handlers['auth:startLogin']())
-  ipcMain.handle('auth:launchPrecheck', (_e, id: string) => handlers['auth:launchPrecheck'](id))
   ipcMain.handle('ssh:detect', () => handlers['ssh:detect']())
   ipcMain.handle('env:hasVSCode', () => handlers['env:hasVSCode']())
   ipcMain.handle('kit:validate', (_e, yaml: string) => handlers['kit:validate'](yaml))

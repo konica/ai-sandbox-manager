@@ -36,7 +36,6 @@ const api = {
   authStatus: () => ipcRenderer.invoke('auth:status'),
   authSignOut: () => ipcRenderer.invoke('auth:signOut'),
   authStartLogin: () => ipcRenderer.invoke('auth:startLogin'),
-  authLaunchPrecheck: (definitionId: string) => ipcRenderer.invoke('auth:launchPrecheck', definitionId),
   sshDetect: () => ipcRenderer.invoke('ssh:detect'),
   envHasVSCode: () => ipcRenderer.invoke('env:hasVSCode'),
   kitValidate: (yaml: string) => ipcRenderer.invoke('kit:validate', yaml)
