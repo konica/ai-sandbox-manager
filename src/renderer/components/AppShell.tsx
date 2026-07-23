@@ -4,7 +4,11 @@ import { useI18n, LANG_NAMES, type Lang } from '../i18n'
 
 export type NavScreen = 'prereq' | 'definitions' | 'instances' | 'settings'
 
-const APP_VERSION = 'v0.1.0'
+// Injected from package.json at build time (electron.vite.config.ts `define`).
+// Guarded so it also resolves under Vitest, where the define isn't applied.
+declare const __APP_VERSION__: string
+const APP_VERSION = 'v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0')
+const APP_AUTHOR = 'Trung Thảo'
 
 function ThemeToggle({ title }: { title: string }): JSX.Element {
   const [light, setLight] = useState(false)
@@ -121,6 +125,7 @@ export function AppShell({
           </nav>
           <div className="sidebar-footer">
             <span className="version">{APP_VERSION}</span>
+            <span className="footer-author">{APP_AUTHOR}</span>
           </div>
         </aside>
         <main className="content">{children}</main>

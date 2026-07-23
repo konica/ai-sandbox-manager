@@ -249,6 +249,13 @@ a:hover { text-decoration: underline; }
   font-family: var(--font-mono);
   font-size: 11px;
 }
+.sidebar-footer .footer-author {
+  font-size: 11px;
+}
+.sidebar-footer .footer-author::before {
+  content: "·";
+  margin: 0 6px;
+}
 
 /* Content area */
 .content {
