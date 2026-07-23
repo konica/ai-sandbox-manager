@@ -41,7 +41,8 @@ export async function launchDefinition(
   definitionId: string,
   requestedName?: string,
   sessionName?: string,
-  opener: 'terminal' | 'vscode' = 'terminal'
+  opener: 'terminal' | 'vscode' = 'terminal',
+  yolo = true
 ): Promise<{ name: string }> {
   const spec = deps.store.getDefinitionSpec(definitionId)
   if (!spec) throw new SbxError('not-found', `Definition ${definitionId} not found`)
@@ -74,7 +75,7 @@ export async function launchDefinition(
   await registerCredentials({ adapter: deps.adapter, creds: deps.creds, log: deps.log }, definitionId, spec.credentials, name)
 
   const kitDir = deps.materializeKit(spec, name)
-  const command = launchCommand(spec, name, sessionName, kitDir)
+  const command = launchCommand(spec, name, sessionName, kitDir, yolo)
   deps.log?.info(`Launching sandbox "${name}"${sessionName ? ` (session "${sessionName}")` : ''} from definition ${definitionId} (tier: ${spec.definition.tier}, creds: ${spec.credentials.length}, ports: ${spec.ports.length})`)
   deps.log?.info(`Opening terminal to provision and run: ${command}`)
 

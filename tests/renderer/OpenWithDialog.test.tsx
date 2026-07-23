@@ -7,9 +7,9 @@ describe('OpenWithDialog', () => {
     const onChoose = vi.fn()
     render(<OpenWithDialog title="Open agent session" hasVSCode onChoose={onChoose} onCancel={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /^terminal$/i }))
-    expect(onChoose).toHaveBeenCalledWith('terminal')
+    expect(onChoose).toHaveBeenCalledWith('terminal', true)
     fireEvent.click(screen.getByRole('button', { name: /^vs code$/i }))
-    expect(onChoose).toHaveBeenCalledWith('vscode')
+    expect(onChoose).toHaveBeenCalledWith('vscode', true)
   })
   it('makes VS Code the primary (default) action when available', () => {
     render(<OpenWithDialog title="x" hasVSCode onChoose={vi.fn()} onCancel={vi.fn()} />)

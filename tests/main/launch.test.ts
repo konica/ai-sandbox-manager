@@ -203,4 +203,17 @@ describe('launchDefinition', () => {
     expect(d.infos.some((l) => /Launching sandbox "my-project-3323dc52"/.test(l))).toBe(true)
     expect(d.infos.some((l) => /terminal/i.test(l))).toBe(true)
   })
+
+  it('passes yolo=false through to the launch command (--permission-mode default)', async () => {
+    const d = deps(() => spec)
+    await launchDefinition(d as never, 'd1', undefined, undefined, 'terminal', false)
+    const cmd = d.openTerminal.mock.calls[0][0] as string
+    expect(cmd).toContain('-- --permission-mode default')
+  })
+  it('defaults to yolo ON (no permission flag) when not specified', async () => {
+    const d = deps(() => spec)
+    await launchDefinition(d as never, 'd1')
+    const cmd = d.openTerminal.mock.calls[0][0] as string
+    expect(cmd).not.toContain('--permission-mode')
+  })
 })
