@@ -76,20 +76,10 @@ export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`
 }
 
-/**
- * Claude Code permission args appended after the `sbx run … --` separator.
- * Yolo ON adds nothing — the sandbox already defaults to bypass (IS_SANDBOX=1);
- * Yolo OFF forces normal permission prompting.
- */
-export function yoloAgentArgs(yolo: boolean): string[] {
-  return yolo ? [] : ['--permission-mode', 'default']
-}
-
 // Attach reconnects to an existing sandbox and resumes the agent's most recent
 // session (Claude Code `--continue`), passed through `sbx run`'s `--` separator.
-export function agentAttachCommand(name: string, yolo = true): string {
-  const agentArgs = ['--continue', ...yoloAgentArgs(yolo)]
-  return `sbx run --name ${shellQuote(name)} -- ${agentArgs.join(' ')}`
+export function agentAttachCommand(name: string): string {
+  return `sbx run --name ${shellQuote(name)} -- --continue`
 }
 
 export function hostShellCommand(name: string): string {
@@ -118,7 +108,7 @@ export function shellCommand(argv: string[]): string {
  *   create (provision) → apply network tier → publish ports → run (attach agent).
  * Chained with `&&` so a failed step stops the sequence and stays visible.
  */
-export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string, yolo = true): string {
+export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string): string {
   const steps: string[] = [shellCommand(['sbx', ...specToCreateArgs(spec, name, kitDir)])]
   if (!kitDir) {
     // A generated kit owns `allowedDomains`; only apply standalone policy without one.
@@ -130,13 +120,10 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
   for (const p of spec.ports) {
     steps.push(shellCommand(['sbx', 'ports', name, '--publish', portIntentToPublishSpec(p)]))
   }
-  // Agent args go after a single `--`: optional session name, then the (possibly
-  // empty) yolo permission flag. Emit `--` only when there is at least one arg.
+  // `sbx run` attaches the agent; args after `--` go to Claude Code. A session
+  // name maps to `claude --name`, its display name for this new conversation.
   const runArgs = ['sbx', 'run', '--name', name]
-  const agentArgs: string[] = []
-  if (sessionName && sessionName.trim()) agentArgs.push('--name', sessionName.trim())
-  agentArgs.push(...yoloAgentArgs(yolo))
-  if (agentArgs.length) runArgs.push('--', ...agentArgs)
+  if (sessionName && sessionName.trim()) runArgs.push('--', '--name', sessionName.trim())
   steps.push(shellCommand(runArgs))
 
   // SSH: commit-signing setup runs inside the sandbox right after create; forward opt-out

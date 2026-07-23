@@ -14,7 +14,7 @@ export function LaunchDialog({ definition, hasVSCode, cloneMode, onLaunch, onCan
   definition: Definition
   hasVSCode: boolean
   cloneMode: boolean
-  onLaunch: (sessionName: string, opener: 'terminal' | 'vscode', yolo: boolean) => void
+  onLaunch: (sessionName: string, opener: 'terminal' | 'vscode') => void
   onCancel: () => void
 }): JSX.Element {
   const t = useT()
@@ -22,10 +22,9 @@ export function LaunchDialog({ definition, hasVSCode, cloneMode, onLaunch, onCan
   // Default to VS Code when it's available; fall back to Terminal when the code
   // CLI wasn't detected (the VS Code radio is disabled in that case).
   const [opener, setOpener] = useState<'terminal' | 'vscode'>(hasVSCode ? 'vscode' : 'terminal')
-  const [yolo, setYolo] = useState(true)
 
   function submit(): void {
-    onLaunch(sessionName.trim(), opener, yolo)
+    onLaunch(sessionName.trim(), opener)
   }
 
   return (
@@ -60,12 +59,6 @@ export function LaunchDialog({ definition, hasVSCode, cloneMode, onLaunch, onCan
         </div>
         {!hasVSCode && <p className="section-desc" style={{ fontSize: 11, margin: '4px 0 0' }}>{t('launch.openVSCodeUnavailable')}</p>}
         {opener === 'vscode' && cloneMode && <p className="section-desc" style={{ fontSize: 11, margin: '4px 0 0' }}>{t('launch.openVSCodeCloneNote')}</p>}
-
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginTop: 'var(--space-4)' }}>
-          <input type="checkbox" aria-label="Yolo mode" checked={yolo} onChange={(e) => setYolo(e.target.checked)} />
-          {t('launch.yoloLabel')}
-          <span className="info-dot" tabIndex={0} role="img" aria-label={t('launch.yoloHint')} title={t('launch.yoloHint')}>ⓘ</span>
-        </label>
 
         <div className="modal-actions" style={{ marginTop: 'var(--space-5)' }}>
           <button className="btn btn-secondary" onClick={onCancel}>{t('launch.cancel')}</button>
