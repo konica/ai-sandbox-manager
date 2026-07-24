@@ -93,6 +93,8 @@ export function buildHandlers(deps: Deps): {
   'ssh:detect': () => Promise<Result<{ present: boolean }>>
   'env:hasVSCode': () => Promise<Result<{ present: boolean }>>
   'kit:validate': (yaml: string) => Promise<Result<KitValidation>>
+  'prefs:get': (key: string) => Promise<Result<string | null>>
+  'prefs:set': (key: string, value: string) => Promise<Result<null>>
 } {
   // Deps for launchDefinition — shared by instance:launch and instance:rebuild.
   const launchDeps = () => ({
@@ -286,7 +288,9 @@ export function buildHandlers(deps: Deps): {
       } finally {
         try { nodeFs.rmSync(dir, { recursive: true, force: true }) } catch { /* best effort */ }
       }
-    })
+    }),
+    'prefs:get': (key) => wrap(async () => deps.store.getPref(key)),
+    'prefs:set': (key, value) => wrap(async () => { deps.store.setPref(key, value); return null })
   }
 }
 
@@ -366,6 +370,8 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('ssh:detect', () => handlers['ssh:detect']())
   ipcMain.handle('env:hasVSCode', () => handlers['env:hasVSCode']())
   ipcMain.handle('kit:validate', (_e, yaml: string) => handlers['kit:validate'](yaml))
+  ipcMain.handle('prefs:get', (_e, key: string) => handlers['prefs:get'](key))
+  ipcMain.handle('prefs:set', (_e, key: string, value: string) => handlers['prefs:set'](key, value))
   ipcMain.handle('dialog:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }

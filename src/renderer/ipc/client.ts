@@ -38,6 +38,8 @@ interface Api {
   sshDetect(): Promise<Result<{ present: boolean }>>
   envHasVSCode(): Promise<Result<{ present: boolean }>>
   kitValidate(yaml: string): Promise<Result<KitValidation>>
+  prefsGet(key: string): Promise<Result<string | null>>
+  prefsSet(key: string, value: string): Promise<Result<null>>
 }
 
 export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
@@ -77,5 +79,7 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   sshDetect: async () => ({ ok: true, data: { present: false } }),
   envHasVSCode: async () => ({ ok: true, data: { present: false } }),
   instanceCommands: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
-  kitValidate: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } })
+  kitValidate: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  prefsGet: async () => ({ ok: true, data: null }),
+  prefsSet: async () => ({ ok: true, data: null })
 }
