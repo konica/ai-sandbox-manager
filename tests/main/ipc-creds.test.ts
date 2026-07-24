@@ -42,4 +42,16 @@ describe('credential IPC handlers', () => {
     const r = await h['cred:stageFromEnv']('d1:service:openai', 'openai') // not in the fake env
     expect(r.ok).toBe(false)
   })
+  it('sets a global secret from the host env value', async () => {
+    const d = deps()
+    const h = buildHandlers(d)
+    const r = await h['secret:setGlobalFromEnv']('anthropic')
+    expect(r.ok).toBe(true)
+    expect((d as { creds: { setGlobalService: ReturnType<typeof vi.fn> } }).creds.setGlobalService).toHaveBeenCalledWith('anthropic', 'sk-ant-xyz')
+  })
+  it('errors when the imported service has no env value', async () => {
+    const h = buildHandlers(deps())
+    const r = await h['secret:setGlobalFromEnv']('openai') // not in the fake env
+    expect(r.ok).toBe(false)
+  })
 })
