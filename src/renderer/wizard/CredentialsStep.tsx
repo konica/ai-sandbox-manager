@@ -314,9 +314,11 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
         </>
       )}
 
-      <div style={{ marginTop: 'var(--space-4)', padding: '10px 12px', background: 'var(--surface-2, rgba(127,127,127,.06))', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 12, color: 'var(--text-muted)' }}>
-        <strong style={{ color: 'var(--text-secondary)' }}>{t('credentials.securityLabel')}</strong> {t('credentials.securityNote')}
-      </div>
+      {tab !== 'ssh' && (
+        <div style={{ marginTop: 'var(--space-4)', padding: '10px 12px', background: 'var(--surface-2, rgba(127,127,127,.06))', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 12, color: 'var(--text-muted)' }}>
+          <strong style={{ color: 'var(--text-secondary)' }}>{t('credentials.securityLabel')}</strong> {t('credentials.securityNote')}
+        </div>
+      )}
     </>
   )
 }
