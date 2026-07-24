@@ -9,3 +9,5 @@ dist/
 .specify
 brainstorm
 docs/superpowers
+.claude/skills/speckit*
+.claude/specs
