@@ -197,7 +197,13 @@ export const de: Dict = {
     subtitle: 'Wiederverwendbare API-Schlüssel im Betriebssystem-Schlüsselbund (über sbx -g). Werden bei Erstellung einer Sandbox angewendet.',
     add: 'Hinzufügen',
     remove: 'Entfernen',
-    none: 'Noch keine globalen Geheimnisse.'
+    none: 'Noch keine globalen Geheimnisse.',
+    importTitle: 'Aus Umgebung importieren',
+    importSubtitle: 'Erkannte API-Schlüssel in deiner Shell-Umgebung',
+    importNone: 'Keine bekannten Service-Schlüssel in deiner Umgebung gefunden.',
+    importSelected: 'Auswahl importieren',
+    importCancel: 'Abbrechen',
+    selected: 'ausgewählt'
   },
   ports: {
     subtitle: 'Leiten Sie Ports weiter, um Sandbox-Dienste vom Host zu erreichen, und konfigurieren Sie den Zugriff auf Dienste auf Ihrem Host aus der Sandbox.',

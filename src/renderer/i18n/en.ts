@@ -195,7 +195,13 @@ export const en = {
     subtitle: 'Reusable API keys stored in your OS keychain (via sbx -g). Applied when a sandbox is created.',
     add: 'Add',
     remove: 'Remove',
-    none: 'No global secrets yet.'
+    none: 'No global secrets yet.',
+    importTitle: 'Import from environment',
+    importSubtitle: 'Detected API keys in your shell environment',
+    importNone: 'No known service keys found in your environment.',
+    importSelected: 'Import selected',
+    importCancel: 'Cancel',
+    selected: 'selected'
   },
   ports: {
     subtitle: 'Forward ports to reach sandbox services from your host, and configure access to services running on your host from inside the sandbox.',
