@@ -7,7 +7,7 @@ const credStageValue = vi.fn()
 const prefsGet = vi.fn(async (_key: string) => ({ ok: true, data: 'balanced' }))
 vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), defUpdate: (s: unknown) => defUpdate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v), kitValidate: async () => ({ ok: true, data: { status: 'valid', message: 'ok' } }), prefsGet: (k: string) => prefsGet(k) } }))
 
-import { CreateDefinition, sshSummary } from '../../../src/renderer/wizard/CreateDefinition'
+import { CreateDefinition, sshSummary, stageErrorMessage } from '../../../src/renderer/wizard/CreateDefinition'
 
 const tSsh = (k: string): string => ({ 'wizard.sshForwarded': 'Forwarded', 'wizard.sshOff': 'Off', 'wizard.sshPlusSigning': '+ commit signing' }[k] ?? k)
 
@@ -16,6 +16,16 @@ describe('sshSummary', () => {
     expect(sshSummary({ sshForwardAgent: true, sshCommitSigning: false }, tSsh)).toBe('Forwarded')
     expect(sshSummary({ sshForwardAgent: true, sshCommitSigning: true }, tSsh)).toBe('Forwarded + commit signing')
     expect(sshSummary({ sshForwardAgent: false, sshCommitSigning: false }, tSsh)).toBe('Off')
+  })
+})
+
+describe('stageErrorMessage', () => {
+  const t = (k: string, p?: Record<string, unknown>) => (p ? `${k}:${JSON.stringify(p)}` : k)
+  it('maps insecure-storage to the friendly key', () => {
+    expect(stageErrorMessage({ kind: 'insecure-storage', message: 'x' }, t)).toBe('wizard.insecureStorage')
+  })
+  it('falls back to stageFailed with the raw message', () => {
+    expect(stageErrorMessage({ kind: 'generic', message: 'boom' }, t)).toBe('wizard.stageFailed:{"message":"boom"}')
   })
 })
 
