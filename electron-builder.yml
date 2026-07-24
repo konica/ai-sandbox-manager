@@ -43,5 +43,3 @@ linux:
   # Pin the executable name so the unpacked binary is dist/linux-unpacked/ai-sandbox-manager
   # (default would be the spaced productName), matching scripts/smoke.mjs.
   executableName: ai-sandbox-manager
-publish:
-  provider: github
