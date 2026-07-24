@@ -1,4 +1,4 @@
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, KitValidation } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, KitValidation, StorageStatus } from '@shared/types'
 
 interface Api {
   prereqCheck(): Promise<Result<PrereqResult>>
@@ -41,6 +41,7 @@ interface Api {
   kitValidate(yaml: string): Promise<Result<KitValidation>>
   prefsGet(key: string): Promise<Result<string | null>>
   prefsSet(key: string, value: string): Promise<Result<null>>
+  credsStorageStatus(): Promise<Result<StorageStatus>>
 }
 
 export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
@@ -83,5 +84,6 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   instanceCommands: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   kitValidate: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   prefsGet: async () => ({ ok: true, data: null }),
-  prefsSet: async () => ({ ok: true, data: null })
+  prefsSet: async () => ({ ok: true, data: null }),
+  credsStorageStatus: async () => ({ ok: true, data: { platform: 'darwin', backend: 'keychain', secure: true } })
 }
