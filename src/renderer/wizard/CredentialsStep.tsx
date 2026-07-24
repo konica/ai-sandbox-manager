@@ -293,6 +293,7 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
             </button>
             {sshHelpOpen && (
               <div style={{ marginTop: 6, padding: '10px 12px', background: 'var(--surface-2, rgba(127,127,127,.06))', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 12, color: 'var(--text-muted)' }}>
+                <p style={{ margin: '0 0 8px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('credentials.sshHelpHostLabel')}</p>
                 <p style={{ margin: '0 0 4px' }}>{t('credentials.sshHelpStep1')}</p>
                 <pre style={sshCode}>ssh-add --apple-use-keychain ~/.ssh/id_ed25519</pre>
                 <p style={{ margin: '8px 0 4px' }}>{t('credentials.sshHelpStep2')}</p>
