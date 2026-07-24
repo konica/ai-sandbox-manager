@@ -21,6 +21,7 @@ const api = {
   instanceRemove: (name: string) => ipcRenderer.invoke('instance:remove', name),
   secretListGlobal: () => ipcRenderer.invoke('secret:listGlobal'),
   secretSetGlobal: (serviceId: string, value: string) => ipcRenderer.invoke('secret:setGlobal', serviceId, value),
+  secretSetGlobalFromEnv: (serviceId: string) => ipcRenderer.invoke('secret:setGlobalFromEnv', serviceId),
   secretRemoveGlobal: (id: string) => ipcRenderer.invoke('secret:removeGlobal', id),
   credScanEnv: () => ipcRenderer.invoke('cred:scanEnv'),
   credStageValue: (key: string, value: string) => ipcRenderer.invoke('cred:stageValue', key, value),

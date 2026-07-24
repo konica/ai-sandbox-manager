@@ -75,6 +75,7 @@ export function buildHandlers(deps: Deps): {
   'instance:remove': (name: string) => Promise<Result<null>>
   'secret:listGlobal': () => Promise<Result<GlobalSecretMeta[]>>
   'secret:setGlobal': (serviceId: string, value: string) => Promise<Result<GlobalSecretMeta>>
+  'secret:setGlobalFromEnv': (serviceId: string) => Promise<Result<GlobalSecretMeta>>
   'secret:removeGlobal': (id: string) => Promise<Result<null>>
   'cred:scanEnv': () => Promise<Result<EnvHit[]>>
   'cred:stageValue': (key: string, value: string) => Promise<Result<null>>
@@ -200,6 +201,15 @@ export function buildHandlers(deps: Deps): {
     'instance:remove': (name) => wrap(async () => { await cleanupInstance(deps, name); return null }),
     'secret:listGlobal': () => wrap(async () => requireCreds(deps).listGlobalSecrets()),
     'secret:setGlobal': (serviceId, value) => wrap(async () => requireCreds(deps).setGlobalService(serviceId, value)),
+    // Set a global secret from the REAL host-env value, read here in the main process so the
+    // secret is never sent to the renderer (mirrors cred:stageFromEnv).
+    'secret:setGlobalFromEnv': (serviceId) => wrap(async () => {
+      const svc = serviceById(serviceId)
+      const env: Record<string, string | undefined> = deps.readLoginEnv ? deps.readLoginEnv() : {}
+      const envVar = svc?.envVars.find((v) => (env[v] ?? '').trim().length > 0)
+      if (!svc || !envVar) throw new Error(`No value for "${serviceId}" found in your environment`)
+      return requireCreds(deps).setGlobalService(serviceId, env[envVar]!.trim())
+    }),
     'secret:removeGlobal': (id) => wrap(async () => { await requireCreds(deps).removeGlobalSecret(id); return null }),
     'cred:scanEnv': () => wrap(async () => scanEnv((deps.readLoginEnv ?? (() => ({})))())),
     'cred:stageValue': (key, value) => wrap(async () => { requireCreds(deps).stageValue(key, value); return null }),
@@ -352,6 +362,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instance:remove', (_e, name: string) => handlers['instance:remove'](name))
   ipcMain.handle('secret:listGlobal', () => handlers['secret:listGlobal']())
   ipcMain.handle('secret:setGlobal', (_e, serviceId: string, value: string) => handlers['secret:setGlobal'](serviceId, value))
+  ipcMain.handle('secret:setGlobalFromEnv', (_e, serviceId: string) => handlers['secret:setGlobalFromEnv'](serviceId))
   ipcMain.handle('secret:removeGlobal', (_e, id: string) => handlers['secret:removeGlobal'](id))
   ipcMain.handle('cred:scanEnv', () => handlers['cred:scanEnv']())
   ipcMain.handle('cred:stageValue', (_e, key: string, value: string) => handlers['cred:stageValue'](key, value))
