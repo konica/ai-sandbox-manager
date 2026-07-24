@@ -3,3 +3,9 @@ out/
 dist/
 *.log
 .DS_Store
+.sandbox
+.serena
+.headroom
+.specify
+brainstorm
+docs/superpowers
