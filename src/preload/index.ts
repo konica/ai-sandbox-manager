@@ -41,7 +41,8 @@ const api = {
   envHasVSCode: () => ipcRenderer.invoke('env:hasVSCode'),
   kitValidate: (yaml: string) => ipcRenderer.invoke('kit:validate', yaml),
   prefsGet: (key: string) => ipcRenderer.invoke('prefs:get', key),
-  prefsSet: (key: string, value: string) => ipcRenderer.invoke('prefs:set', key, value)
+  prefsSet: (key: string, value: string) => ipcRenderer.invoke('prefs:set', key, value),
+  credsStorageStatus: () => ipcRenderer.invoke('creds:storageStatus')
 }
 
 contextBridge.exposeInMainWorld('api', api)

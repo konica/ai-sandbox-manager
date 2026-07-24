@@ -1,5 +1,5 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, KitValidation } from '@shared/types'
+import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, KitValidation, StorageStatus } from '@shared/types'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
@@ -40,6 +40,8 @@ interface Deps {
   openFile?: () => Promise<{ path: string; contents: string } | null>
   genId?: () => string
   log?: Logger
+  /** Reports the app vault's at-rest storage status for the Settings guide. */
+  storageStatus?: () => StorageStatus
 }
 
 function requireCreds(deps: Deps): CredentialManager {
@@ -96,6 +98,7 @@ export function buildHandlers(deps: Deps): {
   'kit:validate': (yaml: string) => Promise<Result<KitValidation>>
   'prefs:get': (key: string) => Promise<Result<string | null>>
   'prefs:set': (key: string, value: string) => Promise<Result<null>>
+  'creds:storageStatus': () => Promise<Result<StorageStatus>>
 } {
   // Deps for launchDefinition — shared by instance:launch and instance:rebuild.
   const launchDeps = () => ({
@@ -300,7 +303,10 @@ export function buildHandlers(deps: Deps): {
       }
     }),
     'prefs:get': (key) => wrap(async () => deps.store.getPref(key)),
-    'prefs:set': (key, value) => wrap(async () => { deps.store.setPref(key, value); return null })
+    'prefs:set': (key, value) => wrap(async () => { deps.store.setPref(key, value); return null }),
+    'creds:storageStatus': () => wrap(async () => deps.storageStatus
+      ? deps.storageStatus()
+      : { platform: process.platform, backend: 'unknown', secure: false })
   }
 }
 
@@ -383,6 +389,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('kit:validate', (_e, yaml: string) => handlers['kit:validate'](yaml))
   ipcMain.handle('prefs:get', (_e, key: string) => handlers['prefs:get'](key))
   ipcMain.handle('prefs:set', (_e, key: string, value: string) => handlers['prefs:set'](key, value))
+  ipcMain.handle('creds:storageStatus', () => handlers['creds:storageStatus']())
   ipcMain.handle('dialog:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }

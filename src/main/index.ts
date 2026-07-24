@@ -8,7 +8,7 @@ import { systemProbes } from './probes'
 import { registerIpc } from './ipc'
 import { openHostTerminal } from './terminal'
 import { createLogger } from './log'
-import { createSafeStorageVault } from './creds/vault'
+import { createSafeStorageVault, storageStatus } from './creds/vault'
 import { createCredentialManager } from './creds/manager'
 import { buildKitSpec, buildLoginKit } from './kit/generate'
 import { buildCodeWorkspace, openInVSCode } from './vscode'
@@ -140,6 +140,7 @@ app.whenReady().then(() => {
   const vault = createSafeStorageVault({
     dir: join(app.getPath('userData'), 'vault'),
     safeStorage,
+    platform: process.platform,
     fs: {
       mkdir: (p) => nodeFs.mkdirSync(p, { recursive: true }),
       writeFile: (p, data, mode) => nodeFs.writeFileSync(p, data, { mode }),
@@ -148,7 +149,7 @@ app.whenReady().then(() => {
     }
   })
   const creds = createCredentialManager({ adapter, vault, store })
-  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, openVSCode, cleanupKit, saveFile, openFile, log: logger })
+  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, openVSCode, cleanupKit, saveFile, openFile, log: logger, storageStatus: () => storageStatus(process.platform, safeStorage) })
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

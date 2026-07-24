@@ -193,3 +193,6 @@ export interface KitValidation {
   status: 'valid' | 'invalid' | 'unavailable'
   message: string
 }
+
+/** Where/how the app vault stores credentials on this host (for the Settings guide). */
+export interface StorageStatus { platform: string; backend: string; secure: boolean }
