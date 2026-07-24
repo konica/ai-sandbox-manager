@@ -11,6 +11,7 @@ function isTier(v: string | null): v is Tier { return v === 'open' || v === 'bal
 export function Settings(): JSX.Element {
   const t = useT()
   const [secrets, setSecrets] = useState<GlobalSecretMeta[]>([])
+  const [envHits, setEnvHits] = useState<{ serviceId: string; label: string; envVar: string; masked: string }[]>([])
   const [tier, setTier] = useState<Tier>('locked')
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -20,6 +21,7 @@ export function Settings(): JSX.Element {
   }, [])
   useEffect(() => { void load() }, [load])
   useEffect(() => { void api.prefsGet('defaultTier').then((r) => { if (r.ok && isTier(r.data)) setTier(r.data) }) }, [])
+  useEffect(() => { void api.credScanEnv().then((r) => { if (r.ok) setEnvHits(r.data) }) }, [])
 
   async function onTier(next: Tier): Promise<void> {
     setTier(next)
@@ -34,6 +36,11 @@ export function Settings(): JSX.Element {
   async function onRemove(id: string): Promise<void> {
     setNotice(null)
     const r = await api.secretRemoveGlobal(id)
+    if (r.ok) await load(); else setNotice(r.error.message)
+  }
+  async function onImport(serviceId: string): Promise<void> {
+    setNotice(null)
+    const r = await api.secretSetGlobalFromEnv(serviceId)
     if (r.ok) await load(); else setNotice(r.error.message)
   }
 
@@ -72,7 +79,7 @@ export function Settings(): JSX.Element {
       </div>
 
       {notice && <p className="section-desc" style={{ color: 'var(--danger)', marginTop: 'var(--space-3)' }}>{notice}</p>}
-      <GlobalSecrets secrets={secrets} onAdd={(id, v) => void onAdd(id, v)} onRemove={(id) => void onRemove(id)} />
+      <GlobalSecrets secrets={secrets} envHits={envHits} onAdd={(id, v) => void onAdd(id, v)} onRemove={(id) => void onRemove(id)} onImport={(id) => void onImport(id)} />
       <AccountsSection />
     </section>
   )
