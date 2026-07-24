@@ -36,6 +36,12 @@ export function sshSummary(d: { sshForwardAgent: boolean; sshCommitSigning: bool
   return d.sshCommitSigning ? `${t('wizard.sshForwarded')} ${t('wizard.sshPlusSigning')}` : t('wizard.sshForwarded')
 }
 
+/** Map a credential-staging failure to a user-facing message: friendly copy for insecure storage,
+ *  otherwise the raw staging error. */
+export function stageErrorMessage(err: { kind?: string; message: string }, t: (k: string, p?: Record<string, string | number>) => string): string {
+  return err.kind === 'insecure-storage' ? t('wizard.insecureStorage') : t('wizard.stageFailed', { message: err.message })
+}
+
 function Chip({ text, onRemove }: { text: string; onRemove: () => void }): JSX.Element {
   return (
     <span className="tag">{text}<button className="tag-remove" onClick={onRemove} aria-label={`Remove ${text}`}>✕</button></span>
@@ -121,10 +127,10 @@ export function CreateDefinition({
       const key = `${spec.definition.id}:${sub}`
       if (c.value.trim()) {
         const staged = await api.credStageValue(key, c.value)
-        if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return false }
+        if (!staged.ok) { setError(stageErrorMessage(staged.error, t)); return false }
       } else if (c.kind === 'service' && c.fromEnv) {
         const staged = await api.credStageFromEnv(key, c.serviceId)
-        if (!staged.ok) { setError(t('wizard.stageFailed', { message: staged.error.message })); return false }
+        if (!staged.ok) { setError(stageErrorMessage(staged.error, t)); return false }
       }
     }
     return true

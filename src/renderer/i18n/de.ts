@@ -356,6 +356,7 @@ export const de: Dict = {
     modeReadOnly: 'schreibgeschützt',
     error: 'Fehler',
     stageFailed: 'Definition gespeichert, aber ein Anmeldedaten-Wert konnte nicht gespeichert werden: {message}',
+    insecureStorage: 'Diese Anmeldedaten können auf diesem Rechner nicht sicher gespeichert werden. Aktiviere einen System-Schlüsselbund (siehe Einstellungen → Wo Anmeldedaten gespeichert werden) und versuche es erneut.',
     advancedTitle: 'Erweiterte Einstellungen',
     advancedSubtitle: 'Passen Sie die Sandbox mit einem Kit an — deklarative Konfiguration, die in das generierte Kit eingefügt wird.',
     kitReference: 'Kit-Referenz →',

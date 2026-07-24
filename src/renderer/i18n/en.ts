@@ -354,6 +354,7 @@ export const en = {
     modeReadOnly: 'read-only',
     error: 'Error',
     stageFailed: 'Definition saved, but a credential value could not be stored: {message}',
+    insecureStorage: 'Can’t store this credential securely on this machine. Enable a system keyring (see Settings → Where credentials are stored), then try again.',
     advancedTitle: 'Advanced Settings',
     advancedSubtitle: 'Customize the sandbox with a kit — declarative config merged into the generated kit.',
     kitReference: 'Kit reference →',
