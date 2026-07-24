@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { GlobalSecretMeta, Tier } from '@shared/types'
+import type { GlobalSecretMeta, StorageStatus, Tier } from '@shared/types'
 import { api } from '../ipc/client'
 import { useT } from '../i18n'
 import { GlobalSecrets } from './GlobalSecrets'
 import { AccountsSection } from './AccountsSection'
+import { CredentialStorageGuide } from './CredentialStorageGuide'
 
 const TIERS: Tier[] = ['open', 'balanced', 'locked']
 function isTier(v: string | null): v is Tier { return v === 'open' || v === 'balanced' || v === 'locked' }
@@ -14,6 +15,7 @@ export function Settings(): JSX.Element {
   const [envHits, setEnvHits] = useState<{ serviceId: string; label: string; envVar: string; masked: string }[]>([])
   const [tier, setTier] = useState<Tier>('locked')
   const [notice, setNotice] = useState<string | null>(null)
+  const [storage, setStorage] = useState<StorageStatus | null>(null)
 
   const load = useCallback(async () => {
     const r = await api.secretListGlobal()
@@ -22,6 +24,7 @@ export function Settings(): JSX.Element {
   useEffect(() => { void load() }, [load])
   useEffect(() => { void api.prefsGet('defaultTier').then((r) => { if (r.ok && isTier(r.data)) setTier(r.data) }) }, [])
   useEffect(() => { void api.credScanEnv().then((r) => { if (r.ok) setEnvHits(r.data) }) }, [])
+  useEffect(() => { void api.credsStorageStatus().then((r) => { if (r.ok) setStorage(r.data) }) }, [])
 
   async function onTier(next: Tier): Promise<void> {
     setTier(next)
@@ -67,16 +70,7 @@ export function Settings(): JSX.Element {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 'var(--space-4)', padding: 0, overflow: 'hidden' }}>
-        <table className="table">
-          <tbody>
-            <tr>
-              <td style={{ color: 'var(--text-secondary)', width: '40%' }}>{t('settings.credStorage')}</td>
-              <td>{t('settings.credStorageValue')}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <CredentialStorageGuide status={storage} />
 
       {notice && <p className="section-desc" style={{ color: 'var(--danger)', marginTop: 'var(--space-3)' }}>{notice}</p>}
       <GlobalSecrets secrets={secrets} envHits={envHits} onAdd={(id, v) => void onAdd(id, v)} onRemove={(id) => void onRemove(id)} onImport={(id) => void onImport(id)} />
