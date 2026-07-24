@@ -16,6 +16,8 @@ export interface Store {
   listGlobalSecrets(): GlobalSecretMeta[]
   upsertGlobalSecret(g: GlobalSecretMeta): void
   deleteGlobalSecret(id: string): void
+  getPref(key: string): string | null
+  setPref(key: string, value: string): void
   close(): void
 }
 
@@ -271,6 +273,13 @@ export function openStore(filename: string): Store {
     },
     deleteGlobalSecret(id: string) {
       db.prepare(`DELETE FROM global_secret WHERE id = ?`).run(id)
+    },
+    getPref(key) {
+      const row = db.prepare(`SELECT value FROM app_prefs WHERE key = ?`).get(key) as { value: string } | undefined
+      return row?.value ?? null
+    },
+    setPref(key, value) {
+      db.prepare(`INSERT INTO app_prefs (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(key, value)
     },
     close() { db.close() }
   }
