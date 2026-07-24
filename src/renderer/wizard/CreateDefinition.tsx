@@ -80,6 +80,19 @@ export function CreateDefinition({
     return () => { alive = false }
   }, [draft.step])
 
+  // Seed the network tier from the saved default — new definitions only. Edit mode keeps
+  // the definition's own tier (via draftFromSpec).
+  useEffect(() => {
+    if (isEdit) return
+    let alive = true
+    void api.prefsGet('defaultTier').then((r) => {
+      if (alive && r.ok && (r.data === 'open' || r.data === 'balanced' || r.data === 'locked')) {
+        dispatch({ type: 'setTier', tier: r.data })
+      }
+    })
+    return () => { alive = false }
+  }, [isEdit])
+
   // Reset the "saved" indicator to idle shortly after it shows.
   useEffect(() => {
     if (saveState !== 'saved') return

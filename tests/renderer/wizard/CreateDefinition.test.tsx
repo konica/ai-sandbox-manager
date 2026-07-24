@@ -4,7 +4,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 const defCreate = vi.fn()
 const defUpdate = vi.fn()
 const credStageValue = vi.fn()
-vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), defUpdate: (s: unknown) => defUpdate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v), kitValidate: async () => ({ ok: true, data: { status: 'valid', message: 'ok' } }) } }))
+const prefsGet = vi.fn(async (_key: string) => ({ ok: true, data: 'balanced' }))
+vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), defUpdate: (s: unknown) => defUpdate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v), kitValidate: async () => ({ ok: true, data: { status: 'valid', message: 'ok' } }), prefsGet: (k: string) => prefsGet(k) } }))
 
 import { CreateDefinition, sshSummary } from '../../../src/renderer/wizard/CreateDefinition'
 
@@ -22,6 +23,7 @@ beforeEach(() => {
   defCreate.mockReset(); defCreate.mockResolvedValue({ ok: true, data: { id: 'id1' } })
   defUpdate.mockReset(); defUpdate.mockResolvedValue({ ok: true, data: { id: 'd1' } })
   credStageValue.mockReset(); credStageValue.mockResolvedValue({ ok: true, data: null })
+  prefsGet.mockReset(); prefsGet.mockResolvedValue({ ok: true, data: 'balanced' })
 })
 
 describe('CreateDefinition wizard', () => {
@@ -163,5 +165,21 @@ describe('CreateDefinition wizard', () => {
     fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
     expect(await screen.findByText(/kit YAML is invalid/i)).toBeInTheDocument()
     expect(defCreate).not.toHaveBeenCalled()
+  })
+
+  it('seeds the network tier from the saved default for a new definition', async () => {
+    prefsGet.mockResolvedValueOnce({ ok: true, data: 'balanced' })
+    render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
+    await waitFor(() => expect(prefsGet).toHaveBeenCalledWith('defaultTier'))
+    fireEvent.change(screen.getByLabelText(/workspace/i), { target: { value: '/home/u/alpha' } })
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 1 -> 2 base image
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 2 -> 3 network
+    await waitFor(() => expect(screen.getByRole('radio', { name: /balanced/i })).toBeChecked())
+  })
+
+  it('does not seed the network tier from the preference in edit mode', async () => {
+    render(<CreateDefinition initial={editSpec} onDone={() => {}} onCancel={() => {}} />)
+    await waitFor(() => expect(screen.getByLabelText(/workspace/i)).toBeInTheDocument())
+    expect(prefsGet).not.toHaveBeenCalledWith('defaultTier')
   })
 })
