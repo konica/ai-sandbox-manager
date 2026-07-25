@@ -374,7 +374,17 @@ export const de: Dict = {
     kitEnvTipTitle: 'Geheime Env-Platzhalter verwenden',
     kitEnvTipBody: 'Platzhalter wie ${MY_SECRET} funktionieren nur in install-/startup-Befehlsskripten — diese laufen als Shell in der Sandbox, wo die Env-Variable verfügbar ist. In initFiles-Inhalten sind sie NICHT erlaubt; dort ersetzt sbx nur ${WORKDIR}. Um eine Datei zu schreiben, die ein Geheimnis benötigt (z. B. ~/.npmrc mit einem Token), erstelle sie über einen install-Befehl (cat > datei <<\'EOF\' … EOF) statt über einen initFiles-Eintrag.',
     saving: 'Speichern…',
-    saved: 'Gespeichert ✓'
+    saved: 'Gespeichert ✓',
+    copyFilesLabel: 'Dateien in die Sandbox kopieren',
+    copyFilesHint: 'Einmaliges Kopieren beim Start (kein Live-Mount). ~ verweist auf das Sandbox-Home.',
+    copyFilesHostPlaceholder: '/pfad/auf/host (Datei oder Ordner)',
+    copyFilesSandboxPlaceholder: '~/.claude/…',
+    copyFilesBrowseFile: 'Datei…',
+    copyFilesBrowseFolder: 'Ordner…',
+    copyFilesAdd: 'Zu kopierende Datei hinzufügen',
+    copyFilesRemove: 'Entfernen',
+    reviewCopyFiles: 'Kopierte Dateien',
+    reviewCopyFilesCount: '{count} Datei(en) werden beim Start kopiert'
   },
   tier: { open: 'Offen', balanced: 'Ausgewogen', locked: 'Abgeschottet', custom: 'Benutzerdefiniert' },
   status: { running: 'Läuft', stopped: 'Gestoppt', error: 'Fehler', unknown: 'Unbekannt' }
