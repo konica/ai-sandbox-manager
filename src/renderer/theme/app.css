@@ -316,6 +316,9 @@ a:hover { text-decoration: underline; }
 }
 .btn-ghost:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); }
 
+/* Browse… dropdown menu items (copy-files add row) */
+.browse-menu-item:hover { background: var(--bg-hover); }
+
 .btn-sm {
   padding: var(--space-1) var(--space-3);
   font-size: 12px;

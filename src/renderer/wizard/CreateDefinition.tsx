@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import type { Tier, DefinitionSpec } from '@shared/types'
 import { serviceById } from '@shared/services'
 import { normalizeCommandsYaml } from '@shared/kit-commands'
@@ -71,6 +71,25 @@ export function CreateDefinition({
   const [draft, dispatch] = useReducer(draftReducer, initial ? draftFromSpec(initial) : initialDraft)
   const [domainInput, setDomainInput] = useState('')
   const [folderInput, setFolderInput] = useState('')
+  const [cfHost, setCfHost] = useState('')
+  const [cfDest, setCfDest] = useState('')
+  const [cfBrowseOpen, setCfBrowseOpen] = useState(false)
+  const cfBrowseRef = useRef<HTMLDivElement>(null)
+  // Add a copy-file entry from the add-row inputs; both paths required.
+  function addCopyFile(): void {
+    const hostPath = cfHost.trim()
+    const sandboxPath = cfDest.trim()
+    if (!hostPath || !sandboxPath) return
+    dispatch({ type: 'addCopyFile', hostPath, sandboxPath })
+    setCfHost(''); setCfDest(''); setCfBrowseOpen(false)
+  }
+  // Close the Browse menu on an outside click (behaves like a real dropdown).
+  useEffect(() => {
+    if (!cfBrowseOpen) return
+    const onDown = (e: MouseEvent): void => { if (cfBrowseRef.current && !cfBrowseRef.current.contains(e.target as Node)) setCfBrowseOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [cfBrowseOpen])
   const [envHits, setEnvHits] = useState<EnvHit[]>([])
   const [sshDetected, setSshDetected] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -227,21 +246,46 @@ export function CreateDefinition({
                   })}
                 </div>
               )}
-              <label style={{ marginTop: 'var(--space-3)' }}>{t('wizard.copyFilesLabel')}</label>
-              <p className="section-desc" style={{ marginTop: 0, marginBottom: 'var(--space-2)', fontSize: 11 }}>{t('wizard.copyFilesHint')}</p>
-              {draft.copyFiles.map((cf, i) => (
-                <div key={i} style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', alignItems: 'center' }}>
-                  <input aria-label={`Copy host path ${i}`} className="input input-mono" style={{ flex: 2 }} placeholder={t('wizard.copyFilesHostPlaceholder')} value={cf.hostPath}
-                    onChange={(e) => dispatch({ type: 'setCopyFilePath', index: i, field: 'hostPath', value: e.target.value })} />
-                  <button className="btn btn-secondary btn-sm" onClick={async () => { const p = await api.pickFile(); if (p) dispatch({ type: 'setCopyFilePath', index: i, field: 'hostPath', value: p }) }}>{t('wizard.copyFilesBrowseFile')}</button>
-                  <button className="btn btn-secondary btn-sm" onClick={async () => { const p = await api.pickFolder(); if (p) dispatch({ type: 'setCopyFilePath', index: i, field: 'hostPath', value: p }) }}>{t('wizard.copyFilesBrowseFolder')}</button>
-                  <span aria-hidden>→</span>
-                  <input aria-label={`Copy sandbox path ${i}`} className="input input-mono" style={{ flex: 2 }} placeholder={t('wizard.copyFilesSandboxPlaceholder')} value={cf.sandboxPath}
-                    onChange={(e) => dispatch({ type: 'setCopyFilePath', index: i, field: 'sandboxPath', value: e.target.value })} />
-                  <button type="button" aria-label={`${t('wizard.copyFilesRemove')} ${i}`} className="btn btn-ghost btn-sm" onClick={() => dispatch({ type: 'removeCopyFile', index: i })}>✕</button>
+              <label style={{ marginTop: 'var(--space-3)' }}>
+                {t('wizard.copyFilesLabel')} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({t('wizard.copyFilesVia')} <code className="code-inline">sbx cp</code>)</span>
+              </label>
+              <p className="section-desc" style={{ marginTop: 0, marginBottom: 'var(--space-3)', fontSize: 11 }}>{t('wizard.copyFilesHint')}</p>
+
+              {/* Add row — above the added entries */}
+              <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                <div style={{ display: 'flex', gap: 'var(--space-1)', flex: 1 }}>
+                  <input aria-label="Copy host source path" className="input input-mono" style={{ flex: 1 }} placeholder={t('wizard.copyFilesHostPlaceholder')} value={cfHost}
+                    onChange={(e) => setCfHost(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCopyFile() } }} />
+                  <div ref={cfBrowseRef} style={{ position: 'relative' }}>
+                    <button type="button" className="btn btn-secondary" style={{ flexShrink: 0 }} aria-label="Browse host source path" aria-haspopup="menu" aria-expanded={cfBrowseOpen} onClick={() => setCfBrowseOpen((v) => !v)}>{t('wizard.copyFilesBrowse')}</button>
+                    {cfBrowseOpen && (
+                      <div role="menu" style={{ position: 'absolute', top: '100%', left: 0, zIndex: 20, background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', minWidth: 160, marginTop: 4, overflow: 'hidden' }}>
+                        <button type="button" role="menuitem" className="browse-menu-item" style={{ display: 'block', width: '100%', padding: 'var(--space-2) var(--space-3)', border: 'none', background: 'none', color: 'var(--text-primary)', fontSize: 13, cursor: 'pointer', textAlign: 'left' }}
+                          onClick={async () => { setCfBrowseOpen(false); const p = await api.pickFile(); if (p) setCfHost(p) }}>{t('wizard.copyFilesBrowseFile')}</button>
+                        <button type="button" role="menuitem" className="browse-menu-item" style={{ display: 'block', width: '100%', padding: 'var(--space-2) var(--space-3)', border: 'none', background: 'none', color: 'var(--text-primary)', fontSize: 13, cursor: 'pointer', textAlign: 'left' }}
+                          onClick={async () => { setCfBrowseOpen(false); const p = await api.pickFolder(); if (p) setCfHost(p) }}>{t('wizard.copyFilesBrowseFolder')}</button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ))}
-              <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--space-1)' }} onClick={() => dispatch({ type: 'addCopyFile' })}>{t('wizard.copyFilesAdd')}</button>
+                <input aria-label="Copy sandbox destination" className="input input-mono" style={{ flex: 1 }} placeholder={t('wizard.copyFilesSandboxPlaceholder')} value={cfDest}
+                  onChange={(e) => setCfDest(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCopyFile() } }} />
+                <button type="button" className="btn btn-secondary" onClick={addCopyFile}>{t('wizard.copyFilesAdd')}</button>
+              </div>
+
+              {/* Added entries — read-only pills */}
+              {draft.copyFiles.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+                  {draft.copyFiles.map((cf, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-2) var(--space-3)', background: 'var(--bg-hover)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-primary)', maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cf.hostPath}>{cf.hostPath}</span>
+                      <span aria-hidden style={{ flexShrink: 0, color: 'var(--text-muted)' }}>→</span>
+                      <span style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cf.sandboxPath}>{cf.sandboxPath}</span>
+                      <button type="button" aria-label={`${t('wizard.copyFilesRemove')} ${cf.hostPath}`} className="tag-remove" onClick={() => dispatch({ type: 'removeCopyFile', index: i })}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
 
