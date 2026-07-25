@@ -15,7 +15,8 @@ const spec: DefinitionSpec = {
   ports: [{ hostPort: 8080, containerPort: 3000, protocol: 'tcp', label: 'web' }],
   hostServices: [],
   credentials: [{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', store: 'sbx' }],
-  ssh: { forwardAgent: true, commitSigning: false }
+  ssh: { forwardAgent: true, commitSigning: false },
+  copyFiles: []
 }
 
 describe('definition spec persistence', () => {
@@ -47,7 +48,7 @@ describe('definition spec persistence', () => {
   it('persists an empty-children spec', () => {
     const bare: DefinitionSpec = {
       definition: { id: 'd2', name: 'bare', description: '', baseImage: 'docker/sandbox-templates:claude-code', tier: 'open', createdAt: '2026-07-18T00:00:00Z' },
-      mounts: [], domains: [], ports: [], hostServices: [], credentials: [], ssh: { forwardAgent: true, commitSigning: false }
+      mounts: [], domains: [], ports: [], hostServices: [], credentials: [], ssh: { forwardAgent: true, commitSigning: false }, copyFiles: []
     }
     store.insertDefinitionSpec(bare)
     expect(store.getDefinitionSpec('d2')).toEqual(bare)
