@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import type { Definition, InstanceMeta, DefinitionSpec, MountMode, CredentialRef, CredentialStore, GlobalSecretMeta, PortProtocol, RegistryScope } from '@shared/types'
+import type { Definition, InstanceMeta, DefinitionSpec, MountMode, CredentialRef, CredentialStore, GlobalSecretMeta, PortProtocol, RegistryScope, CopyFileIntent } from '@shared/types'
 import { DEFAULT_SSH } from '@shared/types'
 
 export interface Store {
@@ -72,6 +72,13 @@ CREATE TABLE IF NOT EXISTS host_service (
   label TEXT NOT NULL DEFAULT '',
   FOREIGN KEY (definition_id) REFERENCES definition(id) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS copy_file (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  definition_id TEXT NOT NULL,
+  host_path TEXT NOT NULL,
+  sandbox_path TEXT NOT NULL,
+  FOREIGN KEY (definition_id) REFERENCES definition(id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS credential_ref (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   definition_id TEXT NOT NULL,
@@ -95,7 +102,7 @@ CREATE TABLE IF NOT EXISTS global_secret (
   store TEXT NOT NULL DEFAULT 'sbx',
   created_at TEXT NOT NULL
 );
-PRAGMA user_version = 8;
+PRAGMA user_version = 9;
 `
 
 export function openStore(filename: string): Store {
@@ -151,6 +158,8 @@ export function openStore(filename: string): Store {
     for (const p of s.ports) pIns.run(s.definition.id, p.hostPort, p.containerPort, p.protocol, p.label)
     const hsIns = db.prepare(`INSERT INTO host_service (definition_id, host_port, label) VALUES (?, ?, ?)`)
     for (const hs of s.hostServices) hsIns.run(s.definition.id, hs.hostPort, hs.label)
+    const cfIns = db.prepare(`INSERT INTO copy_file (definition_id, host_path, sandbox_path) VALUES (?, ?, ?)`)
+    for (const cf of s.copyFiles ?? []) cfIns.run(s.definition.id, cf.hostPath, cf.sandboxPath)
     const cIns = db.prepare(
       `INSERT INTO credential_ref (definition_id, kind, service_id, cred_id, label, env_var, domains, headers, store, host, username, scope)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
@@ -167,7 +176,7 @@ export function openStore(filename: string): Store {
   }
 
   function deleteChildren(definitionId: string): void {
-    for (const table of ['mount_intent', 'policy_domain', 'port_intent', 'host_service', 'credential_ref']) {
+    for (const table of ['mount_intent', 'policy_domain', 'port_intent', 'host_service', 'credential_ref', 'copy_file']) {
       db.prepare(`DELETE FROM ${table} WHERE definition_id = ?`).run(definitionId)
     }
   }
@@ -221,6 +230,8 @@ export function openStore(filename: string): Store {
         .map((r) => ({ hostPort: r.hostPort === null ? null : Number(r.hostPort), containerPort: Number(r.containerPort), protocol: String(r.protocol) as PortProtocol, label: String(r.label) }))
       const hostServices = (db.prepare(`SELECT host_port AS hostPort, label FROM host_service WHERE definition_id = ? ORDER BY id`).all(id) as Array<Record<string, unknown>>)
         .map((r) => ({ hostPort: Number(r.hostPort), label: String(r.label) }))
+      const copyFiles = (db.prepare(`SELECT host_path AS hostPath, sandbox_path AS sandboxPath FROM copy_file WHERE definition_id = ? ORDER BY id`).all(id) as Array<Record<string, unknown>>)
+        .map((r): CopyFileIntent => ({ hostPath: String(r.hostPath), sandboxPath: String(r.sandboxPath) }))
       const credentials = (db.prepare(
         `SELECT kind, service_id AS serviceId, cred_id AS credId, label, env_var AS envVar, domains, store, host, username, scope
          FROM credential_ref WHERE definition_id = ? ORDER BY id`
@@ -234,7 +245,7 @@ export function openStore(filename: string): Store {
       const ssh = { forwardAgent: (sshRow?.fwd ?? 1) === 1, commitSigning: (sshRow?.sign ?? 0) === 1 }
       const kitRow = db.prepare(`SELECT kit_commands_yaml AS y FROM definition WHERE id = ?`).get(id) as { y: string | null } | undefined
       const kitCommandsYaml = kitRow?.y ?? undefined
-      return { definition: def, mounts, domains, ports, hostServices, credentials, ssh, kitCommandsYaml }
+      return { definition: def, mounts, domains, ports, hostServices, credentials, ssh, kitCommandsYaml, copyFiles }
     },
     deleteDefinition(id) {
       // FK cascade isn't enabled, so remove children explicitly, then the row.

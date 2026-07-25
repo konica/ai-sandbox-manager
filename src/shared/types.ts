@@ -51,6 +51,12 @@ export interface HostServiceIntent {
   label: string
 }
 
+/** A host file/dir to copy into the sandbox at launch via `sbx cp`. */
+export interface CopyFileIntent {
+  hostPath: string
+  sandboxPath: string
+}
+
 /** A live port forward on a running sandbox (from `sbx ports --json`). */
 export interface LivePort {
   hostPort: number | null
@@ -160,6 +166,8 @@ export interface DefinitionSpec {
   ssh?: SshConfig
   /** Optional custom kit `commands:` block (install/startup/initFiles), normalized. */
   kitCommandsYaml?: string
+  /** Host files/dirs to copy into the sandbox at launch (sbx cp). */
+  copyFiles?: CopyFileIntent[]
 }
 
 export interface InstanceView extends SbxInstance {
