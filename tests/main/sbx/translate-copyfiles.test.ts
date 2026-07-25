@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { expandSandboxPath, copyFileStep, launchCommand, SANDBOX_HOME, agentAttachCommand } from '@main/sbx/translate'
+import { homedir } from 'os'
+import { expandSandboxPath, expandHostPath, copyFileStep, launchCommand, SANDBOX_HOME, agentAttachCommand } from '@main/sbx/translate'
 import type { DefinitionSpec } from '@shared/types'
 
 describe('expandSandboxPath', () => {
@@ -14,6 +15,21 @@ describe('expandSandboxPath', () => {
   })
 })
 
+describe('expandHostPath', () => {
+  it('expands ~/ to the given host home', () => {
+    expect(expandHostPath('~/.claude/x.sh', '/Users/me')).toBe('/Users/me/.claude/x.sh')
+  })
+  it('expands bare ~ to the host home', () => {
+    expect(expandHostPath('~', '/Users/me')).toBe('/Users/me')
+  })
+  it('leaves absolute paths unchanged', () => {
+    expect(expandHostPath('/Users/me/foo', '/Users/me')).toBe('/Users/me/foo')
+  })
+  it('defaults to the real homedir', () => {
+    expect(expandHostPath('~/x')).toBe(`${homedir()}/x`)
+  })
+})
+
 describe('copyFileStep', () => {
   it('renders a best-effort sbx cp with name:dest and warning', () => {
     const step = copyFileStep('sbx-x', { hostPath: '/Users/me/a.sh', sandboxPath: '~/.claude/a.sh' })
@@ -21,6 +37,11 @@ describe('copyFileStep', () => {
     expect(step.startsWith('{ ')).toBe(true)
     expect(step.trimEnd().endsWith('}')).toBe(true)
     expect(step).toContain('|| ')
+  })
+  it('expands a ~ host source so it is not single-quoted (the lstat ~ bug)', () => {
+    const step = copyFileStep('sbx-x', { hostPath: '~/.claude/statusline-command.sh', sandboxPath: '~/.claude/statusline-command.sh' })
+    expect(step).not.toContain(`'~/.claude/statusline-command.sh'`)
+    expect(step).toContain(`sbx cp ${homedir()}/.claude/statusline-command.sh sbx-x:/home/agent/.claude/statusline-command.sh`)
   })
   it('quotes paths containing spaces', () => {
     const step = copyFileStep('sbx-x', { hostPath: '/Users/me/my file.sh', sandboxPath: '~/dst' })
