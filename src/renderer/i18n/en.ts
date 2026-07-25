@@ -372,7 +372,17 @@ export const en = {
     kitEnvTipTitle: 'Using secret env placeholders',
     kitEnvTipBody: 'Placeholders like ${MY_SECRET} only work inside install / startup command scripts — those run as a shell in the sandbox where the env var is live. They are NOT allowed in initFiles content; there sbx only substitutes ${WORKDIR}. To write a file that needs a secret (e.g. ~/.npmrc with a token), create it from an install command (cat > file <<\'EOF\' … EOF) instead of an initFiles entry.',
     saving: 'Saving…',
-    saved: 'Saved ✓'
+    saved: 'Saved ✓',
+    copyFilesLabel: 'Copy files into sandbox',
+    copyFilesHint: 'One-time copy at launch (not a live mount). ~ maps to the sandbox home.',
+    copyFilesHostPlaceholder: '/path/on/host (file or folder)',
+    copyFilesSandboxPlaceholder: '~/.claude/…',
+    copyFilesBrowseFile: 'File…',
+    copyFilesBrowseFolder: 'Folder…',
+    copyFilesAdd: 'Add file to copy',
+    copyFilesRemove: 'Remove',
+    reviewCopyFiles: 'Copied files',
+    reviewCopyFilesCount: '{count} file(s) copied at launch'
   },
   tier: { open: 'Open', balanced: 'Balanced', locked: 'Locked Down', custom: 'Custom' },
   status: { running: 'Running', stopped: 'Stopped', error: 'Error', unknown: 'Unknown' }

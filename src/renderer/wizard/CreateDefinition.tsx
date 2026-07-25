@@ -227,6 +227,21 @@ export function CreateDefinition({
                   })}
                 </div>
               )}
+              <label style={{ marginTop: 'var(--space-3)' }}>{t('wizard.copyFilesLabel')}</label>
+              <p className="section-desc" style={{ marginTop: 0, marginBottom: 'var(--space-2)', fontSize: 11 }}>{t('wizard.copyFilesHint')}</p>
+              {draft.copyFiles.map((cf, i) => (
+                <div key={i} style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', alignItems: 'center' }}>
+                  <input aria-label={`Copy host path ${i}`} className="input input-mono" style={{ flex: 2 }} placeholder={t('wizard.copyFilesHostPlaceholder')} value={cf.hostPath}
+                    onChange={(e) => dispatch({ type: 'setCopyFilePath', index: i, field: 'hostPath', value: e.target.value })} />
+                  <button className="btn btn-secondary btn-sm" onClick={async () => { const p = await api.pickFile(); if (p) dispatch({ type: 'setCopyFilePath', index: i, field: 'hostPath', value: p }) }}>{t('wizard.copyFilesBrowseFile')}</button>
+                  <button className="btn btn-secondary btn-sm" onClick={async () => { const p = await api.pickFolder(); if (p) dispatch({ type: 'setCopyFilePath', index: i, field: 'hostPath', value: p }) }}>{t('wizard.copyFilesBrowseFolder')}</button>
+                  <span aria-hidden>→</span>
+                  <input aria-label={`Copy sandbox path ${i}`} className="input input-mono" style={{ flex: 2 }} placeholder={t('wizard.copyFilesSandboxPlaceholder')} value={cf.sandboxPath}
+                    onChange={(e) => dispatch({ type: 'setCopyFilePath', index: i, field: 'sandboxPath', value: e.target.value })} />
+                  <button type="button" aria-label={`${t('wizard.copyFilesRemove')} ${i}`} className="btn btn-ghost btn-sm" onClick={() => dispatch({ type: 'removeCopyFile', index: i })}>✕</button>
+                </div>
+              ))}
+              <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--space-1)' }} onClick={() => dispatch({ type: 'addCopyFile' })}>{t('wizard.copyFilesAdd')}</button>
             </>
           )}
 
@@ -346,6 +361,9 @@ export function CreateDefinition({
                   {draft.hostServices.length > 0 && <tr><td>{t('wizard.reviewHostServices')}</td><td>{draft.hostServices.map((h, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">host.docker.internal:{h.hostPort}</span></span>))}</td></tr>}
                   <tr><td>{t('wizard.reviewCredentials')}</td><td>{credentialsSummary(draft.credentials) ?? '—'}</td></tr>
                   <tr><td>{t('wizard.reviewSsh')}</td><td>{sshSummary(draft, t)}</td></tr>
+                  {draft.copyFiles.filter((c) => c.hostPath.trim() && c.sandboxPath.trim()).length > 0 && (
+                    <tr><td>{t('wizard.reviewCopyFiles')}</td><td>{t('wizard.reviewCopyFilesCount', { count: draft.copyFiles.filter((c) => c.hostPath.trim() && c.sandboxPath.trim()).length })}</td></tr>
+                  )}
                   <tr><td>{t('wizard.reviewAgent')}</td><td>Claude Code</td></tr>
                 </tbody>
               </table>
