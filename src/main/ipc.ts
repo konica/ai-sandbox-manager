@@ -328,9 +328,12 @@ function persist(deps: Deps, edit: () => boolean, name: string): boolean {
  * Shared by `instance:remove` and `def:remove`.
  */
 async function cleanupInstance(deps: Deps, name: string): Promise<void> {
-  await deps.adapter.removeSandbox(name)
+  // Read meta/spec BEFORE removing the sandbox. The renderer polls instances:list every 4 s,
+  // which triggers reconcile() and GC's the metadata row the moment the sandbox disappears
+  // from `sbx ls`. Reading after removeSandbox risks finding meta already deleted.
   const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
   const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
+  await deps.adapter.removeSandbox(name)
   for (const c of spec?.credentials ?? []) {
     try {
       if (c.kind === 'service') await deps.adapter.removeSecret(c.serviceId, { sandbox: name })
