@@ -105,17 +105,21 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
       <label>{t('wizard.steps.credentials')}</label>
       <p className="section-desc" style={{ marginTop: 0 }}>{t('credentials.subtitle')}</p>
 
-      <div role="tablist" style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 'var(--space-5)', borderBottom: '1px solid var(--border)', paddingBottom: 'var(--space-2)' }}>
+      <div role="tablist" style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 'var(--space-2)', borderBottom: '1px solid var(--border)', paddingBottom: 'var(--space-2)' }}>
         <button role="tab" aria-selected={tab === 'service'} style={credTabStyle(tab === 'service')} onClick={() => setTab('service')}>{t('credentials.tabService')}</button>
         <button role="tab" aria-selected={tab === 'custom'} style={credTabStyle(tab === 'custom')} onClick={() => setTab('custom')}>{t('credentials.tabCustom')}</button>
         <button role="tab" aria-selected={tab === 'registry'} style={credTabStyle(tab === 'registry')} onClick={() => setTab('registry')}>{t('credentials.tabRegistry')}</button>
         <button role="tab" aria-selected={tab === 'ssh'} style={credTabStyle(tab === 'ssh')} onClick={() => setTab('ssh')}>{t('credentials.tabSsh')}</button>
       </div>
+      <p style={{ ...hint, marginBottom: 'var(--space-4)' }}>
+        {tab === 'service' && t('credentials.tabServiceDesc')}
+        {tab === 'custom' && t('credentials.tabCustomDesc')}
+        {tab === 'registry' && t('credentials.tabRegistryDesc')}
+        {tab === 'ssh' && t('credentials.tabSshDesc')}
+      </p>
 
       {tab === 'service' && (
         <>
-          <p style={hint}>{t('credentials.serviceHint')}</p>
-
           {/* Import from environment variables (collapsible) */}
           <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', margin: 'var(--space-3) 0', overflow: 'hidden' }}>
             <button
@@ -192,7 +196,6 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
 
       {tab === 'custom' && (
         <>
-          <p style={hint}>{t('credentials.customHint')}</p>
           <div style={rowStyle}>
             <div style={{ ...field, flex: '1 1 180px' }}>
               <span style={lbl}>{t('credentials.host')}</span>
@@ -229,7 +232,6 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
 
       {tab === 'registry' && (
         <>
-          <p style={hint}>{t('credentials.registryHint')}</p>
           <div style={rowStyle}>
             <div style={{ ...field, flex: '1 1 180px' }}>
               <span style={lbl}>{t('credentials.registryHost')}</span>
@@ -274,7 +276,6 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
 
       {tab === 'ssh' && (
         <>
-          <p style={hint}>{t('credentials.sshHint')}</p>
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 'var(--space-3) 0 4px' }}>
             <input type="checkbox" aria-label="Forward SSH Agent" checked={ssh.forwardAgent}
               onChange={(e) => onSshChange({ forwardAgent: e.target.checked, commitSigning: e.target.checked ? ssh.commitSigning : false })} />
