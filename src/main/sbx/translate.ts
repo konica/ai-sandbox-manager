@@ -6,6 +6,28 @@ export { toSbxName }
 
 export const AGENT_KEYWORD = 'claude'
 
+// The agent user's home inside a sandbox (verified: HOME=/home/agent).
+export const SANDBOX_HOME = '/home/agent'
+
+/** Expand a `~`/`~/…` sandbox destination to an absolute container path; other paths pass through. */
+export function expandSandboxPath(p: string): string {
+  const t = p.trim()
+  if (t === '~') return SANDBOX_HOME
+  if (t.startsWith('~/')) return SANDBOX_HOME + t.slice(1)
+  return t
+}
+
+/**
+ * One best-effort `sbx cp` step: copy a host file/dir into <name> at the (expanded) dest.
+ * Wrapped in `{ …; }` so a failed copy warns but returns 0 — the outer `&&` chain continues.
+ */
+export function copyFileStep(name: string, entry: { hostPath: string; sandboxPath: string }): string {
+  const dest = `${name}:${expandSandboxPath(entry.sandboxPath)}`
+  const cp = shellCommand(['sbx', 'cp', entry.hostPath, dest])
+  const warn = shellCommand(['echo', `⚠️ copy failed: ${entry.hostPath}`])
+  return `{ ${cp} || ${warn} ; }`
+}
+
 // A conservative baseline for the "balanced" tier: package registries and
 // common developer endpoints an agent typically needs, nothing broader.
 export const BALANCED_BASELINE: string[] = [
@@ -130,11 +152,13 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
   // signing) inside the sandbox right after create. Forward opt-out strips
   // SSH_AUTH_SOCK from the launching shell so sbx doesn't forward the agent.
   const ssh = spec.ssh ?? DEFAULT_SSH
+  const postCreate: string[] = []
   if (ssh.forwardAgent) {
-    const post = [sshHostKeySetupCommand(name)]
-    if (ssh.commitSigning) post.push(commitSigningExecCommand(name))
-    steps.splice(1, 0, ...post)
+    postCreate.push(sshHostKeySetupCommand(name))
+    if (ssh.commitSigning) postCreate.push(commitSigningExecCommand(name))
   }
+  for (const entry of spec.copyFiles ?? []) postCreate.push(copyFileStep(name, entry))
+  if (postCreate.length) steps.splice(1, 0, ...postCreate)
   const chain = steps.join(' && ')
   return ssh.forwardAgent ? chain : `unset SSH_AUTH_SOCK ; ${chain}`
 }
