@@ -1,3 +1,4 @@
+import { homedir } from 'os'
 import type { DefinitionSpec, PortIntent, Tier } from '@shared/types'
 import { DEFAULT_SSH } from '@shared/types'
 import { toSbxName } from '@shared/names'
@@ -18,12 +19,25 @@ export function expandSandboxPath(p: string): string {
 }
 
 /**
+ * Expand a leading `~`/`~/…` in a HOST path to the user's home dir. `sbx cp`'s source
+ * runs through our shell-quoter, which single-quotes `~` (it's not a SAFE_ARG char) so the
+ * shell never expands it — `sbx cp` then fails with "lstat ~: no such file or directory".
+ * Resolving `~` here, before quoting, keeps the absolute path intact through the shell.
+ */
+export function expandHostPath(p: string, home: string = homedir()): string {
+  const t = p.trim()
+  if (t === '~') return home
+  if (t.startsWith('~/')) return home + t.slice(1)
+  return t
+}
+
+/**
  * One best-effort `sbx cp` step: copy a host file/dir into <name> at the (expanded) dest.
  * Wrapped in `{ …; }` so a failed copy warns but returns 0 — the outer `&&` chain continues.
  */
 export function copyFileStep(name: string, entry: { hostPath: string; sandboxPath: string }): string {
   const dest = `${name}:${expandSandboxPath(entry.sandboxPath)}`
-  const cp = shellCommand(['sbx', 'cp', entry.hostPath, dest])
+  const cp = shellCommand(['sbx', 'cp', expandHostPath(entry.hostPath), dest])
   const warn = shellCommand(['echo', `⚠️ copy failed: ${entry.hostPath}`])
   return `{ ${cp} || ${warn} ; }`
 }
