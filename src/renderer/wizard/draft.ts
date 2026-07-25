@@ -61,6 +61,7 @@ export interface Draft {
   domains: string[]
   ports: { hostPort: number | null; containerPort: number; protocol: PortProtocol; label: string }[]
   hostServices: { hostPort: number; label: string }[]
+  copyFiles: { hostPath: string; sandboxPath: string }[]
   credentials: DraftCred[]
   sshForwardAgent: boolean
   sshCommitSigning: boolean
@@ -79,6 +80,7 @@ export const initialDraft: Draft = {
   domains: [],
   ports: [],
   hostServices: [],
+  copyFiles: [],
   credentials: [],
   sshForwardAgent: true,
   sshCommitSigning: false,
@@ -101,6 +103,9 @@ export type DraftAction =
   | { type: 'removePort'; index: number }
   | { type: 'addHostService'; hostPort: number; label: string }
   | { type: 'removeHostService'; index: number }
+  | { type: 'addCopyFile' }
+  | { type: 'removeCopyFile'; index: number }
+  | { type: 'setCopyFilePath'; index: number; field: 'hostPath' | 'sandboxPath'; value: string }
   | { type: 'addServiceCred'; serviceId: string; envVar: string; value: string; fromEnv?: boolean }
   | { type: 'addCustomCred'; cred: DraftCustomCred }
   | { type: 'addRegistryCred'; cred: DraftRegistryCred }
@@ -125,6 +130,9 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'removePort': return { ...d, ports: d.ports.filter((_, i) => i !== a.index) }
     case 'addHostService': return { ...d, hostServices: [...d.hostServices, { hostPort: a.hostPort, label: a.label }] }
     case 'removeHostService': return { ...d, hostServices: d.hostServices.filter((_, i) => i !== a.index) }
+    case 'addCopyFile': return { ...d, copyFiles: [...d.copyFiles, { hostPath: '', sandboxPath: '' }] }
+    case 'removeCopyFile': return { ...d, copyFiles: d.copyFiles.filter((_, i) => i !== a.index) }
+    case 'setCopyFilePath': return { ...d, copyFiles: d.copyFiles.map((c, i) => (i === a.index ? { ...c, [a.field]: a.value } : c)) }
     case 'addServiceCred': return { ...d, credentials: [...d.credentials, { kind: 'service', serviceId: a.serviceId, envVar: a.envVar, value: a.value, fromEnv: a.fromEnv }] }
     case 'addCustomCred': return { ...d, credentials: [...d.credentials, a.cred] }
     case 'addRegistryCred': return { ...d, credentials: [...d.credentials, a.cred] }
@@ -185,6 +193,7 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
     domains: [...spec.domains],
     ports: spec.ports.map((p) => ({ ...p })),
     hostServices: spec.hostServices.map((hs) => ({ ...hs })),
+    copyFiles: (spec.copyFiles ?? []).map((c) => ({ ...c })),
     credentials: spec.credentials.map((c): DraftCred => {
       if (c.kind === 'service') return { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, value: '' }
       if (c.kind === 'registry') return { kind: 'registry', id: c.id, host: c.host, username: c.username ?? '', scope: c.scope, value: '' }
@@ -206,6 +215,7 @@ export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec 
     domains: d.domains,
     ports: d.ports,
     hostServices: d.hostServices,
+    copyFiles: d.copyFiles.filter((c) => c.hostPath.trim() && c.sandboxPath.trim()).map((c) => ({ hostPath: c.hostPath.trim(), sandboxPath: c.sandboxPath.trim() })),
     credentials: d.credentials.map((c): CredentialRef => {
       if (c.kind === 'service') return { kind: 'service', serviceId: c.serviceId, envVar: c.envVar, store: 'sbx' }
       if (c.kind === 'registry') return { kind: 'registry', id: c.id, host: c.host, username: c.username.trim() || undefined, scope: c.scope, store: 'sbx' }
