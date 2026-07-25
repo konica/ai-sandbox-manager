@@ -103,9 +103,8 @@ export type DraftAction =
   | { type: 'removePort'; index: number }
   | { type: 'addHostService'; hostPort: number; label: string }
   | { type: 'removeHostService'; index: number }
-  | { type: 'addCopyFile' }
+  | { type: 'addCopyFile'; hostPath: string; sandboxPath: string }
   | { type: 'removeCopyFile'; index: number }
-  | { type: 'setCopyFilePath'; index: number; field: 'hostPath' | 'sandboxPath'; value: string }
   | { type: 'addServiceCred'; serviceId: string; envVar: string; value: string; fromEnv?: boolean }
   | { type: 'addCustomCred'; cred: DraftCustomCred }
   | { type: 'addRegistryCred'; cred: DraftRegistryCred }
@@ -130,9 +129,8 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'removePort': return { ...d, ports: d.ports.filter((_, i) => i !== a.index) }
     case 'addHostService': return { ...d, hostServices: [...d.hostServices, { hostPort: a.hostPort, label: a.label }] }
     case 'removeHostService': return { ...d, hostServices: d.hostServices.filter((_, i) => i !== a.index) }
-    case 'addCopyFile': return { ...d, copyFiles: [...d.copyFiles, { hostPath: '', sandboxPath: '' }] }
+    case 'addCopyFile': return { ...d, copyFiles: [...d.copyFiles, { hostPath: a.hostPath, sandboxPath: a.sandboxPath }] }
     case 'removeCopyFile': return { ...d, copyFiles: d.copyFiles.filter((_, i) => i !== a.index) }
-    case 'setCopyFilePath': return { ...d, copyFiles: d.copyFiles.map((c, i) => (i === a.index ? { ...c, [a.field]: a.value } : c)) }
     case 'addServiceCred': return { ...d, credentials: [...d.credentials, { kind: 'service', serviceId: a.serviceId, envVar: a.envVar, value: a.value, fromEnv: a.fromEnv }] }
     case 'addCustomCred': return { ...d, credentials: [...d.credentials, a.cred] }
     case 'addRegistryCred': return { ...d, credentials: [...d.credentials, a.cred] }
