@@ -396,4 +396,10 @@ export function registerIpc(deps: Deps): void {
     const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
     return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0]
   })
+  ipcMain.handle('dialog:pickFile', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    const opts = { properties: ['openFile' as const] }
+    const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0]
+  })
 }

@@ -12,6 +12,7 @@ const api = {
   defRemove: (id: string) => ipcRenderer.invoke('def:remove', id),
   defList: () => ipcRenderer.invoke('def:list'),
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
+  pickFile: () => ipcRenderer.invoke('dialog:pickFile'),
   instanceLaunch: (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => ipcRenderer.invoke('instance:launch', definitionId, name, sessionName, opener),
   instanceAttach: (name: string, opener?: 'terminal' | 'vscode') => ipcRenderer.invoke('instance:attach', name, opener),
   instanceRebuild: (name: string, opener?: 'terminal' | 'vscode') => ipcRenderer.invoke('instance:rebuild', name, opener),

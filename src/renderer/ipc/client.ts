@@ -11,6 +11,7 @@ interface Api {
   defImport(): Promise<Result<{ canceled?: boolean; imported?: string[]; skipped?: number }>>
   defRemove(id: string): Promise<Result<{ removedInstances: number }>>
   pickFolder(): Promise<string | null>
+  pickFile(): Promise<string | null>
   instanceLaunch(definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
   instanceAttach(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<null>>
   instanceRebuild(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
@@ -55,6 +56,7 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   defImport: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   defRemove: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   pickFolder: async () => null,
+  pickFile: async () => null,
   instanceLaunch: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceAttach: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceRebuild: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
