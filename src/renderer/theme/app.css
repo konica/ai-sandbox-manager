@@ -125,7 +125,12 @@ a:hover { text-decoration: underline; }
   height: var(--titlebar-h);
   display: flex;
   align-items: center;
-  padding: 0 var(--space-4);
+  /* On Windows/Linux the native window controls are overlaid on the right edge
+     via titleBarOverlay; env(titlebar-area-*) exposes the free draggable area so
+     the actions don't hide behind min/max/close. On macOS these env vars are
+     unset and the fallbacks apply (traffic lights sit in the left padding). */
+  padding-left: max(var(--space-4), env(titlebar-area-x, 0px));
+  padding-right: calc(100% - env(titlebar-area-width, 100%) - env(titlebar-area-x, 0px) + var(--space-4));
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, safeStorage, dialog } from 'electron'
+import { app, BrowserWindow, Menu, safeStorage, dialog } from 'electron'
 import { join } from 'path'
 import { execFileSync } from 'node:child_process'
 import * as nodeFs from 'node:fs'
@@ -91,13 +91,23 @@ function readLoginEnv(): Record<string, string | undefined> {
 }
 
 function createWindow(): void {
+  const isMac = process.platform === 'darwin'
+  // The renderer draws its own .titlebar, so we hide the native one on every
+  // platform. 'hiddenInset' is macOS-only — on Windows/Linux it was silently
+  // ignored, leaving a standard framed window *plus* Electron's default menu
+  // bar stacked above our custom titlebar (the doubled/"broken" UI). Use the
+  // cross-platform 'hidden' style, with macOS keeping its inset traffic lights
+  // and Windows/Linux getting a Window-Controls-Overlay drawn over the titlebar.
   const win = new BrowserWindow({
     width: 1280,
     height: 860,
     show: false,
     backgroundColor: '#0d0d0d',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 14, y: 15 },
+    icon: process.platform === 'linux' ? join(__dirname, '../../build/icon.png') : undefined,
+    titleBarStyle: 'hidden',
+    ...(isMac
+      ? { trafficLightPosition: { x: 14, y: 15 } }
+      : { titleBarOverlay: { color: '#141414', symbolColor: '#a0a0a0', height: 44 } }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
@@ -132,6 +142,11 @@ app.whenReady().then(() => {
   if (process.platform !== 'win32') {
     process.env.PATH = mergePaths(readLoginEnv().PATH, process.env.PATH)
   }
+  // The app has no use for Electron's default menu (File/Edit/View/Window/Help).
+  // On Windows/Linux it renders as an in-window menu bar above our custom
+  // titlebar; strip it there. macOS keeps a menu (its global menu bar carries
+  // Cmd+Q, copy/paste, etc.), so leave the default in place on darwin.
+  if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
   const store = openStore(join(app.getPath('userData'), 'sandbox-manager.db'))
   const logFile = join(app.getPath('userData'), 'sandbox-manager.log')
   const logger = createLogger({ file: logFile })
