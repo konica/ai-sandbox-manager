@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { buildCodeWorkspace, codeCliPresent, openInVSCode } from '../../../src/main/vscode'
+import { buildCodeWorkspace, codeCliPresent, openInVSCode, shellForCode } from '../../../src/main/vscode'
 
 describe('buildCodeWorkspace', () => {
   const json = buildCodeWorkspace('/home/u/alpha', 'my-project', 'sbx create claude /home/u/alpha && sbx run --name my-project')
@@ -25,6 +25,18 @@ describe('codeCliPresent', () => {
   it('false when it errors or is missing', () => {
     expect(codeCliPresent(() => ({ status: 1 }))).toBe(false)
     expect(codeCliPresent(() => { throw new Error('ENOENT') })).toBe(false)
+  })
+})
+
+describe('shellForCode', () => {
+  // On Windows `code` is code.cmd; spawning it needs a shell or CreateProcess
+  // throws ENOENT and VS Code is wrongly reported as missing.
+  it('uses a shell on Windows', () => {
+    expect(shellForCode('win32')).toBe(true)
+  })
+  it('does not use a shell on macOS/Linux', () => {
+    expect(shellForCode('darwin')).toBe(false)
+    expect(shellForCode('linux')).toBe(false)
   })
 })
 
