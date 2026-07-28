@@ -10,6 +10,5 @@ dist/
 brainstorm
 docs/superpowers
 .claude/skills/speckit*
-.claude/specs
 .github/
 .screenshots

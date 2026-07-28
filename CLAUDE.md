@@ -1,19 +1,16 @@
-<!-- specmanager:start -->
-## Project lifecycle (managed by SpecManager — do not edit by hand)
+## Project lifecycle (Superpowers)
 
-Specs live in `.claude/specs/features/`. Read the approved doc for a feature's stage before implementing it.
+Feature work runs through the Superpowers skills: brainstorming → writing-plans →
+subagent-driven-development (or executing-plans) → requesting-code-review →
+finishing-a-development-branch.
 
-| Feature | Current stage | Notes |
-|---------|---------------|-------|
-| Local Sandbox Manager for Coding Agents | PRD (approved) | — |
+Design docs and implementation plans live in `docs/superpowers/specs/` and
+`docs/superpowers/plans/`. That directory is git-ignored, so those artifacts are local
+to each machine and are not part of the branch — read them from disk rather than
+expecting them in git history.
 
-**Rules:** don't start a feature's tasks until its Plan is approved; treat ⚠️ stale docs as needing reconciliation.
-
-**Commands:**
-`/specmanager-prd` · `/specmanager-architecture` · `/specmanager-design` (optional) · `/specmanager-plan` · `/specmanager-build` · `/specmanager-walkthrough` · `/specmanager-board` · `/specmanager-interview` (optional, pre-PRD)
-
-_Last synced: 2026-07-18T00:14:19.360Z_
-<!-- specmanager:end -->
+**Rules:** don't start implementing a feature until its plan is approved; run
+`npm run typecheck` and `npm test` before claiming work is complete.
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
