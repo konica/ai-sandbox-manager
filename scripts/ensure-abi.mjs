@@ -59,6 +59,14 @@ function cachedNodeTarball() {
   return null
 }
 
+// On Windows, .cmd shims must be invoked via cmd.exe — spawnSync cannot exec them directly.
+function spawn(cmd, args, opts) {
+  if (process.platform === 'win32' && cmd.endsWith('.cmd')) {
+    return spawnSync('cmd', ['/c', cmd, ...args], opts)
+  }
+  return spawnSync(cmd, args, opts)
+}
+
 function switchToNode() {
   const tarball = cachedNodeTarball()
   if (tarball) {
@@ -67,13 +75,13 @@ function switchToNode() {
   }
   // Fallback: let prebuild-install fetch it (no --runtime flag: use the napi/default build).
   const bin = resolve(root, 'node_modules', '.bin', `prebuild-install${binExt}`)
-  spawnSync(bin, [], { cwd: pkgDir, stdio: 'inherit' })
+  spawn(bin, [], { cwd: pkgDir, stdio: 'inherit' })
   return nodeCanLoad()
 }
 
 function switchToElectron() {
   const bin = resolve(root, 'node_modules', '.bin', `electron-rebuild${binExt}`)
-  const res = spawnSync(bin, ['-f', '-w', 'better-sqlite3'], { cwd: root, stdio: 'inherit' })
+  const res = spawn(bin, ['-f', '-w', 'better-sqlite3'], { cwd: root, stdio: 'inherit' })
   return (res.status ?? 1) === 0
 }
 
