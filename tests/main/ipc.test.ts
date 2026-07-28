@@ -189,6 +189,41 @@ describe('buildHandlers', () => {
     expect(store.listInstanceMeta().filter((m) => m.definitionId === 'd1')).toEqual([])
   })
 
+  // FIX 2 coverage: def:import bypasses the wizard entirely, so the wizard's
+  // needsProviderDomainHint never runs for imported bundles. def:import must independently
+  // flag a definition that would otherwise generate a kit with zero reachable domains, reusing
+  // the SAME shared predicate as the wizard (src/shared/provider-domain.ts) rather than a
+  // second copy of the rule.
+  it('def:import flags and logs a warning for an imported opencode/locked/no-domains definition', async () => {
+    const store = openStore(':memory:')
+    const bundle = JSON.stringify({ formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now', definitions: [
+      { definition: { name: 'NoDomainBox', description: '', agent: 'opencode', baseImage: 'docker.io/docker/sandbox-templates:opencode', tier: 'locked' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] }
+    ] })
+    const log = { info: vi.fn(), command: () => {}, error: vi.fn() }
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {}, openFile: async () => ({ path: '/tmp/in.sbx.json', contents: bundle }), log })
+    const r = await h['def:import']()
+    expect(r.ok && r.data.domainWarnings).toEqual(['NoDomainBox'])
+    expect(log.info.mock.calls.some((c) => typeof c[0] === 'string' && c[0].includes('NoDomainBox') && /no reachable network domains/i.test(c[0]))).toBe(true)
+  })
+  it('def:import does not flag an imported claude definition', async () => {
+    const store = openStore(':memory:')
+    const bundle = JSON.stringify({ formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now', definitions: [
+      { definition: { name: 'ClaudeBox', description: '', agent: 'claude', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'locked' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] }
+    ] })
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {}, openFile: async () => ({ path: '/tmp/in.sbx.json', contents: bundle }) })
+    const r = await h['def:import']()
+    expect(r.ok && r.data.domainWarnings).toBeUndefined()
+  })
+  it('def:import does not flag an imported opencode definition that already carries domains', async () => {
+    const store = openStore(':memory:')
+    const bundle = JSON.stringify({ formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now', definitions: [
+      { definition: { name: 'HasDomainBox', description: '', agent: 'opencode', baseImage: 'docker.io/docker/sandbox-templates:opencode', tier: 'locked' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: ['api.openai.com'], ports: [], hostServices: [], credentials: [] }
+    ] })
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {}, openFile: async () => ({ path: '/tmp/in.sbx.json', contents: bundle }) })
+    const r = await h['def:import']()
+    expect(r.ok && r.data.domainWarnings).toBeUndefined()
+  })
+
   it('def:import surfaces an error for a malformed file', async () => {
     const h = buildHandlers({ adapter, store: openStore(':memory:'), probes, openTerminal: () => {}, openFile: async () => ({ path: '/tmp/x', contents: 'not json' }) })
     const r = await h['def:import']()

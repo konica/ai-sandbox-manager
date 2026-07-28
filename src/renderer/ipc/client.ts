@@ -8,7 +8,7 @@ interface Api {
   defGetSpec(id: string): Promise<Result<DefinitionSpec | null>>
   defList(): Promise<Result<Definition[]>>
   defExport(ids: string[]): Promise<Result<{ canceled?: boolean; path?: string; count?: number }>>
-  defImport(): Promise<Result<{ canceled?: boolean; imported?: string[]; skipped?: number }>>
+  defImport(): Promise<Result<{ canceled?: boolean; imported?: string[]; skipped?: number; domainWarnings?: string[] }>>
   defRemove(id: string): Promise<Result<{ removedInstances: number }>>
   pickFolder(): Promise<string | null>
   pickFile(): Promise<string | null>

@@ -141,7 +141,7 @@ export function openStore(filename: string): Store {
   if (!defCols.includes('kit_commands_yaml')) {
     db.exec(`ALTER TABLE definition ADD COLUMN kit_commands_yaml TEXT;`)
   }
-  // v8 → v9: definitions gain an agent keyword (multi-agent support). Non-destructive;
+  // v9 → v10: definitions gain an agent keyword (multi-agent support). Non-destructive;
   // backfill from base_image's known variant suffix so pre-existing rows keep the agent
   // they were actually built for (unrecognized/custom images default to 'claude', which
   // is what every definition ran as before this column existed).

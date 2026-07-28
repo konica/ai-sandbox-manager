@@ -99,7 +99,12 @@ export default function App(): JSX.Element {
     await loadDefs()
     const count = r.data.imported?.length ?? 0
     const skipped = r.data.skipped ?? 0
-    setDefFlash({ kind: 'info', text: skipped > 0 ? t('definitions.importedSkipped', { count, skipped }) : t('definitions.imported', { count }) })
+    const base = skipped > 0 ? t('definitions.importedSkipped', { count, skipped }) : t('definitions.imported', { count })
+    const domainWarnings = r.data.domainWarnings ?? []
+    const text = domainWarnings.length > 0
+      ? `${base} ${t('definitions.importedNoDomainWarning', { names: domainWarnings.join(', ') })}`
+      : base
+    setDefFlash({ kind: domainWarnings.length > 0 ? 'error' : 'info', text })
   }
   async function onExportDefs(ids: string[]): Promise<void> {
     const r = await api.defExport(ids)

@@ -60,6 +60,7 @@ export const de: Dict = {
     exported: '{count} Definition(en) exportiert.',
     imported: '{count} Definition(en) importiert.',
     importedSkipped: '{count} importiert, {skipped} übersprungen.',
+    importedNoDomainWarning: 'Warnung: keine erreichbaren Netzwerk-Domains für {names} — der Agent liefert keine mit, die Stufe ist „locked“, und es wurden keine eigenen Domains gesetzt. Fügen Sie vor dem Start eine Domain hinzu oder wählen Sie eine offenere Stufe.',
     exportError: 'Die ausgewählten Definitionen konnten nicht exportiert werden.',
     importError: 'Keine gültige .sbx.json-Definitionsdatei.'
   },

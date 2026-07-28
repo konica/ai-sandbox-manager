@@ -1,7 +1,8 @@
 import type { Tier, MountMode, CredentialRef, DefinitionSpec, PortProtocol, RegistryScope } from '@shared/types'
 import { DEFAULT_SSH } from '@shared/types'
 import type { AgentId, BuiltinVariant } from '@shared/agents'
-import { AGENT_PROFILES, VARIANT_AGENT, agentFromBaseImage } from '@shared/agents'
+import { AGENT_PROFILES, VARIANT_AGENT, agentFromBaseImage, matchedAgentFromBaseImage } from '@shared/agents'
+import { needsProviderDomainWarning } from '@shared/provider-domain'
 export type { BuiltinVariant } from '@shared/agents'
 
 // Draft credentials carry a transient plaintext `value` that is NEVER persisted to
@@ -37,9 +38,11 @@ export const TOTAL_STEPS = 7
 // Refs must include the docker.io host — sbx does not auto-resolve it.
 export const TEMPLATE_REPO = 'docker.io/docker/sandbox-templates'
 
-// Built-in base image templates offered in the wizard. These mirror the
-// variants Docker publishes; only claude-code (or a custom template) is wired
-// to actually launch at MVP — the others are selectable options.
+// Built-in base image templates offered in the wizard. These mirror the variants Docker
+// publishes; every variant is wired to actually launch via its AGENT_PROFILES entry
+// (src/shared/agents.ts). Only Claude's per-agent CLI values (keyword, resumeArgs,
+// sessionNameArgs, domains) are verified against the real CLI — the other agents' values are
+// unverified placeholders (see the TODO comments on each profile in agents.ts) until confirmed.
 export interface VariantInfo { value: BuiltinVariant; label: string }
 export const BUILTIN_VARIANTS: VariantInfo[] = [
   { value: 'claude-code', label: 'Claude Code' },
@@ -121,7 +124,19 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'next': return { ...d, step: Math.min(TOTAL_STEPS, d.step + 1) }
     case 'back': return { ...d, step: Math.max(1, d.step - 1) }
     case 'goToStep': return { ...d, step: Math.min(TOTAL_STEPS, Math.max(1, a.step)) }
-    case 'setField': return { ...d, [a.field]: a.value }
+    case 'setField': {
+      if (a.field === 'customImageRef') {
+        // Auto-seed the agent from the typed custom ref when it matches a known built-in
+        // variant suffix (e.g. "...:opencode") — this is what fixes the original bug where a
+        // custom opencode/codex/copilot ref silently launched as `sbx create claude`. It is a
+        // smart default, not a lock: matchedAgentFromBaseImage returns null for anything that
+        // doesn't match a known suffix, in which case we leave d.agent untouched so we never
+        // clobber a deliberate override just because the user is still mid-typing the ref.
+        const matched = matchedAgentFromBaseImage(a.value)
+        return { ...d, customImageRef: a.value, agent: matched ?? d.agent }
+      }
+      return { ...d, [a.field]: a.value }
+    }
     case 'setImageChoice': return { ...d, imageChoice: a.value, agent: a.value === 'custom' ? d.agent : VARIANT_AGENT[a.value] }
     case 'setAgent': return { ...d, agent: a.value }
     case 'setTier': return { ...d, tier: a.tier }
@@ -181,9 +196,11 @@ export function canAdvance(d: Draft): boolean {
 
 /** True when the chosen agent ships no domains of its own and nothing else will make the
  * sandbox reachable — the user must add their model provider's domain or the agent can't
- * reach any inference endpoint. See AGENT_PROFILES.opencode.domains (deliberately []). */
+ * reach any inference endpoint. Thin Draft-shaped wrapper over the shared predicate in
+ * src/shared/provider-domain.ts, which is also used by the def:import warning (src/main/ipc.ts)
+ * — keep the actual condition there, not duplicated here. */
 export function needsProviderDomainHint(d: Draft): boolean {
-  return AGENT_PROFILES[d.agent].domains.length === 0 && d.tier === 'locked' && d.domains.length === 0
+  return needsProviderDomainWarning(d.agent, d.tier, d.domains.length)
 }
 
 /** Reverse of toSpec: seed the wizard draft from a stored definition for editing. */

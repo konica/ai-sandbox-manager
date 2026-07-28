@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { buildExportBundle, parseImportBundle, dedupeName, BundleError } from '../../../src/main/defio/bundle'
 import type { DefinitionSpec } from '../../../src/shared/types'
+import type { AgentId } from '../../../src/shared/agents'
 
-const spec = (id: string, name: string): DefinitionSpec => ({
-  definition: { id, name, description: 'd', agent: 'claude', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' },
+const spec = (id: string, name: string, agent: AgentId = 'claude'): DefinitionSpec => ({
+  definition: { id, name, description: 'd', agent, baseImage: 'img:tag', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' },
   mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
   domains: ['api.example.com'],
   ports: [{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }],
@@ -115,6 +116,17 @@ describe('normalizeEntry agent backfill', () => {
     })
     const { definitions } = parseImportBundle(bundle)
     expect(definitions[0].definition.agent).toBe('opencode')
+  })
+})
+
+describe('non-claude agent full round trip', () => {
+  it('survives buildExportBundle -> JSON.stringify -> parseImportBundle for a non-claude agent', () => {
+    const bundle = buildExportBundle([spec('d1', 'Codex Box', 'codex')], '2026-07-28T00:00:00.000Z')
+    const wire = JSON.stringify(bundle)
+    const { definitions } = parseImportBundle(wire)
+    expect(definitions).toHaveLength(1)
+    expect(definitions[0].definition.agent).toBe('codex')
+    expect(definitions[0].definition.name).toBe('Codex Box')
   })
 })
 

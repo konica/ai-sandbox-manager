@@ -181,6 +181,48 @@ describe('agent selection', () => {
     const spec = { ...storedSpec, definition: { ...storedSpec.definition, agent: undefined as never, baseImage: 'docker.io/docker/sandbox-templates:opencode' } }
     expect(draftFromSpec(spec).agent).toBe('opencode')
   })
+  it('draftFromSpec round-trips a custom baseImage paired with a non-claude agent', () => {
+    const spec = { ...storedSpec, definition: { ...storedSpec.definition, agent: 'codex' as const, baseImage: 'my/custom:tag' } }
+    const d = draftFromSpec(spec)
+    expect(d.imageChoice).toBe('custom')
+    expect(d.customImageRef).toBe('my/custom:tag')
+    expect(d.agent).toBe('codex')
+    const back = toSpec(d, 'd1', 't')
+    expect(back.definition.agent).toBe('codex')
+    expect(back.definition.baseImage).toBe('my/custom:tag')
+  })
+})
+
+// FIX 1 regression coverage: selecting "Custom registry image…" used to leave the Agent field
+// at its stale/default value no matter what the typed ref actually was, so a custom opencode
+// ref launched as `sbx create claude` — the exact bug from the original report. setField on
+// customImageRef now auto-seeds the agent from the ref when it matches a known variant suffix,
+// while leaving the field alone (anti-clobber) for anything that doesn't match.
+describe('custom image ref auto-seeds the agent (anti-clobber)', () => {
+  it('seeds opencode from a custom ref ending in a known ":opencode" suffix', () => {
+    let d = draftReducer(initialDraft, { type: 'setImageChoice', value: 'custom' })
+    d = draftReducer(d, { type: 'setField', field: 'customImageRef', value: 'docker.io/docker/sandbox-templates:opencode' })
+    expect(d.agent).toBe('opencode')
+  })
+  it('seeds codex from a custom ref ending in a known ":codex" suffix', () => {
+    let d = draftReducer(initialDraft, { type: 'setImageChoice', value: 'custom' })
+    d = draftReducer(d, { type: 'setField', field: 'customImageRef', value: 'docker.io/acme/mirror:codex' })
+    expect(d.agent).toBe('codex')
+  })
+  it('leaves a previously chosen agent untouched for an unrecognized custom ref (no clobber)', () => {
+    let d = draftReducer(initialDraft, { type: 'setAgent', value: 'copilot' })
+    d = draftReducer(d, { type: 'setImageChoice', value: 'custom' })
+    d = draftReducer(d, { type: 'setField', field: 'customImageRef', value: 'my/registry/thing:v2' })
+    expect(d.agent).toBe('copilot')
+  })
+  it('does not overwrite an explicit setAgent override with a later unrelated field edit', () => {
+    let d = draftReducer(initialDraft, { type: 'setImageChoice', value: 'custom' })
+    d = draftReducer(d, { type: 'setField', field: 'customImageRef', value: 'docker.io/docker/sandbox-templates:opencode' })
+    expect(d.agent).toBe('opencode')
+    d = draftReducer(d, { type: 'setAgent', value: 'copilot' }) // explicit user override after the auto-seed
+    d = draftReducer(d, { type: 'setField', field: 'name', value: 'my-box' }) // unrelated edit must not touch agent
+    expect(d.agent).toBe('copilot')
+  })
 })
 
 describe('needsProviderDomainHint', () => {

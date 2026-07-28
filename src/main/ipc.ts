@@ -1,6 +1,8 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, KitValidation, StorageStatus } from '@shared/types'
 import type { AgentId } from '@shared/agents'
+import { AGENT_PROFILES } from '@shared/agents'
+import { needsProviderDomainWarning } from '@shared/provider-domain'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
@@ -76,7 +78,7 @@ export function buildHandlers(deps: Deps): {
   'def:getSpec': (id: string) => Promise<Result<DefinitionSpec | null>>
   'def:list': () => Promise<Result<Definition[]>>
   'def:export': (ids: string[]) => Promise<Result<{ canceled?: boolean; path?: string; count?: number }>>
-  'def:import': () => Promise<Result<{ canceled?: boolean; imported?: string[]; skipped?: number }>>
+  'def:import': () => Promise<Result<{ canceled?: boolean; imported?: string[]; skipped?: number; domainWarnings?: string[] }>>
   'def:remove': (id: string) => Promise<Result<{ removedInstances: number }>>
   'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
   'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
@@ -149,14 +151,26 @@ export function buildHandlers(deps: Deps): {
       const genId = deps.genId ?? randomUUID
       const existing = new Set(deps.store.listDefinitions().map((d) => d.name))
       const imported: string[] = []
+      const domainWarnings: { name: string; agent: AgentId }[] = []
       for (const d of definitions) {
         const name = dedupeName(d.definition.name, existing)
         existing.add(name)
+        // The wizard normally warns (needsProviderDomainHint) before a definition with zero
+        // reachable domains can be saved, but def:import bypasses the wizard entirely — so an
+        // imported opencode/locked-tier/no-domains bundle would otherwise generate a kit with
+        // no network: block at all and no warning anywhere. Reuse the SAME shared predicate
+        // here so there is one rule, not two divergent copies.
+        if (needsProviderDomainWarning(d.definition.agent, d.definition.tier, d.domains.length)) {
+          domainWarnings.push({ name, agent: d.definition.agent })
+        }
         deps.store.insertDefinitionSpec({ ...d, definition: { ...d.definition, name, id: genId(), createdAt: new Date().toISOString() } })
         imported.push(name)
       }
       deps.log?.info(`Imported ${imported.length} definition(s)${skipped ? `, skipped ${skipped}` : ''} from ${file.path}`)
-      return { imported, skipped }
+      for (const w of domainWarnings) {
+        deps.log?.info(`⚠ Imported definition "${w.name}" (agent: ${AGENT_PROFILES[w.agent].label}) has no reachable network domains — it ships no built-in domains, uses the locked tier, and carries no custom domains. Add a domain (or widen the tier) before launching, or the agent won't be able to reach its provider.`)
+      }
+      return { imported, skipped, domainWarnings: domainWarnings.length > 0 ? domainWarnings.map((w) => w.name) : undefined }
     }),
     'def:remove': (id) => wrap(async () => {
       // Remove every instance launched from this definition (best-effort each), then the definition.

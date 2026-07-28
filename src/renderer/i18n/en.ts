@@ -58,6 +58,7 @@ export const en = {
     exported: 'Exported {count} definition(s).',
     imported: 'Imported {count} definition(s).',
     importedSkipped: 'Imported {count}, skipped {skipped}.',
+    importedNoDomainWarning: 'Warning: no reachable network domains for {names} — its agent ships none, the tier is locked, and no custom domains were set. Add a domain or widen the tier before launching.',
     exportError: 'Could not export the selected definitions.',
     importError: 'Not a valid .sbx.json definition file.'
   },

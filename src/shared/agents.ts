@@ -72,13 +72,24 @@ export const VARIANT_AGENT: Record<BuiltinVariant, AgentId> = {
 }
 
 /**
+ * Matches a (possibly custom) base image ref against a known built-in variant's image-tag
+ * suffix. Returns null when nothing matches — unlike agentFromBaseImage, this does NOT fold
+ * "no match" into a 'claude' default, so callers that need to tell "genuinely matched" apart
+ * from "fell back to the default" (e.g. auto-seeding the wizard's agent field from a custom
+ * ref without clobbering a deliberate user override) can do so.
+ */
+export function matchedAgentFromBaseImage(baseImage: string): AgentId | null {
+  for (const variant of Object.keys(VARIANT_AGENT) as BuiltinVariant[]) {
+    if (baseImage.endsWith(`:${variant}`)) return VARIANT_AGENT[variant]
+  }
+  return null
+}
+
+/**
  * Best-effort agent for a (possibly custom) base image ref: matches a known built-in
  * variant's image-tag suffix, else 'claude' — the only agent that ever launched correctly
  * before this app supported others, so it's the safe default for anything unrecognized.
  */
 export function agentFromBaseImage(baseImage: string): AgentId {
-  for (const variant of Object.keys(VARIANT_AGENT) as BuiltinVariant[]) {
-    if (baseImage.endsWith(`:${variant}`)) return VARIANT_AGENT[variant]
-  }
-  return 'claude'
+  return matchedAgentFromBaseImage(baseImage) ?? 'claude'
 }
