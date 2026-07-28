@@ -1,4 +1,6 @@
 import type { DefinitionSpec } from '@shared/types'
+import { AGENT_PROFILES, agentFromBaseImage } from '@shared/agents'
+import type { AgentId } from '@shared/agents'
 
 export type ExportableDefinition = Omit<DefinitionSpec, 'definition'> & {
   definition: Omit<DefinitionSpec['definition'], 'id' | 'createdAt'>
@@ -25,6 +27,15 @@ export function buildExportBundle(specs: DefinitionSpec[], now: string): Definit
   }
 }
 
+/** An imported bundle is untrusted input: accept `agent` only if it names a real profile,
+ * else fall back to deriving it from the image ref (which itself defaults to 'claude'). */
+function normalizeAgent(raw: unknown, baseImage: string): AgentId {
+  if (typeof raw === 'string' && Object.prototype.hasOwnProperty.call(AGENT_PROFILES, raw)) {
+    return raw as AgentId
+  }
+  return agentFromBaseImage(baseImage)
+}
+
 // A definition entry is usable when it has the required scalar fields; array fields
 // default to [] so an older/partial export still imports.
 function normalizeEntry(raw: unknown): ExportableDefinition | null {
@@ -37,7 +48,7 @@ function normalizeEntry(raw: unknown): ExportableDefinition | null {
     definition: {
       name: def.name,
       description: typeof def.description === 'string' ? def.description : '',
-      agent: 'claude',
+      agent: normalizeAgent(def.agent, def.baseImage),
       baseImage: def.baseImage,
       tier: def.tier as DefinitionSpec['definition']['tier']
     },

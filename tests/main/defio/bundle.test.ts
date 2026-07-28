@@ -71,6 +71,53 @@ describe('kitCommandsYaml round-trip', () => {
   })
 })
 
+describe('normalizeEntry agent backfill', () => {
+  it('backfills agent from baseImage when importing an older bundle that predates the field', () => {
+    const bundle = JSON.stringify({
+      formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now',
+      definitions: [{
+        definition: { name: 'Old Export', description: '', baseImage: 'docker.io/docker/sandbox-templates:opencode', tier: 'locked' },
+        mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+      }]
+    })
+    const { definitions } = parseImportBundle(bundle)
+    expect(definitions[0].definition.agent).toBe('opencode')
+  })
+  it('preserves an explicit agent from a newer bundle', () => {
+    const bundle = JSON.stringify({
+      formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now',
+      definitions: [{
+        definition: { name: 'New Export', description: '', agent: 'codex', baseImage: 'my/custom:tag', tier: 'locked' },
+        mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+      }]
+    })
+    const { definitions } = parseImportBundle(bundle)
+    expect(definitions[0].definition.agent).toBe('codex')
+  })
+  it('rejects an unrecognized agent string and falls back to baseImage-derived agent', () => {
+    const bundle = JSON.stringify({
+      formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now',
+      definitions: [{
+        definition: { name: 'Tampered Export', description: '', agent: 'bogus', baseImage: 'docker.io/docker/sandbox-templates:opencode', tier: 'locked' },
+        mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+      }]
+    })
+    const { definitions } = parseImportBundle(bundle)
+    expect(definitions[0].definition.agent).toBe('opencode')
+  })
+  it('rejects a non-string agent value and falls back to baseImage-derived agent', () => {
+    const bundle = JSON.stringify({
+      formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now',
+      definitions: [{
+        definition: { name: 'Weird Export', description: '', agent: 42, baseImage: 'docker.io/docker/sandbox-templates:opencode', tier: 'locked' },
+        mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+      }]
+    })
+    const { definitions } = parseImportBundle(bundle)
+    expect(definitions[0].definition.agent).toBe('opencode')
+  })
+})
+
 describe('dedupeName', () => {
   it('leaves a free name unchanged; suffixes on collision', () => {
     expect(dedupeName('Alpha', new Set())).toBe('Alpha')
