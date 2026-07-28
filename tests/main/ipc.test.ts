@@ -91,6 +91,39 @@ describe('buildHandlers', () => {
     }
   })
 
+  // Regression guard: attaching to a NON-claude definition still produces a valid resume
+  // command. This does not by itself prove agent-awareness — every seed profile in
+  // AGENT_PROFILES currently shares resumeArgs ['--continue'], so the assertion is
+  // identical for all agents. It gains real teeth once opencode's actual resume flag is
+  // verified and (if it differs) this expectation is updated to match.
+  it('instance:attach resumes a non-claude (opencode) definition correctly', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec({
+      definition: { id: 'd', name: 'n', description: '', agent: 'opencode', baseImage: 'docker.io/docker/sandbox-templates:opencode', tier: 'locked', createdAt: 't' },
+      mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+    })
+    store.upsertInstanceMeta({ sbxName: 'box', definitionId: 'd', createdByApp: true, createdAt: 't' })
+    const openTerminal = vi.fn()
+    const h = buildHandlers({ adapter, store, probes, openTerminal })
+    await h['instance:attach']('box')
+    expect(openTerminal).toHaveBeenCalledWith("sbx run --name 'box' -- --continue")
+  })
+
+  // Genuine agent-awareness check: instance:commands must consult the instance's own
+  // definition (not just hardcode 'claude') before building the manual agent command.
+  it('instance:commands looks up the definition linked to the instance', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec({
+      definition: { id: 'd', name: 'n', description: '', agent: 'opencode', baseImage: 'docker.io/docker/sandbox-templates:opencode', tier: 'locked', createdAt: 't' },
+      mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+    })
+    store.upsertInstanceMeta({ sbxName: 'box', definitionId: 'd', createdByApp: true, createdAt: 't' })
+    const getDefinitionSpec = vi.spyOn(store, 'getDefinitionSpec')
+    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {} })
+    await h['instance:commands']('box')
+    expect(getDefinitionSpec).toHaveBeenCalledWith('d')
+  })
+
   it('def:export builds a bundle for selected ids and writes it via saveFile', async () => {
     const store = openStore(':memory:')
     store.insertDefinitionSpec({ definition: { id: 'd1', name: 'Alpha', description: '', agent: 'claude', baseImage: 'i:t', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })

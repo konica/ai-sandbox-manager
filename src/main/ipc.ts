@@ -1,5 +1,6 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, KitValidation, StorageStatus } from '@shared/types'
+import type { AgentId } from '@shared/agents'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
@@ -47,6 +48,15 @@ interface Deps {
 function requireCreds(deps: Deps): CredentialManager {
   if (!deps.creds) throw new Error('credential manager not configured')
   return deps.creds
+}
+
+/** The agent to resume/attach with: the linked definition's own agent, or 'claude' when the
+ * instance isn't tracked by the app (no definition to consult) — matching the app's
+ * pre-multi-agent behavior for anything it doesn't manage. */
+function resolveAgentForInstance(deps: { store: Pick<Store, 'listInstanceMeta' | 'getDefinitionSpec'> }, name: string): AgentId {
+  const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
+  const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
+  return spec?.definition.agent ?? 'claude'
 }
 
 async function wrap<T>(fn: () => Promise<T>): Promise<Result<T>> {
@@ -164,9 +174,9 @@ export function buildHandlers(deps: Deps): {
       definitionId, name, sessionName, opener ?? 'terminal'
     )),
     'instance:attach': (name, opener) => wrap(async () => {
-      const cmd = agentAttachCommand(name)
       const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
       const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
+      const cmd = agentAttachCommand(name, spec?.definition.agent ?? 'claude')
       // Re-register the definition's current credentials scoped to this instance so any
       // added/changed since the initial launch are synced into sbx before the agent runs.
       if (spec && deps.creds && meta?.definitionId && spec.credentials.length > 0) {
@@ -199,7 +209,7 @@ export function buildHandlers(deps: Deps): {
       return null
     }),
     // The exact sbx commands to run the agent / open a shell manually (for copy-to-clipboard).
-    'instance:commands': (name) => wrap(async () => ({ agent: agentAttachCommand(name), shell: hostShellCommand(name) })),
+    'instance:commands': (name) => wrap(async () => ({ agent: agentAttachCommand(name, resolveAgentForInstance(deps, name)), shell: hostShellCommand(name) })),
     'instance:stop': (name) => wrap(async () => { await deps.adapter.stopSandbox(name); return null }),
     'instance:remove': (name) => wrap(async () => { await cleanupInstance(deps, name); return null }),
     'secret:listGlobal': () => wrap(async () => requireCreds(deps).listGlobalSecrets()),
