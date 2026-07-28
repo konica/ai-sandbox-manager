@@ -71,6 +71,6 @@ describe('launchCommand copyFiles', () => {
     expect(launchCommand(spec([]), 'sbx-x')).not.toContain('sbx cp')
   })
   it('attach command never copies', () => {
-    expect(agentAttachCommand('sbx-x')).not.toContain('sbx cp')
+    expect(agentAttachCommand('sbx-x', 'claude')).not.toContain('sbx cp')
   })
 })

@@ -2,10 +2,10 @@ import { homedir } from 'os'
 import type { DefinitionSpec, PortIntent, Tier } from '@shared/types'
 import { DEFAULT_SSH } from '@shared/types'
 import { toSbxName } from '@shared/names'
+import { AGENT_PROFILES } from '@shared/agents'
+import type { AgentId } from '@shared/agents'
 
 export { toSbxName }
-
-export const AGENT_KEYWORD = 'claude'
 
 // The agent user's home inside a sandbox (verified: HOME=/home/agent).
 export const SANDBOX_HOME = '/home/agent'
@@ -92,7 +92,7 @@ function dedup(xs: string[]): string[] {
 export function specToCreateArgs(spec: DefinitionSpec, name: string = resolveSandboxName(spec), kitDir?: string): string[] {
   const primary = spec.mounts.find((m) => m.isPrimary) ?? spec.mounts[0]
   const extras = spec.mounts.filter((m) => m !== primary)
-  const args = ['create', AGENT_KEYWORD, primary.hostPath]
+  const args = ['create', AGENT_PROFILES[spec.definition.agent].keyword, primary.hostPath]
   for (const m of extras) args.push(m.mode === 'clone' ? `${m.hostPath}:ro` : m.hostPath)
   args.push('--name', name)
   if (spec.definition.baseImage.trim().length > 0) args.push('--template', spec.definition.baseImage)
@@ -114,8 +114,8 @@ export function shellQuote(s: string): string {
 
 // Attach reconnects to an existing sandbox and resumes the agent's most recent
 // session (Claude Code `--continue`), passed through `sbx run`'s `--` separator.
-export function agentAttachCommand(name: string): string {
-  return `sbx run --name ${shellQuote(name)} -- --continue`
+export function agentAttachCommand(name: string, agent: AgentId): string {
+  return `sbx run --name ${shellQuote(name)} -- ${AGENT_PROFILES[agent].resumeArgs.join(' ')}`
 }
 
 export function hostShellCommand(name: string): string {
@@ -156,10 +156,12 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
   for (const p of spec.ports) {
     steps.push(shellCommand(['sbx', 'ports', name, '--publish', portIntentToPublishSpec(p)]))
   }
-  // `sbx run` attaches the agent; args after `--` go to Claude Code. A session
-  // name maps to `claude --name`, its display name for this new conversation.
+  // `sbx run` attaches the agent; args after `--` go to the agent CLI. A session
+  // name maps to that agent's own session-naming flag for this new conversation.
   const runArgs = ['sbx', 'run', '--name', name]
-  if (sessionName && sessionName.trim()) runArgs.push('--', '--name', sessionName.trim())
+  if (sessionName && sessionName.trim()) {
+    runArgs.push('--', ...AGENT_PROFILES[spec.definition.agent].sessionNameArgs(sessionName.trim()))
+  }
   steps.push(shellCommand(runArgs))
 
   // SSH: when the agent is forwarded, set up host-key trust (and optionally commit

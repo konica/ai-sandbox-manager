@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  AGENT_KEYWORD,
   toSbxName,
   resolveSandboxName,
   uniqueSandboxName,
@@ -15,6 +14,7 @@ import {
   hostShellCommand,
   sshHostKeySetupCommand
 } from '../../../src/main/sbx/translate'
+import { AGENT_PROFILES } from '../../../src/shared/agents'
 import type { DefinitionSpec } from '../../../src/shared/types'
 
 function spec(over: Partial<DefinitionSpec> = {}): DefinitionSpec {
@@ -89,9 +89,17 @@ describe('tierToAllowlist', () => {
 describe('specToCreateArgs', () => {
   it('builds create argv with agent keyword, name and template', () => {
     expect(specToCreateArgs(spec())).toEqual([
-      'create', AGENT_KEYWORD, '/home/u/proj',
+      'create', AGENT_PROFILES.claude.keyword, '/home/u/proj',
       '--name', 'my-project',
       '--template', 'docker.io/docker/sandbox-templates:claude-code'
+    ])
+  })
+  it('uses the opencode keyword for an opencode-agent definition', () => {
+    const args = specToCreateArgs(spec({ definition: { ...spec().definition, agent: 'opencode', baseImage: 'docker.io/docker/sandbox-templates:opencode' } }))
+    expect(args).toEqual([
+      'create', 'opencode', '/home/u/proj',
+      '--name', 'my-project',
+      '--template', 'docker.io/docker/sandbox-templates:opencode'
     ])
   })
   it('never adds --clone (primary workspace is always direct)', () => {
@@ -129,8 +137,11 @@ describe('portIntentToPublishSpec', () => {
 describe('shell command builders', () => {
   it('quotes names and builds run/exec commands', () => {
     expect(shellQuote('a b')).toBe("'a b'")
-    expect(agentAttachCommand('my-project')).toBe("sbx run --name 'my-project' -- --continue")
+    expect(agentAttachCommand('my-project', 'claude')).toBe("sbx run --name 'my-project' -- --continue")
     expect(hostShellCommand('my-project')).toBe("sbx exec -it 'my-project' bash")
+  })
+  it('agentAttachCommand uses the given agent\'s resumeArgs', () => {
+    expect(agentAttachCommand('my-project', 'opencode')).toBe("sbx run --name 'my-project' -- --continue")
   })
   it('shellCommand leaves safe args unquoted and quotes the rest', () => {
     expect(shellCommand(['sbx', 'run', '--name', 'my-project'])).toBe('sbx run --name my-project')
@@ -163,6 +174,11 @@ describe('launchCommand', () => {
   it('appends the session name as claude --name after the -- separator', () => {
     const cmd = launchCommand(spec(), 'my-project', 'Refactor auth')
     expect(cmd).toMatch(/&& sbx run --name my-project -- --name 'Refactor auth'$/)
+  })
+  it('appends the session name using the opencode --session flag for an opencode definition', () => {
+    const s = spec({ definition: { ...spec().definition, agent: 'opencode', baseImage: 'docker.io/docker/sandbox-templates:opencode' } })
+    const cmd = launchCommand(s, 'my-project', 'Refactor auth')
+    expect(cmd).toMatch(/&& sbx run --name my-project -- --session 'Refactor auth'$/)
   })
   it('omits the session args when no session name is given', () => {
     expect(launchCommand(spec(), 'my-project', '  ')).toMatch(/&& sbx run --name my-project$/)
