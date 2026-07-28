@@ -15,7 +15,8 @@ export interface AgentProfile {
   sessionNameArgs: (name: string) => string[]
 }
 
-// Verified via the Phase 0 spike (see src/main/kit/generate.ts CLAUDE_AGENT_DOMAINS/OAUTH_LOGIN_DOMAINS).
+// Verified via the Phase 0 spike. `buildLoginKit`'s OAUTH_LOGIN_DOMAINS in
+// src/main/kit/generate.ts is a deliberately smaller subset for the OAuth /login sandbox.
 const CLAUDE_DOMAINS = [
   'api.anthropic.com', 'console.anthropic.com', 'claude.ai',
   'platform.claude.com', 'claude.com', 'downloads.claude.ai', 'mcp-proxy.anthropic.com'

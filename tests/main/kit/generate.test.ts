@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { buildKitSpec, buildLoginKit } from '../../../src/main/kit/generate'
 import type { DefinitionSpec } from '../../../src/shared/types'
 
-function spec(creds: DefinitionSpec['credentials'], tier: DefinitionSpec['definition']['tier'] = 'locked', domains: string[] = [], kitCommandsYaml?: string): DefinitionSpec {
+function spec(creds: DefinitionSpec['credentials'], tier: DefinitionSpec['definition']['tier'] = 'locked', domains: string[] = [], kitCommandsYaml?: string, agent: DefinitionSpec['definition']['agent'] = 'claude'): DefinitionSpec {
   return {
-    definition: { id: 'd1', name: 'Proj Alpha', description: '', agent: 'claude', baseImage: 'img:tag', tier, createdAt: '2026-07-19T00:00:00.000Z' },
+    definition: { id: 'd1', name: 'Proj Alpha', description: '', agent, baseImage: 'img:tag', tier, createdAt: '2026-07-19T00:00:00.000Z' },
     mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
     domains, ports: [], hostServices: [], credentials: creds,
     ...(kitCommandsYaml !== undefined ? { kitCommandsYaml } : {})
@@ -47,11 +47,19 @@ describe('buildKitSpec', () => {
     expect(k.specYaml).toContain('reg.local')   // sandbox → injected → reachable
     expect(k.specYaml).not.toContain('private.hub') // host-only → host pull, not in-VM
   })
-  it('always allowlists the Claude agent baseline even with no credential (locked tier)', () => {
-    const k = buildKitSpec(spec([], 'locked', []))
+  it('always allowlists the Claude agent baseline for a claude-agent definition (locked tier)', () => {
+    const k = buildKitSpec(spec([], 'locked', [], undefined, 'claude'))
     for (const d of ['api.anthropic.com', 'platform.claude.com', 'console.anthropic.com', 'claude.com', 'downloads.claude.ai', 'claude.ai', 'mcp-proxy.anthropic.com']) {
       expect(k.specYaml).toContain(d)
     }
+  })
+  it('does not allowlist the Claude domains for an opencode-agent definition', () => {
+    const k = buildKitSpec(spec([], 'locked', [], undefined, 'opencode'))
+    expect(k.specYaml).not.toContain('api.anthropic.com')
+  })
+  it('allowlists the Codex domains for a codex-agent definition', () => {
+    const k = buildKitSpec(spec([], 'locked', [], undefined, 'codex'))
+    expect(k.specYaml).toContain('api.openai.com')
   })
   it('allowlists localhost:<port> for each host service', () => {
     const s = spec([], 'locked', [])
