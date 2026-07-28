@@ -1,5 +1,8 @@
 import type { Tier, MountMode, CredentialRef, DefinitionSpec, PortProtocol, RegistryScope } from '@shared/types'
 import { DEFAULT_SSH } from '@shared/types'
+import type { AgentId, BuiltinVariant } from '@shared/agents'
+import { AGENT_PROFILES, VARIANT_AGENT, agentFromBaseImage } from '@shared/agents'
+export type { BuiltinVariant } from '@shared/agents'
 
 // Draft credentials carry a transient plaintext `value` that is NEVER persisted to
 // the spec — it is staged to the vault via IPC on submit (see App/CreateDefinition).
@@ -30,8 +33,6 @@ export type DraftCred = DraftServiceCred | DraftCustomCred | DraftRegistryCred
 
 export const TOTAL_STEPS = 7
 
-export type BuiltinVariant = 'claude-code' | 'claude-code-docker' | 'claude-code-minimal' | 'opencode' | 'codex' | 'copilot'
-
 // Docker Sandboxes publishes built-in base images under this repository.
 // Refs must include the docker.io host — sbx does not auto-resolve it.
 export const TEMPLATE_REPO = 'docker.io/docker/sandbox-templates'
@@ -54,6 +55,7 @@ export interface Draft {
   name: string
   description: string
   imageChoice: BuiltinVariant | 'custom'
+  agent: AgentId
   customImageRef: string
   workspace: string
   extraFolders: { path: string; mode: MountMode }[]
@@ -73,6 +75,7 @@ export const initialDraft: Draft = {
   name: '',
   description: '',
   imageChoice: 'claude-code',
+  agent: 'claude',
   customImageRef: '',
   workspace: '',
   extraFolders: [],
@@ -93,6 +96,7 @@ export type DraftAction =
   | { type: 'goToStep'; step: number }
   | { type: 'setField'; field: 'name' | 'description' | 'customImageRef' | 'workspace' | 'kitCommandsYaml'; value: string }
   | { type: 'setImageChoice'; value: BuiltinVariant | 'custom' }
+  | { type: 'setAgent'; value: AgentId }
   | { type: 'setTier'; tier: Tier }
   | { type: 'addExtraFolder'; path: string; mode: MountMode }
   | { type: 'removeExtraFolder'; index: number }
@@ -118,7 +122,8 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'back': return { ...d, step: Math.max(1, d.step - 1) }
     case 'goToStep': return { ...d, step: Math.min(TOTAL_STEPS, Math.max(1, a.step)) }
     case 'setField': return { ...d, [a.field]: a.value }
-    case 'setImageChoice': return { ...d, imageChoice: a.value }
+    case 'setImageChoice': return { ...d, imageChoice: a.value, agent: a.value === 'custom' ? d.agent : VARIANT_AGENT[a.value] }
+    case 'setAgent': return { ...d, agent: a.value }
     case 'setTier': return { ...d, tier: a.tier }
     case 'addExtraFolder': return { ...d, extraFolders: [...d.extraFolders, { path: a.path, mode: a.mode }] }
     case 'removeExtraFolder': return { ...d, extraFolders: d.extraFolders.filter((_, i) => i !== a.index) }
@@ -174,6 +179,13 @@ export function canAdvance(d: Draft): boolean {
   return true
 }
 
+/** True when the chosen agent ships no domains of its own and nothing else will make the
+ * sandbox reachable — the user must add their model provider's domain or the agent can't
+ * reach any inference endpoint. See AGENT_PROFILES.opencode.domains (deliberately []). */
+export function needsProviderDomainHint(d: Draft): boolean {
+  return AGENT_PROFILES[d.agent].domains.length === 0 && d.tier === 'locked' && d.domains.length === 0
+}
+
 /** Reverse of toSpec: seed the wizard draft from a stored definition for editing. */
 export function draftFromSpec(spec: DefinitionSpec): Draft {
   const primary = spec.mounts.find((m) => m.isPrimary) ?? spec.mounts[0]
@@ -184,6 +196,7 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
     name: spec.definition.name,
     description: spec.definition.description,
     imageChoice: knownVariant ? knownVariant.value : 'custom',
+    agent: spec.definition.agent ?? agentFromBaseImage(spec.definition.baseImage),
     customImageRef: knownVariant ? '' : spec.definition.baseImage,
     workspace: primary?.hostPath ?? '',
     extraFolders: extras.map((m) => ({ path: m.hostPath, mode: m.mode })),
@@ -205,7 +218,7 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
 
 export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec {
   return {
-    definition: { id, name: effectiveName(d), description: d.description.trim(), agent: 'claude', baseImage: resolveBaseImage(d), tier: d.tier, createdAt },
+    definition: { id, name: effectiveName(d), description: d.description.trim(), agent: d.agent, baseImage: resolveBaseImage(d), tier: d.tier, createdAt },
     mounts: [
       { hostPath: d.workspace.trim(), mode: 'direct', isPrimary: true }, // primary workspace is always direct (read-write bind)
       ...d.extraFolders.map((f) => ({ hostPath: f.path, mode: f.mode, isPrimary: false }))

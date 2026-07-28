@@ -3,7 +3,9 @@ import type { Tier, DefinitionSpec } from '@shared/types'
 import { serviceById } from '@shared/services'
 import { normalizeCommandsYaml } from '@shared/kit-commands'
 import { api } from '../ipc/client'
-import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, type BuiltinVariant, type DraftCred } from './draft'
+import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, needsProviderDomainHint, type BuiltinVariant, type DraftCred } from './draft'
+import type { AgentId } from '@shared/agents'
+import { AGENT_PROFILES } from '@shared/agents'
 import { CredentialsStep } from './CredentialsStep'
 import { PortsStep } from './PortsStep'
 import { TierBadge } from '../components/badges'
@@ -300,7 +302,14 @@ export function CreateDefinition({
                 <>
                   <label htmlFor="custom-image-url" style={{ marginTop: 'var(--space-3)' }}>{t('wizard.imageRefLabel')}</label>
                   <input id="custom-image-url" aria-label="Custom image ref" className="input input-mono" placeholder={t('wizard.imageRefPlaceholder')} value={draft.customImageRef} onChange={(e) => dispatch({ type: 'setField', field: 'customImageRef', value: e.target.value })} />
+                  <label htmlFor="agent-select" style={{ marginTop: 'var(--space-3)' }}>{t('wizard.agentLabel')}</label>
+                  <select id="agent-select" className="input" style={{ fontFamily: 'var(--font-mono)' }} value={draft.agent} onChange={(e) => dispatch({ type: 'setAgent', value: e.target.value as AgentId })}>
+                    {Object.values(AGENT_PROFILES).map((p) => (<option key={p.id} value={p.id}>{p.label}</option>))}
+                  </select>
                 </>
+              )}
+              {draft.imageChoice !== 'custom' && (
+                <p className="section-desc" style={{ marginTop: 'var(--space-3)', marginBottom: 0 }}>{t('wizard.agentLabel')}: {AGENT_PROFILES[draft.agent].label}</p>
               )}
               <p className="section-desc" style={{ marginTop: 'var(--space-3)', marginBottom: 0 }}>{t('wizard.resolvesTo')} <span className="code-inline">{resolveBaseImage(draft) || '—'}</span></p>
             </>
@@ -323,6 +332,9 @@ export function CreateDefinition({
                 <button className="btn btn-secondary btn-sm" onClick={() => { if (domainInput.trim()) { dispatch({ type: 'addDomain', host: domainInput.trim() }); setDomainInput('') } }}>{t('wizard.addDomain')}</button>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>{draft.domains.map((h) => (<Chip key={h} text={h} onRemove={() => dispatch({ type: 'removeDomain', host: h })} />))}</div>
+              {needsProviderDomainHint(draft) && (
+                <p className="section-desc" style={{ marginTop: 'var(--space-2)' }}>{t('wizard.noDomainAgentHint', { agent: AGENT_PROFILES[draft.agent].label })}</p>
+              )}
             </>
           )}
 

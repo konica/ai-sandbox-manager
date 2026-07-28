@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { initialDraft, draftReducer, resolveBaseImage, parsePort, canAdvance, toSpec, draftFromSpec, basename, effectiveName } from '../../../src/renderer/wizard/draft'
+import { initialDraft, draftReducer, resolveBaseImage, parsePort, canAdvance, toSpec, draftFromSpec, basename, effectiveName, needsProviderDomainHint } from '../../../src/renderer/wizard/draft'
 import type { DefinitionSpec } from '../../../src/shared/types'
 
 const storedSpec: DefinitionSpec = {
@@ -146,7 +146,7 @@ describe('toSpec', () => {
       hostServices: [], credentials: [{ kind: 'service' as const, serviceId: 'github', envVar: 'GH_TOKEN', value: 'gho_x' }]
     }
     const spec = toSpec(d, 'id1', '2026-07-18T00:00:00Z')
-    expect(spec.definition).toEqual({ id: 'id1', name: 'alpha', description: 'a', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' })
+    expect(spec.definition).toEqual({ id: 'id1', name: 'alpha', description: 'a', agent: 'claude', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' })
     expect(spec.mounts).toEqual([
       { hostPath: '/home/u/alpha', mode: 'direct', isPrimary: true },
       { hostPath: '/home/u/lib', mode: 'clone', isPrimary: false }
@@ -154,5 +154,49 @@ describe('toSpec', () => {
     expect(spec.domains).toEqual(['api.github.com'])
     expect(spec.ports).toEqual([{ hostPort: 8080, containerPort: 3000, protocol: 'tcp', label: 'web' }])
     expect(spec.credentials).toEqual([{ kind: 'service', serviceId: 'github', envVar: 'GH_TOKEN', store: 'sbx' }])
+  })
+})
+
+describe('agent selection', () => {
+  it('setImageChoice auto-derives the agent for a builtin variant', () => {
+    let d = draftReducer(initialDraft, { type: 'setImageChoice', value: 'opencode' })
+    expect(d.agent).toBe('opencode')
+    d = draftReducer(d, { type: 'setImageChoice', value: 'claude-code-docker' })
+    expect(d.agent).toBe('claude')
+  })
+  it('setImageChoice leaves the agent untouched when switching to custom', () => {
+    let d = draftReducer(initialDraft, { type: 'setImageChoice', value: 'opencode' })
+    d = draftReducer(d, { type: 'setImageChoice', value: 'custom' })
+    expect(d.agent).toBe('opencode')
+  })
+  it('setAgent overrides the agent directly', () => {
+    const d = draftReducer(initialDraft, { type: 'setAgent', value: 'codex' })
+    expect(d.agent).toBe('codex')
+  })
+  it('draftFromSpec reads the stored agent back', () => {
+    const d = draftFromSpec({ ...storedSpec, definition: { ...storedSpec.definition, agent: 'opencode' } })
+    expect(d.agent).toBe('opencode')
+  })
+  it('draftFromSpec falls back to deriving from baseImage when agent is missing (pre-migration data)', () => {
+    const spec = { ...storedSpec, definition: { ...storedSpec.definition, agent: undefined as never, baseImage: 'docker.io/docker/sandbox-templates:opencode' } }
+    expect(draftFromSpec(spec).agent).toBe('opencode')
+  })
+})
+
+describe('needsProviderDomainHint', () => {
+  it('is true for locked + opencode + no domains', () => {
+    expect(needsProviderDomainHint({ ...initialDraft, agent: 'opencode', tier: 'locked', domains: [] })).toBe(true)
+  })
+  it('is false once a domain is added', () => {
+    expect(needsProviderDomainHint({ ...initialDraft, agent: 'opencode', tier: 'locked', domains: ['api.openai.com'] })).toBe(false)
+  })
+  it('is false on the balanced tier', () => {
+    expect(needsProviderDomainHint({ ...initialDraft, agent: 'opencode', tier: 'balanced', domains: [] })).toBe(false)
+  })
+  it('is false on the open tier', () => {
+    expect(needsProviderDomainHint({ ...initialDraft, agent: 'opencode', tier: 'open', domains: [] })).toBe(false)
+  })
+  it('is false for claude, which ships its own domains', () => {
+    expect(needsProviderDomainHint({ ...initialDraft, agent: 'claude', tier: 'locked', domains: [] })).toBe(false)
   })
 })
