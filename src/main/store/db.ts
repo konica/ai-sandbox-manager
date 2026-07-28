@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS definition (
   name TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
   base_image TEXT NOT NULL,
+  agent TEXT NOT NULL DEFAULT 'claude',
   tier TEXT NOT NULL,
   created_at TEXT NOT NULL,
   ssh_forward_agent INTEGER NOT NULL DEFAULT 1,
@@ -102,7 +103,7 @@ CREATE TABLE IF NOT EXISTS global_secret (
   store TEXT NOT NULL DEFAULT 'sbx',
   created_at TEXT NOT NULL
 );
-PRAGMA user_version = 9;
+PRAGMA user_version = 10;
 `
 
 export function openStore(filename: string): Store {
@@ -139,6 +140,16 @@ export function openStore(filename: string): Store {
   // v7 → v8: definitions gain an optional custom kit commands block. Non-destructive.
   if (!defCols.includes('kit_commands_yaml')) {
     db.exec(`ALTER TABLE definition ADD COLUMN kit_commands_yaml TEXT;`)
+  }
+  // v8 → v9: definitions gain an agent keyword (multi-agent support). Non-destructive;
+  // backfill from base_image's known variant suffix so pre-existing rows keep the agent
+  // they were actually built for (unrecognized/custom images default to 'claude', which
+  // is what every definition ran as before this column existed).
+  if (!defCols.includes('agent')) {
+    db.exec(`ALTER TABLE definition ADD COLUMN agent TEXT NOT NULL DEFAULT 'claude';`)
+    db.exec(`UPDATE definition SET agent = 'opencode' WHERE base_image LIKE '%:opencode';`)
+    db.exec(`UPDATE definition SET agent = 'codex' WHERE base_image LIKE '%:codex';`)
+    db.exec(`UPDATE definition SET agent = 'copilot' WHERE base_image LIKE '%:copilot';`)
   }
 
   // v3 → v4: port_intent gains `protocol` + nullable host_port; add host_service. Recreate
@@ -184,24 +195,24 @@ export function openStore(filename: string): Store {
   return {
     insertDefinition(d) {
       db.prepare(
-        `INSERT INTO definition (id, name, description, base_image, tier, created_at)
-         VALUES (@id, @name, @description, @baseImage, @tier, @createdAt)`
+        `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at)
+         VALUES (@id, @name, @description, @baseImage, @agent, @tier, @createdAt)`
       ).run(d)
     },
     listDefinitions() {
-      return db.prepare(`SELECT id, name, description, base_image AS baseImage, tier, created_at AS createdAt FROM definition ORDER BY created_at DESC`).all() as Definition[]
+      return db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt FROM definition ORDER BY created_at DESC`).all() as Definition[]
     },
     getDefinition(id) {
-      const row = db.prepare(`SELECT id, name, description, base_image AS baseImage, tier, created_at AS createdAt FROM definition WHERE id = ?`).get(id)
+      const row = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt FROM definition WHERE id = ?`).get(id)
       return (row as Definition) ?? null
     },
     insertDefinitionSpec(spec) {
       const insertAll = db.transaction((s: DefinitionSpec) => {
         const ssh = s.ssh ?? DEFAULT_SSH
         db.prepare(
-          `INSERT INTO definition (id, name, description, base_image, tier, created_at, ssh_forward_agent, ssh_commit_signing, kit_commands_yaml)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(s.definition.id, s.definition.name, s.definition.description, s.definition.baseImage, s.definition.tier, s.definition.createdAt,
+          `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at, ssh_forward_agent, ssh_commit_signing, kit_commands_yaml)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(s.definition.id, s.definition.name, s.definition.description, s.definition.baseImage, s.definition.agent, s.definition.tier, s.definition.createdAt,
           ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null)
         insertChildren(s)
       })
@@ -211,8 +222,8 @@ export function openStore(filename: string): Store {
       const updateAll = db.transaction((s: DefinitionSpec) => {
         const ssh = s.ssh ?? DEFAULT_SSH
         const res = db.prepare(
-          `UPDATE definition SET name = ?, description = ?, base_image = ?, tier = ?, ssh_forward_agent = ?, ssh_commit_signing = ?, kit_commands_yaml = ? WHERE id = ?`
-        ).run(s.definition.name, s.definition.description, s.definition.baseImage, s.definition.tier,
+          `UPDATE definition SET name = ?, description = ?, base_image = ?, agent = ?, tier = ?, ssh_forward_agent = ?, ssh_commit_signing = ?, kit_commands_yaml = ? WHERE id = ?`
+        ).run(s.definition.name, s.definition.description, s.definition.baseImage, s.definition.agent, s.definition.tier,
           ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.id)
         if (res.changes === 0) throw new Error(`Definition ${s.definition.id} not found`)
         deleteChildren(s.definition.id)
@@ -221,7 +232,7 @@ export function openStore(filename: string): Store {
       updateAll(spec)
     },
     getDefinitionSpec(id) {
-      const def = db.prepare(`SELECT id, name, description, base_image AS baseImage, tier, created_at AS createdAt FROM definition WHERE id = ?`).get(id) as Definition | undefined
+      const def = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt FROM definition WHERE id = ?`).get(id) as Definition | undefined
       if (!def) return null
       const mounts = (db.prepare(`SELECT host_path AS hostPath, mode, is_primary AS isPrimary FROM mount_intent WHERE definition_id = ? ORDER BY id`).all(id) as Array<Record<string, unknown>>)
         .map((r) => ({ hostPath: String(r.hostPath), mode: String(r.mode) as MountMode, isPrimary: r.isPrimary === 1 }))
