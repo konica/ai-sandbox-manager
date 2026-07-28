@@ -61,6 +61,28 @@ describe('buildKitSpec', () => {
     const k = buildKitSpec(spec([], 'locked', [], undefined, 'codex'))
     expect(k.specYaml).toContain('api.openai.com')
   })
+  it('does not allowlist the Claude domains for a codex-agent definition', () => {
+    const k = buildKitSpec(spec([], 'locked', [], undefined, 'codex'))
+    expect(k.specYaml).not.toContain('api.anthropic.com')
+  })
+  it('does not allowlist the Codex/Copilot domains for a claude-agent definition', () => {
+    const k = buildKitSpec(spec([], 'locked', [], undefined, 'claude'))
+    expect(k.specYaml).not.toContain('api.openai.com')
+    expect(k.specYaml).not.toContain('githubusercontent.com')
+  })
+  // Deliberate consequence of opencode being multi-provider (see src/shared/agents.ts):
+  // its AGENT_PROFILES entry ships domains: [], so with no user domains/credentials/host
+  // services the allowlist is empty and buildKitSpec's `if (domains.length)` guard omits
+  // the `network:` block entirely. This branch was unreachable before per-agent domains
+  // (Claude's baseline was spliced in unconditionally), so it needs its own pin. The user
+  // is expected to add their configured provider's domain via the wizard's custom-domains
+  // field — see Task 6's inline hint for agents with no built-in domains.
+  it('emits no network block for an opencode-agent definition with no user domains/credentials/host services (locked tier) — deliberate multi-provider gap, not a fallback to Claude', () => {
+    const k = buildKitSpec(spec([], 'locked', [], undefined, 'opencode'))
+    expect(k.specYaml).not.toContain('network:')
+    expect(k.specYaml).not.toContain('allowedDomains')
+    expect(k.specYaml).not.toContain('api.anthropic.com') // would fail if a Claude fallback were ever added
+  })
   it('allowlists localhost:<port> for each host service', () => {
     const s = spec([], 'locked', [])
     s.hostServices = [{ hostPort: 11434, label: 'Ollama' }]
