@@ -114,8 +114,11 @@ export function shellQuote(s: string): string {
 
 // Attach reconnects to an existing sandbox and resumes the agent's most recent
 // session (Claude Code `--continue`), passed through `sbx run`'s `--` separator.
+// resumeArgs are routed through shellCommand like every other arg path in this file,
+// so a future profile with a space/metacharacter in its resumeArgs is quoted, not
+// silently mis-parsed.
 export function agentAttachCommand(name: string, agent: AgentId): string {
-  return `sbx run --name ${shellQuote(name)} -- ${AGENT_PROFILES[agent].resumeArgs.join(' ')}`
+  return `sbx run --name ${shellQuote(name)} -- ${shellCommand(AGENT_PROFILES[agent].resumeArgs)}`
 }
 
 export function hostShellCommand(name: string): string {
@@ -160,7 +163,11 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
   // name maps to that agent's own session-naming flag for this new conversation.
   const runArgs = ['sbx', 'run', '--name', name]
   if (sessionName && sessionName.trim()) {
-    runArgs.push('--', ...AGENT_PROFILES[spec.definition.agent].sessionNameArgs(sessionName.trim()))
+    const nameArgs = AGENT_PROFILES[spec.definition.agent].sessionNameArgs(sessionName.trim())
+    // Only add the `--` separator when there's something to put after it — an agent with
+    // no session-name flag (e.g. codex, copilot) returns [], and a bare trailing `--` would
+    // both dangle and silently swallow the session name the user typed.
+    if (nameArgs.length > 0) runArgs.push('--', ...nameArgs)
   }
   steps.push(shellCommand(runArgs))
 

@@ -143,6 +143,18 @@ describe('shell command builders', () => {
   it('agentAttachCommand uses the given agent\'s resumeArgs', () => {
     expect(agentAttachCommand('my-project', 'opencode')).toBe("sbx run --name 'my-project' -- --continue")
   })
+  it('agentAttachCommand is byte-identical for claude (regression guard)', () => {
+    expect(agentAttachCommand('my-project', 'claude')).toBe("sbx run --name 'my-project' -- --continue")
+  })
+  it('agentAttachCommand quotes resumeArgs tokens that need it, like every other arg path', () => {
+    const original = AGENT_PROFILES.codex.resumeArgs
+    AGENT_PROFILES.codex.resumeArgs = ['--continue', 'a b']
+    try {
+      expect(agentAttachCommand('my-project', 'codex')).toBe("sbx run --name 'my-project' -- --continue 'a b'")
+    } finally {
+      AGENT_PROFILES.codex.resumeArgs = original
+    }
+  })
   it('shellCommand leaves safe args unquoted and quotes the rest', () => {
     expect(shellCommand(['sbx', 'run', '--name', 'my-project'])).toBe('sbx run --name my-project')
     expect(shellCommand(['sbx', 'x', 'a b'])).toBe("sbx x 'a b'")
@@ -182,5 +194,13 @@ describe('launchCommand', () => {
   })
   it('omits the session args when no session name is given', () => {
     expect(launchCommand(spec(), 'my-project', '  ')).toMatch(/&& sbx run --name my-project$/)
+  })
+  it('emits no dangling -- separator for an agent with no session-name flag (codex), even with a session name given', () => {
+    const s = spec({ definition: { ...spec().definition, agent: 'codex', baseImage: 'docker.io/docker/sandbox-templates:codex' } })
+    const cmd = launchCommand(s, 'my-project', 'Refactor auth')
+    // The command must end exactly at "--name my-project" with nothing after — no trailing
+    // "--" separator and no sign of the (silently dropped) session name.
+    expect(cmd).toMatch(/&& sbx run --name my-project$/)
+    expect(cmd).not.toMatch(/\s--(\s|$)/)
   })
 })
