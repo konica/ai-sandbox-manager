@@ -4,6 +4,7 @@ vi.mock('electron', () => ({ ipcMain: { handle: () => {} } }))
 
 import { buildHandlers } from '@main/ipc'
 import { openStore } from '@main/store/db'
+import { AGENT_PROFILES } from '@shared/agents'
 import type { SbxAdapter } from '@main/sbx/adapter'
 import type { Probes } from '@main/prereq'
 
@@ -109,19 +110,37 @@ describe('buildHandlers', () => {
     expect(openTerminal).toHaveBeenCalledWith("sbx run --name 'box' -- --continue")
   })
 
-  // Genuine agent-awareness check: instance:commands must consult the instance's own
-  // definition (not just hardcode 'claude') before building the manual agent command.
-  it('instance:commands looks up the definition linked to the instance', async () => {
-    const store = openStore(':memory:')
-    store.insertDefinitionSpec({
-      definition: { id: 'd', name: 'n', description: '', agent: 'opencode', baseImage: 'docker.io/docker/sandbox-templates:opencode', tier: 'locked', createdAt: 't' },
-      mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
-    })
-    store.upsertInstanceMeta({ sbxName: 'box', definitionId: 'd', createdByApp: true, createdAt: 't' })
-    const getDefinitionSpec = vi.spyOn(store, 'getDefinitionSpec')
-    const h = buildHandlers({ adapter, store, probes, openTerminal: () => {} })
-    await h['instance:commands']('box')
-    expect(getDefinitionSpec).toHaveBeenCalledWith('d')
+  // Genuine agent-awareness check: instance:commands must use the LINKED DEFINITION's own
+  // agent, not a hardcoded 'claude'. Every seed profile shares resumeArgs ['--continue'], so
+  // no assertion on the real command string can tell agents apart on its own — this test
+  // temporarily gives opencode a distinctive resumeArgs value so a hardcoded 'claude'
+  // implementation is forced to diverge from a correctly agent-aware one. The original value
+  // is restored in `finally` so no other test observes the mutation.
+  //
+  // Uses a hand-built store double (not openStore's real SQLite backing) because db.ts does
+  // not yet persist Definition.agent through insertDefinitionSpec/getDefinitionSpec — that
+  // round-trip is Task 5's still-RED scope (see tests/main/store/definition-spec.test.ts).
+  // Going through the real store here would make this test fail for the wrong reason.
+  it('instance:commands uses the linked definition\'s own agent, not always claude', async () => {
+    const original = AGENT_PROFILES.opencode.resumeArgs
+    AGENT_PROFILES.opencode.resumeArgs = ['--resume-distinctive']
+    try {
+      const spec = {
+        definition: { id: 'd', name: 'n', description: '', agent: 'opencode', baseImage: 'docker.io/docker/sandbox-templates:opencode', tier: 'locked', createdAt: 't' },
+        mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+      }
+      const store = {
+        getDefinitionSpec: vi.fn(() => spec),
+        listInstanceMeta: vi.fn(() => [{ sbxName: 'box', definitionId: 'd', createdByApp: true, createdAt: 't' }])
+      }
+      const h = buildHandlers({ adapter, store, probes, openTerminal: () => {} } as never)
+      const r = await h['instance:commands']('box')
+      expect(store.getDefinitionSpec).toHaveBeenCalledWith('d')
+      expect(r.ok).toBe(true)
+      if (r.ok) expect(r.data.agent).toContain('--resume-distinctive')
+    } finally {
+      AGENT_PROFILES.opencode.resumeArgs = original
+    }
   })
 
   it('def:export builds a bundle for selected ids and writes it via saveFile', async () => {
