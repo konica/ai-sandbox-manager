@@ -67,7 +67,7 @@ describe('buildHandlers', () => {
   it('instance:attach with vscode opener resolves the workspace and opens VS Code', async () => {
     const store = openStore(":memory:")
     store.insertDefinitionSpec({
-      definition: { id: 'd', name: 'n', description: '', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
+      definition: { id: 'd', name: 'n', description: '', agent: 'claude', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
       mounts: [{ hostPath: '/ws', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
     })
     store.upsertInstanceMeta({ sbxName: 'box', definitionId: 'd', createdByApp: true, createdAt: 't' })
@@ -93,7 +93,7 @@ describe('buildHandlers', () => {
 
   it('def:export builds a bundle for selected ids and writes it via saveFile', async () => {
     const store = openStore(':memory:')
-    store.insertDefinitionSpec({ definition: { id: 'd1', name: 'Alpha', description: '', baseImage: 'i:t', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    store.insertDefinitionSpec({ definition: { id: 'd1', name: 'Alpha', description: '', agent: 'claude', baseImage: 'i:t', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
     let written = ''
     const saveFile = async (_name: string, contents: string): Promise<string | null> => { written = contents; return '/tmp/out.sbx.json' }
     const h = buildHandlers({ adapter, store, probes, openTerminal: () => {}, saveFile })
@@ -105,14 +105,14 @@ describe('buildHandlers', () => {
   })
   it('def:export returns canceled when the save dialog is dismissed', async () => {
     const store = openStore(':memory:')
-    store.insertDefinitionSpec({ definition: { id: 'd1', name: 'Alpha', description: '', baseImage: 'i', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    store.insertDefinitionSpec({ definition: { id: 'd1', name: 'Alpha', description: '', agent: 'claude', baseImage: 'i', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
     const h = buildHandlers({ adapter, store, probes, openTerminal: () => {}, saveFile: async () => null })
     const r = await h['def:export'](['d1'])
     expect(r.ok && r.data.canceled).toBe(true)
   })
   it('def:import inserts each definition as a new copy with a fresh id and deduped name', async () => {
     const store = openStore(':memory:')
-    store.insertDefinitionSpec({ definition: { id: 'existing', name: 'Alpha', description: '', baseImage: 'i', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    store.insertDefinitionSpec({ definition: { id: 'existing', name: 'Alpha', description: '', agent: 'claude', baseImage: 'i', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
     const bundle = JSON.stringify({ formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now', definitions: [
       { definition: { name: 'Alpha', description: '', baseImage: 'i', tier: 'locked' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] }
     ] })
@@ -125,7 +125,7 @@ describe('buildHandlers', () => {
   })
   it('def:remove deletes the definition and removes its instances', async () => {
     const store = openStore(':memory:')
-    store.insertDefinitionSpec({ definition: { id: 'd1', name: 'Alpha', description: '', baseImage: 'i', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    store.insertDefinitionSpec({ definition: { id: 'd1', name: 'Alpha', description: '', agent: 'claude', baseImage: 'i', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
     store.upsertInstanceMeta({ sbxName: 'alpha-1', definitionId: 'd1', createdByApp: true, createdAt: 't' })
     store.upsertInstanceMeta({ sbxName: 'alpha-2', definitionId: 'd1', createdByApp: true, createdAt: 't' })
     const removeSandbox = vi.fn(async () => {})

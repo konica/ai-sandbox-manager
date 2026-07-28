@@ -50,7 +50,7 @@ describe('copyFileStep', () => {
 })
 
 const spec = (copyFiles: { hostPath: string; sandboxPath: string }[]): DefinitionSpec => ({
-  definition: { id: 'd1', name: 'proj', description: '', baseImage: 'img', tier: 'locked', createdAt: 't' },
+  definition: { id: 'd1', name: 'proj', description: '', agent: 'claude', baseImage: 'img', tier: 'locked', createdAt: 't' },
   mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }],
   domains: [], ports: [], hostServices: [], credentials: [],
   ssh: { forwardAgent: false, commitSigning: false },

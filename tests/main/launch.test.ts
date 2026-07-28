@@ -3,7 +3,7 @@ import { launchDefinition } from '../../src/main/launch'
 import type { DefinitionSpec, InstanceMeta, SbxInstance } from '../../src/shared/types'
 
 const spec: DefinitionSpec = {
-  definition: { id: 'd1', name: 'My Project', description: '', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' },
+  definition: { id: 'd1', name: 'My Project', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' },
   mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
   domains: ['api.example.com'],
   ports: [{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }],

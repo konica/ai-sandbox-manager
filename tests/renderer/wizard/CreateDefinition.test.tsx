@@ -45,7 +45,7 @@ describe('CreateDefinition wizard', () => {
     fireEvent.click(pill)
     expect(screen.getByRole('button', { name: /home\/u\/shared: read-write/i })).toBeInTheDocument()
   })
-  const editSpec = { definition: { id: 'd1', name: 'full-stack-project-template', description: '', baseImage: 'img:tag', tier: 'locked' as const, createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct' as const, isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] }
+  const editSpec = { definition: { id: 'd1', name: 'full-stack-project-template', description: '', agent: 'claude' as const, baseImage: 'img:tag', tier: 'locked' as const, createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct' as const, isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] }
 
   it('jumps to a step when its header is clicked — edit mode only', async () => {
     render(<CreateDefinition initial={editSpec} onDone={() => {}} onCancel={() => {}} />)

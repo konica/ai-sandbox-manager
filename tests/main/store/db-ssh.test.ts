@@ -4,7 +4,7 @@ import type { DefinitionSpec } from '../../../src/shared/types'
 
 function spec(id: string, ssh?: DefinitionSpec['ssh']): DefinitionSpec {
   return {
-    definition: { id, name: 'Proj', description: '', baseImage: 'img:tag', tier: 'locked', createdAt: 't' },
+    definition: { id, name: 'Proj', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked', createdAt: 't' },
     mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
     domains: [], ports: [], hostServices: [], credentials: [], ssh
   }

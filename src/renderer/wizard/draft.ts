@@ -205,7 +205,7 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
 
 export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec {
   return {
-    definition: { id, name: effectiveName(d), description: d.description.trim(), baseImage: resolveBaseImage(d), tier: d.tier, createdAt },
+    definition: { id, name: effectiveName(d), description: d.description.trim(), agent: 'claude', baseImage: resolveBaseImage(d), tier: d.tier, createdAt },
     mounts: [
       { hostPath: d.workspace.trim(), mode: 'direct', isPrimary: true }, // primary workspace is always direct (read-write bind)
       ...d.extraFolders.map((f) => ({ hostPath: f.path, mode: f.mode, isPrimary: false }))

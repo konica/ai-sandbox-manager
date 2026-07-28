@@ -3,7 +3,7 @@ import { initialDraft, draftReducer, resolveBaseImage, parsePort, canAdvance, to
 import type { DefinitionSpec } from '../../../src/shared/types'
 
 const storedSpec: DefinitionSpec = {
-  definition: { id: 'd1', name: 'Proj', description: 'desc', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'balanced', createdAt: 't' },
+  definition: { id: 'd1', name: 'Proj', description: 'desc', agent: 'claude', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'balanced', createdAt: 't' },
   mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }, { hostPath: '/docs', mode: 'clone', isPrimary: false }],
   domains: ['a.com'],
   ports: [{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }],

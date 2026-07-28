@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { LaunchDialog } from '../../src/renderer/components/LaunchDialog'
 import type { Definition } from '../../src/shared/types'
 
-const def: Definition = { id: 'd1', name: 'My Project', description: '', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' }
+const def: Definition = { id: 'd1', name: 'My Project', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' }
 
 function setup(over: { hasVSCode?: boolean; cloneMode?: boolean } = {}) {
   const onLaunch = vi.fn(); const onCancel = vi.fn()

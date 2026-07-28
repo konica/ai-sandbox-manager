@@ -6,7 +6,7 @@ let store: Store
 beforeEach(() => { store = openStore(':memory:') })
 
 const spec: DefinitionSpec = {
-  definition: { id: 'd1', name: 'prj-alpha', description: 'Alpha service', baseImage: 'docker/sandbox-templates:claude-code-docker', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' },
+  definition: { id: 'd1', name: 'prj-alpha', description: 'Alpha service', agent: 'claude', baseImage: 'docker/sandbox-templates:claude-code-docker', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' },
   mounts: [
     { hostPath: '/home/u/alpha', mode: 'direct', isPrimary: true },
     { hostPath: '/home/u/shared', mode: 'clone', isPrimary: false }
@@ -47,7 +47,7 @@ describe('definition spec persistence', () => {
 
   it('persists an empty-children spec', () => {
     const bare: DefinitionSpec = {
-      definition: { id: 'd2', name: 'bare', description: '', baseImage: 'docker/sandbox-templates:claude-code', tier: 'open', createdAt: '2026-07-18T00:00:00Z' },
+      definition: { id: 'd2', name: 'bare', description: '', agent: 'claude', baseImage: 'docker/sandbox-templates:claude-code', tier: 'open', createdAt: '2026-07-18T00:00:00Z' },
       mounts: [], domains: [], ports: [], hostServices: [], credentials: [], ssh: { forwardAgent: true, commitSigning: false }, copyFiles: []
     }
     store.insertDefinitionSpec(bare)

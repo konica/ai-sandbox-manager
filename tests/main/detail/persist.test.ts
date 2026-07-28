@@ -5,7 +5,7 @@ import type { DefinitionSpec } from '../../../src/shared/types'
 
 function seed(store: Store): void {
   const spec: DefinitionSpec = {
-    definition: { id: 'd1', name: 'P', description: '', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
+    definition: { id: 'd1', name: 'P', description: '', agent: 'claude', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
     mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
   }
   store.insertDefinitionSpec(spec)

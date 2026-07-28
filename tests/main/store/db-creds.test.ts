@@ -4,7 +4,7 @@ import type { DefinitionSpec } from '../../../src/shared/types'
 
 function baseSpec(id: string): DefinitionSpec {
   return {
-    definition: { id, name: 'Proj', description: '', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-07-19T00:00:00.000Z' },
+    definition: { id, name: 'Proj', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-07-19T00:00:00.000Z' },
     mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
     domains: [], ports: [],
     hostServices: [],

@@ -4,7 +4,7 @@ import { Definitions } from '../../src/renderer/screens/Definitions'
 import type { Definition } from '@shared/types'
 
 const defs: Definition[] = [
-  { id: 'd1', name: 'prj-alpha', description: '', baseImage: 'docker/sandbox-templates:claude-code-docker', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' }
+  { id: 'd1', name: 'prj-alpha', description: '', agent: 'claude', baseImage: 'docker/sandbox-templates:claude-code-docker', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' }
 ]
 
 describe('Definitions screen', () => {
@@ -44,8 +44,8 @@ describe('Definitions screen', () => {
 })
 
 const two: Definition[] = [
-  { id: 'd1', name: 'Alpha', description: '', baseImage: 'i:t', tier: 'locked', createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'd2', name: 'Beta', description: '', baseImage: 'i:t', tier: 'open', createdAt: '2026-01-02T00:00:00Z' }
+  { id: 'd1', name: 'Alpha', description: '', agent: 'claude', baseImage: 'i:t', tier: 'locked', createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'd2', name: 'Beta', description: '', agent: 'claude', baseImage: 'i:t', tier: 'open', createdAt: '2026-01-02T00:00:00Z' }
 ]
 
 describe('Definitions import/export', () => {

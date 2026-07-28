@@ -4,7 +4,7 @@ import type { DefinitionSpec } from '../../../src/shared/types'
 
 function spec(creds: DefinitionSpec['credentials'], tier: DefinitionSpec['definition']['tier'] = 'locked', domains: string[] = [], kitCommandsYaml?: string): DefinitionSpec {
   return {
-    definition: { id: 'd1', name: 'Proj Alpha', description: '', baseImage: 'img:tag', tier, createdAt: '2026-07-19T00:00:00.000Z' },
+    definition: { id: 'd1', name: 'Proj Alpha', description: '', agent: 'claude', baseImage: 'img:tag', tier, createdAt: '2026-07-19T00:00:00.000Z' },
     mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
     domains, ports: [], hostServices: [], credentials: creds,
     ...(kitCommandsYaml !== undefined ? { kitCommandsYaml } : {})

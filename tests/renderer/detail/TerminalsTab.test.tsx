@@ -5,7 +5,7 @@ import type { InstanceView, DefinitionSpec } from '../../../src/shared/types'
 
 const inst: InstanceView = { name: 'sbx-a', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'prj', tier: 'locked' }
 const spec: DefinitionSpec = {
-  definition: { id: 'd1', name: 'prj', description: '', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
+  definition: { id: 'd1', name: 'prj', description: '', agent: 'claude', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
   mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }, { hostPath: '/shared', mode: 'clone', isPrimary: false }],
   domains: ['github.com'], ports: [], hostServices: [],
   credentials: [{ kind: 'service', serviceId: 'anthropic', envVar: 'ANTHROPIC_API_KEY', store: 'sbx' }]

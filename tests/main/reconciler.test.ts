@@ -28,7 +28,7 @@ function fakeAdapter(names: string[]): SbxAdapter {
 describe('reconcile', () => {
   it('labels app-created instances with their definition tier', async () => {
     const store = openStore(':memory:')
-    store.insertDefinition({ id: 'd1', name: 'prj-alpha', description: '', baseImage: 'img', tier: 'locked', createdAt: 't' })
+    store.insertDefinition({ id: 'd1', name: 'prj-alpha', description: '', agent: 'claude', baseImage: 'img', tier: 'locked', createdAt: 't' })
     store.upsertInstanceMeta({ sbxName: 'sbx-a', definitionId: 'd1', createdByApp: true, createdAt: 't' })
     const views = await reconcile(fakeAdapter(['sbx-a']), store)
     expect(views[0]).toMatchObject({ name: 'sbx-a', definitionName: 'prj-alpha', tier: 'locked' })
@@ -36,7 +36,7 @@ describe('reconcile', () => {
 
   it('flags credential drift when the definition gains a credential since the instance was created', async () => {
     const store = openStore(':memory:')
-    const base = { id: 'd1', name: 'prj', description: '', baseImage: 'img', tier: 'locked' as const, createdAt: 't' }
+    const base = { id: 'd1', name: 'prj', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't' }
     const spec0 = { definition: base, mounts: [{ hostPath: '/w', mode: 'direct' as const, isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [{ kind: 'custom' as const, id: 'a', label: 'A', envVar: 'A', domains: ['a.com'], store: 'encrypted' as const }] }
     store.insertDefinitionSpec(spec0)
     // Instance created with just credential A → fingerprint captured from spec0.
@@ -54,7 +54,7 @@ describe('reconcile', () => {
 
   it('never flags drift for a change in network domains (applies live, no rebuild)', async () => {
     const store = openStore(':memory:')
-    const base = { id: 'd2', name: 'prj2', description: '', baseImage: 'img', tier: 'locked' as const, createdAt: 't' }
+    const base = { id: 'd2', name: 'prj2', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't' }
     const spec0 = { definition: base, mounts: [{ hostPath: '/w', mode: 'direct' as const, isPrimary: true }], domains: ['x.com'], ports: [], hostServices: [], credentials: [] }
     store.insertDefinitionSpec(spec0)
     store.upsertInstanceMeta({ sbxName: 'sbx-b', definitionId: 'd2', createdByApp: true, createdAt: 't', credFingerprint: credFingerprint(spec0.credentials) })

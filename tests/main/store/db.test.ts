@@ -6,14 +6,14 @@ beforeEach(() => { store = openStore(':memory:') })
 
 describe('metadata-store', () => {
   it('round-trips a definition', () => {
-    store.insertDefinition({ id: 'def1', name: 'prj-alpha', description: 'alpha', baseImage: 'docker/sandbox-templates:claude-code-docker', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' })
+    store.insertDefinition({ id: 'def1', name: 'prj-alpha', description: 'alpha', agent: 'claude', baseImage: 'docker/sandbox-templates:claude-code-docker', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' })
     expect(store.listDefinitions()).toHaveLength(1)
     expect(store.getDefinition('def1')?.name).toBe('prj-alpha')
     expect(store.getDefinition('nope')).toBeNull()
   })
 
   it('upserts instance metadata by sbx name', () => {
-    store.insertDefinition({ id: 'def1', name: 'prj-alpha', description: '', baseImage: 'img', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' })
+    store.insertDefinition({ id: 'def1', name: 'prj-alpha', description: '', agent: 'claude', baseImage: 'img', tier: 'locked', createdAt: '2026-07-18T00:00:00Z' })
     store.upsertInstanceMeta({ sbxName: 'sbx-a', definitionId: 'def1', createdByApp: true, createdAt: '2026-07-18T00:00:00Z' })
     store.upsertInstanceMeta({ sbxName: 'sbx-a', definitionId: 'def1', createdByApp: true, createdAt: '2026-07-18T01:00:00Z' })
     const rows = store.listInstanceMeta()
@@ -30,7 +30,7 @@ describe('metadata-store', () => {
   it('persists and reads kitCommandsYaml on a definition', () => {
     const store = openStore(':memory:')
     const spec = {
-      definition: { id: 'k1', name: 'k', description: '', baseImage: 'img', tier: 'locked' as const, createdAt: 't' },
+      definition: { id: 'k1', name: 'k', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't' },
       mounts: [{ hostPath: '/w', mode: 'direct' as const, isPrimary: true }],
       domains: [], ports: [], hostServices: [], credentials: [],
       kitCommandsYaml: 'commands:\n  install: echo hi\n'

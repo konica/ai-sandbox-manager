@@ -16,7 +16,7 @@ function fakeFs() {
 }
 
 const spec: DefinitionSpec = {
-  definition: { id: 'deadbeefcafe', name: 'Proj', description: '', baseImage: 'i:t', tier: 'locked', createdAt: '2026-07-19T00:00:00.000Z' },
+  definition: { id: 'deadbeefcafe', name: 'Proj', description: '', agent: 'claude', baseImage: 'i:t', tier: 'locked', createdAt: '2026-07-19T00:00:00.000Z' },
   mounts: [{ hostPath: '/ws', mode: 'direct', isPrimary: true }], domains: ['api.acme.com'], ports: [],
   hostServices: [],
   credentials: [{ kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' }]

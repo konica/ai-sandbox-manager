@@ -1,3 +1,5 @@
+import type { AgentId } from './agents'
+
 export type SbxStatus = 'running' | 'stopped' | 'error' | 'unknown'
 
 export interface SbxInstance {
@@ -15,6 +17,7 @@ export interface Definition {
   name: string
   description: string
   baseImage: string
+  agent: AgentId
   tier: Tier
   createdAt: string
 }

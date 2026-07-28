@@ -37,6 +37,7 @@ function normalizeEntry(raw: unknown): ExportableDefinition | null {
     definition: {
       name: def.name,
       description: typeof def.description === 'string' ? def.description : '',
+      agent: 'claude',
       baseImage: def.baseImage,
       tier: def.tier as DefinitionSpec['definition']['tier']
     },

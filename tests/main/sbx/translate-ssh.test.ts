@@ -3,7 +3,7 @@ import { launchCommand, commitSigningExecCommand, sshHostKeySetupCommand } from 
 import type { DefinitionSpec } from '../../../src/shared/types'
 
 const base: DefinitionSpec = {
-  definition: { id: 'd1', name: 'My Project', description: '', baseImage: 'img:tag', tier: 'locked', createdAt: 't' },
+  definition: { id: 'd1', name: 'My Project', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked', createdAt: 't' },
   mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
   domains: [], ports: [], hostServices: [], credentials: []
 }

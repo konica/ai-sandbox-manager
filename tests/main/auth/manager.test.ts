@@ -3,7 +3,7 @@ import { claudeAuthStatus, claudeSignOut, hasAnthropicCredential } from '../../.
 import type { DefinitionSpec } from '../../../src/shared/types'
 
 const spec = (creds: DefinitionSpec['credentials']): DefinitionSpec => ({
-  definition: { id: 'd', name: 'n', description: '', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
+  definition: { id: 'd', name: 'n', description: '', agent: 'claude', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
   mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: creds
 })
 

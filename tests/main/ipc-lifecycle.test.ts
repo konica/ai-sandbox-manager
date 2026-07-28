@@ -3,7 +3,7 @@ import { buildHandlers } from '../../src/main/ipc'
 import type { DefinitionSpec } from '../../src/shared/types'
 
 const spec: DefinitionSpec = {
-  definition: { id: 'd1', name: 'My Project', description: '', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' },
+  definition: { id: 'd1', name: 'My Project', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' },
   mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
   domains: [], ports: [], hostServices: [], credentials: []
 }

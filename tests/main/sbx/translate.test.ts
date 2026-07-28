@@ -19,7 +19,7 @@ import type { DefinitionSpec } from '../../../src/shared/types'
 
 function spec(over: Partial<DefinitionSpec> = {}): DefinitionSpec {
   return {
-    definition: { id: 'd1', name: 'My Project', description: '', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' },
+    definition: { id: 'd1', name: 'My Project', description: '', agent: 'claude', baseImage: 'docker.io/docker/sandbox-templates:claude-code', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' },
     mounts: [{ hostPath: '/home/u/proj', mode: 'direct', isPrimary: true }],
     domains: [],
     ports: [],
