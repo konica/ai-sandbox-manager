@@ -115,6 +115,10 @@ function createWindow(): void {
     }
   })
   win.on('ready-to-show', () => win.show())
+  // Fallback: ready-to-show can silently fail on Windows when titleBarOverlay
+  // + backgroundColor + show:false are combined (compositor skips the first
+  // paint for hidden windows). Show on did-finish-load if still hidden.
+  win.webContents.on('did-finish-load', () => { if (!win.isVisible()) win.show() })
   if (process.env.ELECTRON_RENDERER_URL) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
