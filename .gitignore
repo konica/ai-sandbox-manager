@@ -8,7 +8,11 @@ dist/
 .headroom
 .specify
 brainstorm
-docs/superpowers
-.claude/skills/speckit*
+.claude/
+.omc/
 .github/
 .screenshots
+
+# Superpowers design docs and plans ARE tracked (docs/superpowers/{specs,plans}).
+# Only the rendered HTML exports are not — each inlines a ~3 MB Mermaid runtime.
+docs/superpowers/artifacts/
