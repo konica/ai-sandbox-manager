@@ -39,6 +39,13 @@ export function TerminalsTab({ instance, spec, hasVSCode, agentCommand, shellCom
     setTimeout(() => setCopied((c) => (c === which ? null : c)), 1500)
   }
   const editable = onAllowDomain !== undefined && onDenyDomain !== undefined
+  // VS Code is opened on a host folder resolved from the definition's primary mount (see the
+  // vscode opener in ipc.ts). An instance with no linked definition — or one whose definition
+  // has no mount — has no folder to open, so the VS Code button must not be offered.
+  const workspaceDir = (spec?.mounts.find((m) => m.isPrimary) ?? spec?.mounts[0])?.hostPath?.trim()
+  const vscodeDisabledReason = !hasVSCode ? t('launch.openVSCodeUnavailable')
+    : !workspaceDir ? t('detail.openVSCodeNoWorkspace')
+    : undefined
   const services = spec?.credentials.filter((c) => c.kind === 'service') ?? []
   const customs = spec?.credentials.filter((c) => c.kind === 'custom') ?? []
   const registries = spec?.credentials.filter((c) => c.kind === 'registry') ?? []
@@ -53,12 +60,12 @@ export function TerminalsTab({ instance, spec, hasVSCode, agentCommand, shellCom
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
         <div className="card">
           <div className="card-header"><div className="card-title">{t('detail.terminals')}</div></div>
-          <p className="section-desc" style={{ marginTop: 0 }}>{t('detail.nativeNote')} <span className="os-tag" style={{ fontSize: 10 }}>macOS</span></p>
+          <p className="section-desc" style={{ marginTop: 0 }}>{t('detail.nativeNote')}</p>
           <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-3)', flexWrap: 'wrap' }}>
             {/* Agent uses `sbx run --name … -- --continue`, which starts a stopped sandbox → always enabled.
                 Two openers: native Terminal.app, or VS Code (folder + integrated terminal). */}
             <button className="btn btn-primary btn-sm" onClick={() => onAttach(instance.name, 'terminal')}>{running ? t('detail.openAgentTerminal') : t('detail.startAgentTerminal')}</button>
-            <button className="btn btn-primary btn-sm" disabled={!hasVSCode} title={hasVSCode ? undefined : t('launch.openVSCodeUnavailable')} onClick={() => onAttach(instance.name, 'vscode')}>{running ? t('detail.openAgentVSCode') : t('detail.startAgentVSCode')}</button>
+            <button className="btn btn-primary btn-sm" disabled={vscodeDisabledReason !== undefined} title={vscodeDisabledReason} onClick={() => onAttach(instance.name, 'vscode')}>{running ? t('detail.openAgentVSCode') : t('detail.startAgentVSCode')}</button>
             {/* Shell uses `sbx exec`, which needs a running VM → disabled until running. */}
             <button className="btn btn-secondary btn-sm" disabled={!running} onClick={() => onShell(instance.name)}>{t('detail.openShell')}</button>
           </div>

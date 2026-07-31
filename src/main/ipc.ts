@@ -201,7 +201,17 @@ export function buildHandlers(deps: Deps): {
         await registerCredentials({ adapter: deps.adapter, creds: deps.creds, log: deps.log }, meta.definitionId, spec.credentials, name)
       }
       const workspaceDir = (spec?.mounts.find((m) => m.isPrimary) ?? spec?.mounts[0])?.hostPath?.trim()
-      if (opener === 'vscode' && deps.openVSCode && workspaceDir) {
+      if (opener === 'vscode') {
+        // Never answer an explicit VS Code request by opening a terminal instead. VS Code is
+        // opened on a host folder (the sandbox's own files aren't on the host), so with no
+        // resolvable mount there is nothing to open — report that rather than substituting a
+        // different opener, which looked like "VS Code doesn't work" with no explanation.
+        if (!workspaceDir) {
+          throw new SbxError('not-found', spec
+            ? `Instance "${name}" has no host folder to open in VS Code — its definition has no working directory. Use Open Agent in Terminal instead.`
+            : `Instance "${name}" has no linked definition, so there is no host folder to open in VS Code. Use Open Agent in Terminal instead.`)
+        }
+        if (!deps.openVSCode) throw new SbxError('generic', 'The VS Code opener is unavailable on this platform.')
         deps.log?.info(`Opening VS Code at ${workspaceDir} to attach "${name}"`)
         deps.openVSCode(cmd, workspaceDir, name)
       } else {

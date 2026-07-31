@@ -93,6 +93,45 @@ describe('buildHandlers', () => {
     expect(openVSCode.mock.calls[0][1]).toBe('/ws')
   })
 
+  // Regression: "Open Agent in VS Code" silently opened a *terminal* whenever no host
+  // workspace dir could be resolved — an instance the app didn't create, or one whose
+  // definition was deleted (instance_meta.definition_id is ON DELETE SET NULL). The click
+  // must never be answered with a different opener; fail loudly and say why instead.
+  it('instance:attach with vscode opener errors instead of silently opening a terminal when the instance has no linked definition', async () => {
+    const store = openStore(":memory:")
+    store.upsertInstanceMeta({ sbxName: 'orphan', definitionId: null, createdByApp: false, createdAt: 't' })
+    const openTerminal = vi.fn()
+    const openVSCode = vi.fn()
+    const h = buildHandlers({ adapter, store, probes, openTerminal, openVSCode })
+    const r = await h['instance:attach']('orphan', 'vscode')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.message).toMatch(/workspace folder|definition/i)
+    expect(openTerminal).not.toHaveBeenCalled()
+    expect(openVSCode).not.toHaveBeenCalled()
+  })
+  it('instance:attach with vscode opener errors when the definition has no mount to open', async () => {
+    const store = openStore(":memory:")
+    store.insertDefinitionSpec({
+      definition: { id: 'd2', name: 'n', description: '', agent: 'claude', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
+      mounts: [], domains: [], ports: [], hostServices: [], credentials: []
+    })
+    store.upsertInstanceMeta({ sbxName: 'nomount', definitionId: 'd2', createdByApp: true, createdAt: 't' })
+    const openTerminal = vi.fn()
+    const h = buildHandlers({ adapter, store, probes, openTerminal, openVSCode: vi.fn() })
+    const r = await h['instance:attach']('nomount', 'vscode')
+    expect(r.ok).toBe(false)
+    expect(openTerminal).not.toHaveBeenCalled()
+  })
+  it('instance:attach with the terminal opener still opens a terminal', async () => {
+    const store = openStore(":memory:")
+    store.upsertInstanceMeta({ sbxName: 'orphan', definitionId: null, createdByApp: false, createdAt: 't' })
+    const openTerminal = vi.fn()
+    const h = buildHandlers({ adapter, store, probes, openTerminal, openVSCode: vi.fn() })
+    const r = await h['instance:attach']('orphan', 'terminal')
+    expect(r.ok).toBe(true)
+    expect(openTerminal).toHaveBeenCalledTimes(1)
+  })
+
   it('instance:commands returns the manual agent + shell commands', async () => {
     const h = buildHandlers({ adapter, store: openStore(":memory:"), probes, openTerminal: () => {} })
     const r = await h['instance:commands']('box')
