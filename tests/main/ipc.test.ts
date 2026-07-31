@@ -57,6 +57,8 @@ describe('buildHandlers', () => {
     const h = buildHandlers({ adapter, store: openStore(":memory:"), probes, openTerminal: () => {}, readLoginEnv: () => ({ SSH_AUTH_SOCK: '/tmp/s.sock' }) })
     const r = await h['ssh:detect']()
     expect(r.ok && r.data.present).toBe(true)
+    // The renderer's host-setup guide keys its default OS tab off this.
+    expect(r.ok && r.data.platform).toBe(process.platform)
   })
 
   it('env:hasVSCode reports code availability', async () => {

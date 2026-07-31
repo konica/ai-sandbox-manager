@@ -84,12 +84,52 @@ describe('CredentialsStep', () => {
     expect(p.onSshChange).toHaveBeenCalledWith({ forwardAgent: true, commitSigning: true })
   })
   it('offers a collapsible setup guide with the ssh-add command', () => {
-    setup({ sshDetected: false })
+    setup({ sshDetected: false, hostPlatform: 'darwin' })
     fireEvent.click(screen.getByRole('tab', { name: 'SSH Agent' }))
     // command hidden until the guide is expanded
     expect(screen.queryByText(/ssh-add --apple-use-keychain/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /how do i enable this/i }))
     expect(screen.getByText(/ssh-add --apple-use-keychain ~\/\.ssh\/id_ed25519/)).toBeInTheDocument()
+  })
+
+  // The guide used to be macOS-only. It now opens on the detected host OS and stays
+  // switchable, so each platform gets steps that actually work there.
+  function openGuide(over: Partial<Props> = {}) {
+    setup({ sshDetected: false, ...over })
+    fireEvent.click(screen.getByRole('tab', { name: 'SSH Agent' }))
+    fireEvent.click(screen.getByRole('button', { name: /how do i enable this/i }))
+  }
+
+  it('opens the guide on the detected host OS (Linux)', () => {
+    openGuide({ hostPlatform: 'linux' })
+    expect(screen.getByRole('tab', { name: 'Linux' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText(/systemctl --user enable --now ssh-agent/)).toBeInTheDocument()
+    // macOS-only options must not leak into the Linux commands. `UseKeychain` is matched as
+    // the ssh_config directive (`UseKeychain yes`) because step 3's prose names it too, to
+    // explain why it is absent.
+    expect(screen.queryByText(/UseKeychain yes/)).toBeNull()
+    expect(screen.queryByText(/--apple-use-keychain/)).toBeNull()
+  })
+
+  it('opens the guide on the detected host OS (Windows) and points at WSL', () => {
+    openGuide({ hostPlatform: 'win32' })
+    expect(screen.getByRole('tab', { name: 'Windows' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText(/ssh-agent -a "\$SSH_AUTH_SOCK"/)).toBeInTheDocument()
+    expect(screen.getByText(/openssh-ssh-agent/)).toBeInTheDocument()
+    expect(screen.queryByText(/--apple-use-keychain/)).toBeNull()
+  })
+
+  it('defaults to macOS when the host platform is not yet known', () => {
+    openGuide({ hostPlatform: '' })
+    expect(screen.getByRole('tab', { name: 'macOS' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('lets the user read another platform’s steps regardless of their own host', () => {
+    openGuide({ hostPlatform: 'darwin' })
+    expect(screen.getByText(/--apple-use-keychain/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Windows' }))
+    expect(screen.getByText(/openssh-ssh-agent/)).toBeInTheDocument()
+    expect(screen.queryByText(/--apple-use-keychain/)).toBeNull()
   })
   it('disables commit signing when forward is off', () => {
     setup({ ssh: { forwardAgent: false, commitSigning: false } })

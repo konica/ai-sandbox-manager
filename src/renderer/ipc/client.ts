@@ -37,7 +37,7 @@ interface Api {
   authStatus(): Promise<Result<AuthStatus>>
   authSignOut(): Promise<Result<null>>
   authStartLogin(): Promise<Result<{ name: string }>>
-  sshDetect(): Promise<Result<{ present: boolean }>>
+  sshDetect(): Promise<Result<{ present: boolean; platform: string }>>
   envHasVSCode(): Promise<Result<{ present: boolean }>>
   kitValidate(yaml: string): Promise<Result<KitValidation>>
   prefsGet(key: string): Promise<Result<string | null>>
@@ -81,7 +81,7 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   authStatus: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   authSignOut: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   authStartLogin: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
-  sshDetect: async () => ({ ok: true, data: { present: false } }),
+  sshDetect: async () => ({ ok: true, data: { present: false, platform: '' } }),
   envHasVSCode: async () => ({ ok: true, data: { present: false } }),
   instanceCommands: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   kitValidate: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),

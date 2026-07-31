@@ -94,6 +94,7 @@ export function CreateDefinition({
   }, [cfBrowseOpen])
   const [envHits, setEnvHits] = useState<EnvHit[]>([])
   const [sshDetected, setSshDetected] = useState(false)
+  const [hostPlatform, setHostPlatform] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [kitMsg, setKitMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
@@ -103,7 +104,7 @@ export function CreateDefinition({
     if (draft.step !== 4) return
     let alive = true
     void api.credScanEnv().then((r) => { if (alive && r.ok) setEnvHits(r.data) })
-    void api.sshDetect().then((r) => { if (alive && r.ok) setSshDetected(r.data.present) })
+    void api.sshDetect().then((r) => { if (!alive || !r.ok) return; setSshDetected(r.data.present); setHostPlatform(r.data.platform) })
     return () => { alive = false }
   }, [draft.step])
 
@@ -359,6 +360,7 @@ export function CreateDefinition({
               ssh={{ forwardAgent: draft.sshForwardAgent, commitSigning: draft.sshCommitSigning }}
               onSshChange={(next) => { dispatch({ type: 'setSshForward', value: next.forwardAgent }); dispatch({ type: 'setSshCommitSigning', value: next.commitSigning }) }}
               sshDetected={sshDetected}
+              hostPlatform={hostPlatform}
               onRemove={(index) => dispatch({ type: 'removeCredential', index })}
               onImport={(serviceId) => {
                 const svc = serviceById(serviceId)

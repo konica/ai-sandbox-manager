@@ -105,7 +105,7 @@ export function buildHandlers(deps: Deps): {
   'auth:status': () => Promise<Result<AuthStatus>>
   'auth:signOut': () => Promise<Result<null>>
   'auth:startLogin': () => Promise<Result<{ name: string }>>
-  'ssh:detect': () => Promise<Result<{ present: boolean }>>
+  'ssh:detect': () => Promise<Result<{ present: boolean; platform: string }>>
   'env:hasVSCode': () => Promise<Result<{ present: boolean }>>
   'kit:validate': (yaml: string) => Promise<Result<KitValidation>>
   'prefs:get': (key: string) => Promise<Result<string | null>>
@@ -309,7 +309,9 @@ export function buildHandlers(deps: Deps): {
       deps.openTerminal(cmd)
       return { name }
     }),
-    'ssh:detect': () => wrap(async () => ({ present: sshAuthSockPresent(deps.readLoginEnv?.() ?? {}) })),
+    // `platform` rides along so the renderer's host-setup guide can open on the OS the
+    // user is actually running — the setup steps are entirely different per platform.
+    'ssh:detect': () => wrap(async () => ({ present: sshAuthSockPresent(deps.readLoginEnv?.() ?? {}), platform: process.platform })),
     'env:hasVSCode': () => wrap(async () => ({ present: codeCliPresent() })),
     'kit:validate': (yaml) => wrap(async () => {
       const norm = normalizeCommandsYaml(yaml)
