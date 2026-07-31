@@ -43,7 +43,8 @@ const api = {
   kitValidate: (yaml: string) => ipcRenderer.invoke('kit:validate', yaml),
   prefsGet: (key: string) => ipcRenderer.invoke('prefs:get', key),
   prefsSet: (key: string, value: string) => ipcRenderer.invoke('prefs:set', key, value),
-  credsStorageStatus: () => ipcRenderer.invoke('creds:storageStatus')
+  credsStorageStatus: () => ipcRenderer.invoke('creds:storageStatus'),
+  setTitleBarOverlay: (light: boolean) => ipcRenderer.send('theme:setOverlay', light)
 }
 
 contextBridge.exposeInMainWorld('api', api)

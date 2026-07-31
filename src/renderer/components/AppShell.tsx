@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import logo from '../assets/mgm-logo-light.png'
 import { useI18n, LANG_NAMES, type Lang } from '../i18n'
+import { api } from '../ipc/client'
 
 export type NavScreen = 'prereq' | 'definitions' | 'instances' | 'settings'
 
@@ -18,6 +19,7 @@ function ThemeToggle({ title }: { title: string }): JSX.Element {
     try { isLight = localStorage.getItem('sbx-theme') === 'light' } catch { /* ignore */ }
     document.body.classList.toggle('theme-light', isLight)
     setLight(isLight)
+    api.setTitleBarOverlay?.(isLight)
   }, [])
 
   function toggle(): void {
@@ -25,6 +27,7 @@ function ThemeToggle({ title }: { title: string }): JSX.Element {
     document.body.classList.toggle('theme-light', next)
     try { localStorage.setItem('sbx-theme', next ? 'light' : 'dark') } catch { /* ignore */ }
     setLight(next)
+    api.setTitleBarOverlay?.(next)
   }
 
   return (

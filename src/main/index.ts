@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, safeStorage, dialog } from 'electron'
+import { app, BrowserWindow, Menu, safeStorage, dialog, ipcMain } from 'electron'
 import { join } from 'path'
 import { execFileSync } from 'node:child_process'
 import * as nodeFs from 'node:fs'
@@ -90,6 +90,13 @@ function readLoginEnv(): Record<string, string | undefined> {
   }
 }
 
+// Colors for the Windows/Linux Window-Controls-Overlay (native min/max/close
+// buttons), mirrored from --bg-surface/--text-secondary in theme/app.css. The
+// overlay is drawn by the OS, not the renderer, so it can't follow the app's
+// light/dark toggle via CSS — main process must push updates via IPC instead.
+const OVERLAY_DARK = { color: '#141414', symbolColor: '#a0a0a0', height: 44 }
+const OVERLAY_LIGHT = { color: '#f8f8fa', symbolColor: '#5c5c66', height: 44 }
+
 function createWindow(): void {
   const isMac = process.platform === 'darwin'
   // The renderer draws its own .titlebar, so we hide the native one on every
@@ -107,7 +114,7 @@ function createWindow(): void {
     titleBarStyle: 'hidden',
     ...(isMac
       ? { trafficLightPosition: { x: 14, y: 15 } }
-      : { titleBarOverlay: { color: '#141414', symbolColor: '#a0a0a0', height: 44 } }),
+      : { titleBarOverlay: OVERLAY_DARK }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
@@ -151,6 +158,13 @@ app.whenReady().then(() => {
   // titlebar; strip it there. macOS keeps a menu (its global menu bar carries
   // Cmd+Q, copy/paste, etc.), so leave the default in place on darwin.
   if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
+  // macOS has no titleBarOverlay (traffic lights aren't recolorable this way),
+  // so only listen on platforms where the window was actually created with one.
+  if (process.platform !== 'darwin') {
+    ipcMain.on('theme:setOverlay', (event, light: boolean) => {
+      BrowserWindow.fromWebContents(event.sender)?.setTitleBarOverlay(light ? OVERLAY_LIGHT : OVERLAY_DARK)
+    })
+  }
   const store = openStore(join(app.getPath('userData'), 'sandbox-manager.db'))
   const logFile = join(app.getPath('userData'), 'sandbox-manager.log')
   const logger = createLogger({ file: logFile })

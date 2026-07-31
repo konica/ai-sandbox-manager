@@ -43,6 +43,7 @@ interface Api {
   prefsGet(key: string): Promise<Result<string | null>>
   prefsSet(key: string, value: string): Promise<Result<null>>
   credsStorageStatus(): Promise<Result<StorageStatus>>
+  setTitleBarOverlay(light: boolean): void
 }
 
 export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
@@ -87,5 +88,6 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   kitValidate: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   prefsGet: async () => ({ ok: true, data: null }),
   prefsSet: async () => ({ ok: true, data: null }),
-  credsStorageStatus: async () => ({ ok: true, data: { platform: 'darwin', backend: 'keychain', secure: true } })
+  credsStorageStatus: async () => ({ ok: true, data: { platform: 'darwin', backend: 'keychain', secure: true } }),
+  setTitleBarOverlay: () => {}
 }
