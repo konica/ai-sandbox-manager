@@ -1,6 +1,15 @@
-appId: net.mgm-tp.ai-sandbox-manager
+appId: com.challidea.ai-sandbox-manager
 productName: AI Sandbox Manager
-copyright: © mgm technology partners
+copyright: © Challidea Inc.
+# Publish to a *published* GitHub release, not electron-builder's default draft.
+# Our release process publishes the vX.Y.Z release before CI's publish step runs;
+# with the default releaseType:draft, electron-builder sees an existing published
+# release, deems it "not compatible with publishing type", and silently skips
+# uploading every installer (v0.1.11 and v0.1.12 shipped with zero assets this way).
+# releaseType:release makes the upload target compatible with the existing release.
+publish:
+  provider: github
+  releaseType: release
 # We rebuild the native module ourselves (electron-rebuild, via the predist hook
 # locally and an explicit step in CI) so it is deterministically built for the
 # runner's own arch + Electron ABI. electron-builder's own auto-rebuild proved
