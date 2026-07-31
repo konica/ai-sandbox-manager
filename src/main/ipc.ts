@@ -12,7 +12,7 @@ import { SbxError } from '@shared/errors'
 import { registerCredentials } from './creds/register'
 import { agentAttachCommand, hostShellCommand, loginCommand } from './sbx/translate'
 import { claudeAuthStatus, claudeSignOut } from './auth/manager'
-import { sshAuthSockPresent } from './ssh/detect'
+import { sshAgentPresent } from './ssh/detect'
 import { codeCliPresent } from './vscode'
 import { buildExportBundle, parseImportBundle, dedupeName } from './defio/bundle'
 import { randomUUID } from 'crypto'
@@ -34,6 +34,10 @@ interface Deps {
   creds?: CredentialManager
   materializeKit?: (spec: DefinitionSpec, name: string) => string | undefined
   readLoginEnv?: () => Record<string, string | undefined>
+  /** Override the host platform. Lets tests pin ssh:detect's behaviour on any dev machine. */
+  platform?: NodeJS.Platform
+  /** Override the Windows `ssh-add -l` agent probe (tests only). */
+  sshProbe?: () => { status: number | null }
   loginKitDir?: () => string // materializes the OAuth login kit, returns its dir
   openVSCode?: (command: string, workspaceDir: string, sandboxName: string) => void
   genHash?: () => string
@@ -311,7 +315,13 @@ export function buildHandlers(deps: Deps): {
     }),
     // `platform` rides along so the renderer's host-setup guide can open on the OS the
     // user is actually running — the setup steps are entirely different per platform.
-    'ssh:detect': () => wrap(async () => ({ present: sshAuthSockPresent(deps.readLoginEnv?.() ?? {}), platform: process.platform })),
+    // Detection itself is platform-aware: on Windows the login env can never carry
+    // SSH_AUTH_SOCK, so sshAgentPresent probes the agent instead of reading the env.
+    'ssh:detect': () => wrap(async () => {
+      const platform = deps.platform ?? process.platform
+      const present = sshAgentPresent({ platform, env: deps.readLoginEnv?.() ?? {}, runSshAdd: deps.sshProbe })
+      return { present, platform }
+    }),
     'env:hasVSCode': () => wrap(async () => ({ present: codeCliPresent() })),
     'kit:validate': (yaml) => wrap(async () => {
       const norm = normalizeCommandsYaml(yaml)

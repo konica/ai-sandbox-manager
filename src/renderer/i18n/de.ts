@@ -168,7 +168,7 @@ export const de: Dict = {
     sshHelpWinStep1: '1. In Ihrer WSL-Distribution einen Agent auf festem Socket halten — in ~/.bashrc (oder ~/.zshrc) eintragen:',
     sshHelpWinStep2: '2. Schlüssel nach WSL kopieren und laden (<you> durch Ihren Windows-Benutzernamen ersetzen):',
     sshHelpWinStep3: '3. In derselben WSL-Shell prüfen (sollte Ihren Schlüssel auflisten, nicht „no identities“):',
-    sshHelpWinNote: 'Unter Windows spiegelt der Statuspunkt oben die Umgebung dieser App wider und kann grau bleiben, obwohl die Weiterleitung funktioniert — Schritt 3 ist die verbindliche Prüfung. Wenn Sie weiterhin Schlüssel des Windows-Agents nutzen möchten, verbinden Sie dessen Named Pipe über npiperelay und socat mit WSL.',
+    sshHelpWinNote: 'Der Statuspunkt oben prüft den Windows-Agent-Dienst über dessen Named Pipe, nicht Ihren WSL-Agent — er kann also grau bleiben, obwohl der WSL-Agent einwandfrei läuft. Schritt 3 ist die verbindliche Prüfung der Weiterleitung. Wenn Sie weiterhin Schlüssel des Windows-Agents nutzen möchten, verbinden Sie dessen Named Pipe über npiperelay und socat mit WSL.',
     sshHelpAfter: 'Öffnen Sie dann diesen Schritt erneut — der Status sollte grün werden.',
     registryHint: 'Authentifizierung an privaten OCI-Registries zum Abrufen von Vorlagen, Kits und Images. Auf dem Host gespeichert und optional zur Nutzung durch den Agenten in die Sandbox eingefügt.',
     registryHost: 'Registry-Host',

@@ -166,7 +166,7 @@ export const en = {
     sshHelpWinStep1: '1. In your WSL distribution, keep one agent on a fixed socket — add to ~/.bashrc (or ~/.zshrc):',
     sshHelpWinStep2: '2. Copy your key into WSL and load it (replace <you> with your Windows user name):',
     sshHelpWinStep3: '3. Verify inside that same WSL shell (should list your key, not “no identities”):',
-    sshHelpWinNote: 'On Windows the status dot above reflects this app’s own environment, so it can stay grey even when forwarding works — step 3 is the authoritative check. To keep using keys held by the Windows agent instead, bridge its named pipe into WSL with npiperelay and socat.',
+    sshHelpWinNote: 'The status dot above probes the Windows agent service over its named pipe, not your WSL agent — so it can stay grey even when the WSL one is healthy. Step 3 is the authoritative check for forwarding. To keep using keys held by the Windows agent instead, bridge its named pipe into WSL with npiperelay and socat.',
     sshHelpAfter: 'Then reopen this step in the wizard — the status dot should turn green.',
     registryHint: 'Authenticate to private OCI registries for pulling templates, kits, and images. Stored on the host and optionally injected into the sandbox for agent pull/push.',
     registryHost: 'Registry Host',

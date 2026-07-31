@@ -54,11 +54,23 @@ describe('buildHandlers', () => {
   })
 
   it('ssh:detect reports whether SSH_AUTH_SOCK is present', async () => {
-    const h = buildHandlers({ adapter, store: openStore(":memory:"), probes, openTerminal: () => {}, readLoginEnv: () => ({ SSH_AUTH_SOCK: '/tmp/s.sock' }) })
+    const h = buildHandlers({ adapter, store: openStore(":memory:"), probes, openTerminal: () => {}, readLoginEnv: () => ({ SSH_AUTH_SOCK: '/tmp/s.sock' }), platform: 'darwin' })
     const r = await h['ssh:detect']()
     expect(r.ok && r.data.present).toBe(true)
     // The renderer's host-setup guide keys its default OS tab off this.
-    expect(r.ok && r.data.platform).toBe(process.platform)
+    expect(r.ok && r.data.platform).toBe('darwin')
+  })
+
+  // Regression: SSH_AUTH_SOCK cannot exist on Windows (its agent uses a named pipe), so
+  // reading the login env reported "no agent detected" on every Windows host. ssh:detect
+  // must not fall back to that check there.
+  it('ssh:detect does not report a Windows host as agent-less just because SSH_AUTH_SOCK is unset', async () => {
+    // Empty login env + a reachable agent: the old env-only check could only answer false
+    // here, so `true` proves the platform is threaded through and the probe is what decides.
+    const h = buildHandlers({ adapter, store: openStore(":memory:"), probes, openTerminal: () => {}, readLoginEnv: () => ({}), platform: 'win32', sshProbe: () => ({ status: 0 }) })
+    const r = await h['ssh:detect']()
+    expect(r.ok && r.data.platform).toBe('win32')
+    expect(r.ok && r.data.present).toBe(true)
   })
 
   it('env:hasVSCode reports code availability', async () => {
