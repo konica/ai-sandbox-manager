@@ -34,9 +34,12 @@ describe('codeCliPresent', () => {
   it('true when `code --version` exits 0', () => {
     expect(codeCliPresent(() => ({ status: 0 }))).toBe(true)
   })
+  // Pin platform/env/exists: unpinned, this probes the real machine, so a Windows dev box
+  // with VS Code installed finds it via the install-dir fallback and the test wrongly sees `true`.
   it('false when it errors or is missing', () => {
-    expect(codeCliPresent(() => ({ status: 1 }))).toBe(false)
-    expect(codeCliPresent(() => { throw new Error('ENOENT') })).toBe(false)
+    const opts = { platform: 'win32' as const, env: WIN_ENV, exists: () => false }
+    expect(codeCliPresent(() => ({ status: 1 }), opts)).toBe(false)
+    expect(codeCliPresent(() => { throw new Error('ENOENT') }, opts)).toBe(false)
   })
   // The reported bug, at the level the IPC handler actually calls.
   it('true on Windows when VS Code is installed but not on PATH', () => {
@@ -106,11 +109,20 @@ describe('resolveCodeCommand', () => {
 })
 
 describe('buildCodeSpawn', () => {
-  // Every VS Code install dir contains a space, so an unquoted command would be split by
-  // cmd.exe and the launch would fail with a bogus "'C:\Users\u\AppData\Local\Programs\Microsoft' is not recognized".
-  it('quotes the command and args when going through a Windows shell', () => {
+  // A resolved install-dir path contains a space ("Microsoft VS Code"), so under a shell it
+  // must be quoted or cmd.exe splits it — "'C:\Users\u\AppData\Local\Programs\Microsoft' is not recognized".
+  it('quotes a spaced command path and spaced args when going through a Windows shell', () => {
     expect(buildCodeSpawn(USER_SETUP, ['C:\\p\\x y.code-workspace'], true))
       .toEqual({ file: `"${USER_SETUP}"`, args: ['"C:\\p\\x y.code-workspace"'] })
+  })
+  // Regression (VS Code never opens on Windows): when `code` is on PATH, resolveCodeCommand
+  // returns the bare name `code`. Quoting a bare name under a shell is not belt-and-braces —
+  // it breaks the launch: cmd.exe runs `""code" …"`, and the extra quotes make code.cmd's
+  // `%~dp0` resolve against the CWD, so its internal `"%~dp0..\Code.exe"` misses and the spawn
+  // exits 9009 ("not recognized"). A token with no whitespace must be passed unquoted.
+  it('does NOT quote a bare command name (no space) — quoting it breaks code.cmd', () => {
+    expect(buildCodeSpawn('code', ['C:\\p\\x y.code-workspace'], true))
+      .toEqual({ file: 'code', args: ['"C:\\p\\x y.code-workspace"'] })
   })
   it('passes verbatim without a shell (macOS/Linux)', () => {
     expect(buildCodeSpawn('code', ['/p/x.code-workspace'], false))

@@ -92,13 +92,18 @@ export function codeCliPresent(
 
 /**
  * Split a resolved command into the (file, args) pair to spawn. With a shell, the shell
- * re-parses the joined command line, so BOTH halves need quoting — every VS Code install
- * dir contains a space ("Microsoft VS Code"), and an unquoted path would be split at
- * `…\Programs\Microsoft`. Without a shell, pass verbatim.
+ * re-parses the joined command line, so any token containing whitespace must be quoted —
+ * an install-dir path contains a space ("Microsoft VS Code") and would otherwise be split
+ * at `…\Programs\Microsoft`. But quote ONLY when needed: quoting a bare command name like
+ * `code` (what resolveCodeCommand returns when VS Code is on PATH) breaks the launch —
+ * cmd.exe runs `""code" …"`, and the surrounding quotes make code.cmd's `%~dp0` resolve
+ * against the CWD, so its internal `"%~dp0..\Code.exe"` misses and the spawn exits 9009
+ * ("not recognized") with VS Code never opening. Without a shell, pass verbatim.
  */
 export function buildCodeSpawn(cmd: string, args: string[], shell: boolean): { file: string; args: string[] } {
   if (!shell) return { file: cmd, args }
-  return { file: `"${cmd}"`, args: args.map((a) => `"${a}"`) }
+  const quote = (s: string): string => (/\s/.test(s) ? `"${s}"` : s)
+  return { file: quote(cmd), args: args.map(quote) }
 }
 
 export type SpawnCodeFn = (cmd: string, args: string[]) => void
