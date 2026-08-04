@@ -92,7 +92,7 @@ export const de: Dict = {
     confirmRebuild: 'Neu erstellen',
     cancel: 'Abbrechen',
     launched: '„{name}“ gestartet — ein Terminal wird geöffnet.',
-    applyLiveDone: 'Anmeldedaten auf die laufende Sandbox angewendet. Der Agent verwendet sie beim nächsten Öffnen.',
+    applyLiveDone: 'Anmeldedaten mit der laufenden Sandbox abgeglichen ({applied} gesetzt, {removed} entfernt). Der Agent verwendet sie beim nächsten Öffnen.',
     actionFailed: 'Aktion fehlgeschlagen: {message}'
   },
   launch: {

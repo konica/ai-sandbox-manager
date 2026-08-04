@@ -182,7 +182,7 @@ describe('instance lifecycle IPC', () => {
     d.adapter.listSandboxes.mockResolvedValue([{ name: 'sbx-1', status: 'running', agent: 'claude', ports: [], workspace: '/p' }] as never)
     const h = buildHandlers(d as never)
     const r = await h['instance:applyCredentials']('sbx-1')
-    expect(r).toEqual({ ok: true, data: { applied: 1, skipped: 0 } })
+    expect(r).toEqual({ ok: true, data: { applied: 1, removed: 0, skipped: 0 } })
     expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['api.acme.com'], 'ACME_KEY', 'secret-val', { sandbox: 'sbx-1' })
     expect(d.adapter.execScript).toHaveBeenCalledWith('sbx-1', expect.stringContaining("export ACME_KEY='sbx-cs-lifecycle01'"))
     expect(d.store.updateInstanceFingerprint).toHaveBeenCalledWith('sbx-1', expect.any(String))

@@ -10,43 +10,89 @@ const base: DefinitionSpec = {
   credentials: [{ kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' }]
 }
 
-// `sbx secret ls` fixture: custom secret ACME_KEY in scope sbx-1 has a dynamic placeholder.
+// `sbx secret ls <name>` fixture: custom secret ACME_KEY (desired) in scope sbx-1.
 const SECRET_LS = `CUSTOM SECRETS
 SCOPE   TARGETS        ENV        PLACEHOLDER               SECRET
 sbx-1   api.acme.com   ACME_KEY   sbx-cs-ACMEplaceholder01  GIx*****...*****i2cm
+`
+// …plus a stale custom (OLD_KEY) and a stale service (openai) no longer in the definition.
+const SECRET_LS_WITH_STALE = `SCOPE   TYPE      NAME     SECRET
+sbx-1   service   openai   sk-pro*****...*****Ft8A
+
+CUSTOM SECRETS
+SCOPE   TARGETS           ENV        PLACEHOLDER               SECRET
+sbx-1   api.acme.com      ACME_KEY   sbx-cs-ACMEplaceholder01  GIx*****...*****i2cm
+sbx-1   old.example.com   OLD_KEY    sbx-cs-OLDplaceholder02   GIx*****...*****i2cm
 `
 
 function deps(running = true, secretLs = SECRET_LS) {
   const adapter = {
     listSandboxes: vi.fn(async () => running ? [{ name: 'sbx-1', status: 'running', agent: 'claude', ports: [], workspace: '/p' }] : []),
     setSecret: vi.fn(async () => {}), setCustomSecret: vi.fn(async () => {}), setRegistrySecret: vi.fn(async () => {}),
+    removeSecret: vi.fn(async () => {}), removeCustomSecret: vi.fn(async () => {}),
     execScript: vi.fn(async (_name: string, _script: string) => {}),
     listInstanceSecretsRaw: vi.fn(async (_name: string) => secretLs)
   }
   const store = { updateInstanceFingerprint: vi.fn() }
-  const creds = { getStaged: vi.fn(() => 'secret-val') }
+  const creds = { getStaged: vi.fn(() => 'secret-val' as string | null) }
   return { adapter, store, creds, log: undefined }
 }
 
 describe('applyCredentialsLive', () => {
-  it('registers values and injects the custom secret using its DYNAMIC placeholder from sbx secret ls', async () => {
+  it('upserts a custom secret (remove-then-set so a changed value overwrites) and injects its dynamic placeholder', async () => {
     const d = deps()
     const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: 'stale' })
+    // remove-then-set guarantees the new value overwrites, then re-read gives the placeholder.
+    expect(d.adapter.removeCustomSecret).toHaveBeenCalledWith(['api.acme.com'], { sandbox: 'sbx-1' })
     expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['api.acme.com'], 'ACME_KEY', 'secret-val', { sandbox: 'sbx-1' })
-    expect(d.adapter.listInstanceSecretsRaw).toHaveBeenCalledWith('sbx-1')
+    const rmOrder = d.adapter.removeCustomSecret.mock.invocationCallOrder[0]
+    const setOrder = d.adapter.setCustomSecret.mock.invocationCallOrder[0]
+    expect(rmOrder).toBeLessThan(setOrder) // remove BEFORE set
     const script = d.adapter.execScript.mock.calls[0][1] as string
-    expect(d.adapter.execScript.mock.calls[0][0]).toBe('sbx-1')
     expect(script).toContain("export ACME_KEY='sbx-cs-ACMEplaceholder01'")
-    expect(script).not.toContain("export ACME_KEY='proxy-managed'") // never hardcoded for custom
     expect(d.store.updateInstanceFingerprint).toHaveBeenCalledWith('sbx-1', credFingerprint(base.credentials))
-    expect(r).toEqual({ applied: 1, skipped: 0 })
+    expect(r).toEqual({ applied: 1, removed: 0, skipped: 0 })
   })
 
-  it('omits a custom secret from the injected block when no placeholder is found for the scope', async () => {
-    const d = deps(true, 'CUSTOM SECRETS\nSCOPE   TARGETS   ENV   PLACEHOLDER   SECRET\n') // no matching row
-    await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: 'stale' })
-    const script = d.adapter.execScript.mock.calls[0][1] as string
-    expect(script).not.toContain('ACME_KEY') // not injected with a wrong/hardcoded value
+  it('removes sandbox secrets that are no longer in the definition (deleted custom + service)', async () => {
+    const d = deps(true, SECRET_LS_WITH_STALE)
+    const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: 'stale' })
+    // OLD_KEY (custom) and openai (service) are not in the definition → removed.
+    expect(d.adapter.removeCustomSecret).toHaveBeenCalledWith(['old.example.com'], { sandbox: 'sbx-1' })
+    expect(d.adapter.removeSecret).toHaveBeenCalledWith('openai', { sandbox: 'sbx-1' })
+    // ACME_KEY stays and is upserted (not removed as stale).
+    expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['api.acme.com'], 'ACME_KEY', 'secret-val', { sandbox: 'sbx-1' })
+    expect(r).toEqual({ applied: 1, removed: 2, skipped: 0 })
+  })
+
+  it('removes the old host grant when a custom secret keeps its env var but its domains change', async () => {
+    // Definition wants ACME_KEY at api.acme.com (base); the sandbox has it at old.example.com.
+    const d = deps(true, `CUSTOM SECRETS
+SCOPE   TARGETS           ENV        PLACEHOLDER        SECRET
+sbx-1   old.example.com   ACME_KEY   sbx-cs-OLDhost01   GIx*`)
+    const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: 'stale' })
+    expect(d.adapter.removeCustomSecret).toHaveBeenCalledWith(['old.example.com'], { sandbox: 'sbx-1' }) // stale old host removed
+    expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['api.acme.com'], 'ACME_KEY', 'secret-val', { sandbox: 'sbx-1' }) // re-set at new host
+    expect(r).toEqual({ applied: 1, removed: 1, skipped: 0 })
+  })
+
+  it('upserts a SERVICE credential via remove-then-set', async () => {
+    const spec: DefinitionSpec = { ...base, credentials: [{ kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', store: 'sbx' }] }
+    const d = deps(true, 'CUSTOM SECRETS\n') // sandbox has nothing registered
+    const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec, storedFingerprint: 'stale' })
+    expect(d.adapter.removeSecret).toHaveBeenCalledWith('openai', { sandbox: 'sbx-1' })
+    expect(d.adapter.setSecret).toHaveBeenCalledWith('openai', 'secret-val', { sandbox: 'sbx-1' })
+    expect(d.adapter.removeSecret.mock.invocationCallOrder[0]).toBeLessThan(d.adapter.setSecret.mock.invocationCallOrder[0])
+    expect(r).toEqual({ applied: 1, removed: 0, skipped: 0 })
+  })
+
+  it('leaves a desired credential untouched (does not wipe it) when it has no stored value', async () => {
+    const d = deps()
+    d.creds.getStaged.mockReturnValue(null)
+    const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: 'stale' })
+    expect(d.adapter.setCustomSecret).not.toHaveBeenCalled()
+    expect(d.adapter.removeCustomSecret).not.toHaveBeenCalled() // ACME_KEY is desired → not stale; no value → not re-set
+    expect(r).toEqual({ applied: 0, removed: 0, skipped: 1 })
   })
 
   it('throws when the sandbox is not running and writes nothing', async () => {
@@ -54,6 +100,7 @@ describe('applyCredentialsLive', () => {
     await expect(applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: null }))
       .rejects.toThrow(/not running/i)
     expect(d.adapter.execScript).not.toHaveBeenCalled()
+    expect(d.adapter.removeCustomSecret).not.toHaveBeenCalled()
     expect(d.store.updateInstanceFingerprint).not.toHaveBeenCalled()
   })
 
@@ -69,17 +116,13 @@ describe('applyCredentialsLive', () => {
     const d = deps()
     const spec: DefinitionSpec = {
       ...base,
-      credentials: [
-        ...base.credentials,
-        { kind: 'registry', id: 'ghcr', host: 'ghcr.io', scope: 'sandbox', store: 'sbx' }
-      ]
+      credentials: [...base.credentials, { kind: 'registry', id: 'ghcr', host: 'ghcr.io', scope: 'sandbox', store: 'sbx' }]
     }
-    // stored fingerprint had NO registry entry → registry subset differs → drift must persist.
     await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec, storedFingerprint: credFingerprint(base.credentials) })
-    expect(d.adapter.execScript).toHaveBeenCalled() // service/custom still applied
-    expect(d.adapter.setRegistrySecret).not.toHaveBeenCalled() // registry excluded from live registration
+    expect(d.adapter.execScript).toHaveBeenCalled()
+    expect(d.adapter.setRegistrySecret).not.toHaveBeenCalled() // registry excluded from live reconcile
     const script = d.adapter.execScript.mock.calls[0][1] as string
-    expect(script).not.toContain('ghcr') // registry never in the env block
-    expect(d.store.updateInstanceFingerprint).not.toHaveBeenCalled() // drift persists
+    expect(script).not.toContain('ghcr')
+    expect(d.store.updateInstanceFingerprint).not.toHaveBeenCalled()
   })
 })

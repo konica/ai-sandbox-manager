@@ -56,3 +56,36 @@ export function customPlaceholdersForScope(stdout: string, scope: string): Map<s
   }
   return map
 }
+
+/** What is actually registered for ONE sandbox: service names + custom {env, hosts}. Used by
+ *  "Apply live" to remove secrets that were deleted from the definition. Only rows whose SCOPE
+ *  column equals `scope` are included, so global (`(global)`) secrets are never touched. */
+export interface InstanceSecrets {
+  services: string[]
+  customs: { env: string; hosts: string[] }[]
+}
+
+export function parseInstanceSecrets(stdout: string, scope: string): InstanceSecrets {
+  const services: string[] = []
+  const customs: { env: string; hosts: string[] }[] = []
+  let inCustom = false
+  for (const raw of stdout.split('\n')) {
+    const line = raw.trim()
+    if (line === '') continue
+    if (/^CUSTOM SECRETS\b/i.test(line)) { inCustom = true; continue }
+    const tokens = line.split(/\s+/)
+    if (!inCustom) {
+      // Services section: SCOPE TYPE NAME SECRET. Take sandbox-scoped `service` rows (skip the
+      // header row, whose 2nd token is "TYPE", and any (global) rows).
+      if (tokens[0] === scope && tokens[1] === 'service' && tokens[2]) services.push(tokens[2])
+      continue
+    }
+    // Custom section: SCOPE TARGETS… ENV PLACEHOLDER SECRET. Anchor on the placeholder token;
+    // TARGETS are the tokens between SCOPE and ENV (a host may be comma-joined — split it).
+    const idx = tokens.findIndex((t) => PLACEHOLDER_RE.test(t))
+    if (idx < 2 || tokens[0] !== scope) continue
+    const hosts = tokens.slice(1, idx - 1).flatMap((t) => t.split(',')).filter(Boolean)
+    customs.push({ env: tokens[idx - 1], hosts })
+  }
+  return { services, customs }
+}

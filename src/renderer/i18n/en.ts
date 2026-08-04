@@ -90,7 +90,7 @@ export const en = {
     confirmRebuild: 'Rebuild',
     cancel: 'Cancel',
     launched: 'Launched “{name}” — a terminal is opening.',
-    applyLiveDone: 'Credentials applied to the running sandbox. The agent will use them the next time you open it.',
+    applyLiveDone: 'Credentials synced to the running sandbox ({applied} set, {removed} removed). The agent picks them up the next time you open it.',
     actionFailed: 'Action failed: {message}'
   },
   launch: {

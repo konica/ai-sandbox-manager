@@ -173,7 +173,7 @@ export default function App(): JSX.Element {
   function onShell(name: string): void { void runAction(api.instanceShell(name)) }
   async function onApplyCredentials(name: string): Promise<void> {
     const r = await api.instanceApplyCredentials(name)
-    if (r.ok) setNotice({ kind: 'info', text: t('instances.applyLiveDone') })
+    if (r.ok) setNotice({ kind: 'info', text: t('instances.applyLiveDone', { applied: String(r.data.applied), removed: String(r.data.removed) }) })
     else if (r.error) setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
     await loadInstances()
   }
