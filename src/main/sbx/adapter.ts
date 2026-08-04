@@ -36,6 +36,8 @@ export interface SbxAdapter {
   checkDockerAuth(): Promise<AuthCheck>
   /** Run `sbx kit validate <dir>`; non-throwing. Missing sbx → resolves, never rejects. */
   validateKit(dir: string): Promise<{ code: number; out: string; ran: boolean }>
+  /** Run a bash login-shell script inside a running sandbox: `sbx exec <name> bash -lc <script>`. Throws SbxError on non-zero exit. */
+  execScript(name: string, script: string): Promise<void>
 }
 
 export const defaultSpawn: SpawnFn = (cmd, args, opts) =>
@@ -176,6 +178,10 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     }
   }
 
+  async function execScript(name: string, script: string): Promise<void> {
+    await runSbx(['exec', name, 'bash', '-lc', script])
+  }
+
   async function validateKit(dir: string): Promise<{ code: number; out: string; ran: boolean }> {
     logger?.command(['kit', 'validate', dir])
     try {
@@ -187,5 +193,5 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     }
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, validateKit }
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, execScript, validateKit }
 }

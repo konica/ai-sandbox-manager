@@ -31,3 +31,13 @@ describe('createSbxAdapter.runSbx', () => {
     await expect(adapter.runSbx(['ls'])).rejects.toBeInstanceOf(SbxError)
   })
 })
+
+describe('createSbxAdapter.execScript', () => {
+  it('execScript runs `sbx exec <name> bash -lc <script>`', async () => {
+    const calls: string[][] = []
+    const spawn = async (_cmd: string, args: string[]) => { calls.push(args); return { stdout: '', stderr: '', code: 0 } }
+    const adapter = createSbxAdapter(spawn)
+    await adapter.execScript('sbx-1', 'touch /etc/sandbox-persistent.sh')
+    expect(calls[0]).toEqual(['exec', 'sbx-1', 'bash', '-lc', 'touch /etc/sandbox-persistent.sh'])
+  })
+})
