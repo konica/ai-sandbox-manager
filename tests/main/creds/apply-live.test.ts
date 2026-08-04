@@ -10,11 +10,18 @@ const base: DefinitionSpec = {
   credentials: [{ kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' }]
 }
 
-function deps(running = true) {
+// `sbx secret ls` fixture: custom secret ACME_KEY in scope sbx-1 has a dynamic placeholder.
+const SECRET_LS = `CUSTOM SECRETS
+SCOPE   TARGETS        ENV        PLACEHOLDER               SECRET
+sbx-1   api.acme.com   ACME_KEY   sbx-cs-ACMEplaceholder01  GIx*****...*****i2cm
+`
+
+function deps(running = true, secretLs = SECRET_LS) {
   const adapter = {
     listSandboxes: vi.fn(async () => running ? [{ name: 'sbx-1', status: 'running', agent: 'claude', ports: [], workspace: '/p' }] : []),
     setSecret: vi.fn(async () => {}), setCustomSecret: vi.fn(async () => {}), setRegistrySecret: vi.fn(async () => {}),
-    execScript: vi.fn(async (_name: string, _script: string) => {})
+    execScript: vi.fn(async (_name: string, _script: string) => {}),
+    listInstanceSecretsRaw: vi.fn(async (_name: string) => secretLs)
   }
   const store = { updateInstanceFingerprint: vi.fn() }
   const creds = { getStaged: vi.fn(() => 'secret-val') }
@@ -22,15 +29,24 @@ function deps(running = true) {
 }
 
 describe('applyCredentialsLive', () => {
-  it('registers service/custom values, injects the persistent-env script, and clears drift', async () => {
+  it('registers values and injects the custom secret using its DYNAMIC placeholder from sbx secret ls', async () => {
     const d = deps()
     const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: 'stale' })
     expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['api.acme.com'], 'ACME_KEY', 'secret-val', { sandbox: 'sbx-1' })
+    expect(d.adapter.listInstanceSecretsRaw).toHaveBeenCalledWith('sbx-1')
     const script = d.adapter.execScript.mock.calls[0][1] as string
     expect(d.adapter.execScript.mock.calls[0][0]).toBe('sbx-1')
-    expect(script).toContain("export ACME_KEY='proxy-managed'")
+    expect(script).toContain("export ACME_KEY='sbx-cs-ACMEplaceholder01'")
+    expect(script).not.toContain("export ACME_KEY='proxy-managed'") // never hardcoded for custom
     expect(d.store.updateInstanceFingerprint).toHaveBeenCalledWith('sbx-1', credFingerprint(base.credentials))
     expect(r).toEqual({ applied: 1, skipped: 0 })
+  })
+
+  it('omits a custom secret from the injected block when no placeholder is found for the scope', async () => {
+    const d = deps(true, 'CUSTOM SECRETS\nSCOPE   TARGETS   ENV   PLACEHOLDER   SECRET\n') // no matching row
+    await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: 'stale' })
+    const script = d.adapter.execScript.mock.calls[0][1] as string
+    expect(script).not.toContain('ACME_KEY') // not injected with a wrong/hardcoded value
   })
 
   it('throws when the sandbox is not running and writes nothing', async () => {

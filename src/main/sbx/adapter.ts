@@ -22,6 +22,8 @@ export interface SbxAdapter {
   setSecret(service: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   removeSecret(service: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   listGlobalSecretsRaw(): Promise<string>
+  /** Raw `sbx secret ls <name>` stdout (one sandbox) — parsed to recover custom secrets' dynamic placeholders. */
+  listInstanceSecretsRaw(name: string): Promise<string>
   listPorts(name: string): Promise<LivePort[]>
   publishPort(name: string, port: LivePort): Promise<void>
   unpublishPort(name: string, port: LivePort): Promise<void>
@@ -116,6 +118,12 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     return res.stdout
   }
 
+  // Raw `sbx secret ls <name>` stdout (one sandbox) — parsed for custom secrets' dynamic placeholders.
+  async function listInstanceSecretsRaw(name: string): Promise<string> {
+    const res = await runSbx(['secret', 'ls', name])
+    return res.stdout
+  }
+
   // Custom secret: placeholder-substitution for non-built-in services (verified in the
   // Phase 0 spike). `set-custom` has no stdin flag → value passes as argv (no shell, so
   // no history leak; brief `ps` exposure of the user's own secret on their own machine).
@@ -195,5 +203,5 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     }
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, execScript, validateKit }
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, listInstanceSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, execScript, validateKit }
 }
