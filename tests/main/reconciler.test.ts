@@ -25,6 +25,15 @@ function fakeAdapter(names: string[]): SbxAdapter {
   }
 }
 
+/** Adapter that reports instances with explicit workspace paths (for auto-link tests). */
+function fakeAdapterWorkspaces(instances: Array<{ name: string; workspace: string | null }>): SbxAdapter {
+  return {
+    ...fakeAdapter([]),
+    listSandboxes: async () =>
+      instances.map((i) => ({ name: i.name, status: 'running', agent: 'claude', ports: [], workspace: i.workspace }))
+  }
+}
+
 describe('reconcile', () => {
   it('labels app-created instances with their definition tier', async () => {
     const store = openStore(':memory:')
@@ -67,6 +76,48 @@ describe('reconcile', () => {
     const store = openStore(':memory:')
     const views = await reconcile(fakeAdapter(['ext-box']), store)
     expect(views[0]).toMatchObject({ name: 'ext-box', definitionId: null, definitionName: null, tier: 'custom' })
+  })
+
+  it('auto-links a CLI-created instance to a definition by matching its workspace path', async () => {
+    const store = openStore(':memory:')
+    const def = { id: 'd1', name: 'Work Sample', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't' }
+    store.insertDefinitionSpec({ definition: def, mounts: [{ hostPath: 'C:\\Data\\Projects\\ERRIA\\work_sample', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    // No instance_meta row — the sandbox was started from the CLI, not the app.
+    const views = await reconcile(fakeAdapterWorkspaces([{ name: 'work-sample-0ce2cb7a', workspace: 'C:\\Data\\Projects\\ERRIA\\work_sample' }]), store)
+    expect(views[0]).toMatchObject({ definitionId: 'd1', definitionName: 'Work Sample', tier: 'locked' })
+  })
+
+  it('matches the workspace path case-insensitively, ignoring slash direction and trailing slash', async () => {
+    const store = openStore(':memory:')
+    const def = { id: 'd1', name: 'Work Sample', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't' }
+    store.insertDefinitionSpec({ definition: def, mounts: [{ hostPath: 'C:\\Data\\Projects\\work_sample', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    const views = await reconcile(fakeAdapterWorkspaces([{ name: 'work-sample-0ce2cb7a', workspace: 'c:/data/projects/work_sample/' }]), store)
+    expect(views[0]).toMatchObject({ definitionId: 'd1', definitionName: 'Work Sample' })
+  })
+
+  it('does not auto-link when two definitions share the same workspace path (ambiguous)', async () => {
+    const store = openStore(':memory:')
+    const mounts = [{ hostPath: '/shared', mode: 'direct' as const, isPrimary: true }]
+    store.insertDefinitionSpec({ definition: { id: 'd1', name: 'First', description: '', agent: 'claude', baseImage: 'img', tier: 'locked', createdAt: 't' }, mounts, domains: [], ports: [], hostServices: [], credentials: [] })
+    store.insertDefinitionSpec({ definition: { id: 'd2', name: 'Second', description: '', agent: 'claude', baseImage: 'img', tier: 'locked', createdAt: 't' }, mounts, domains: [], ports: [], hostServices: [], credentials: [] })
+    const views = await reconcile(fakeAdapterWorkspaces([{ name: 'box', workspace: '/shared' }]), store)
+    expect(views[0]).toMatchObject({ definitionId: null, definitionName: null, tier: 'custom' })
+  })
+
+  it('does not auto-link when no definition matches the workspace path', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec({ definition: { id: 'd1', name: 'Other', description: '', agent: 'claude', baseImage: 'img', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/a', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    const views = await reconcile(fakeAdapterWorkspaces([{ name: 'box', workspace: '/b' }]), store)
+    expect(views[0]).toMatchObject({ definitionId: null, definitionName: null, tier: 'custom' })
+  })
+
+  it('prefers the metadata definition link over a workspace-path match', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinition({ id: 'd1', name: 'Explicit', description: '', agent: 'claude', baseImage: 'img', tier: 'open', createdAt: 't' })
+    store.insertDefinitionSpec({ definition: { id: 'd2', name: 'ByPath', description: '', agent: 'claude', baseImage: 'img', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] })
+    store.upsertInstanceMeta({ sbxName: 'box', definitionId: 'd1', createdByApp: true, createdAt: 't' })
+    const views = await reconcile(fakeAdapterWorkspaces([{ name: 'box', workspace: '/w' }]), store)
+    expect(views[0]).toMatchObject({ definitionId: 'd1', definitionName: 'Explicit' })
   })
 
   it('garbage-collects metadata for sandboxes sbx no longer reports', async () => {
