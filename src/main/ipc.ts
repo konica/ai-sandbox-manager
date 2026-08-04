@@ -10,6 +10,7 @@ import { reconcile, matchDefinitionByWorkspace } from './reconciler'
 import { launchDefinition } from './launch'
 import { SbxError } from '@shared/errors'
 import { registerCredentials } from './creds/register'
+import { applyCredentialsLive } from './creds/apply-live'
 import { agentAttachCommand, hostShellCommand, loginCommand } from './sbx/translate'
 import { claudeAuthStatus, claudeSignOut } from './auth/manager'
 import { sshAgentPresent } from './ssh/detect'
@@ -107,6 +108,7 @@ export function buildHandlers(deps: Deps): {
   'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
   'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
   'instance:rebuild': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
+  'instance:applyCredentials': (name: string) => Promise<Result<{ applied: number; skipped: number }>>
   'instance:commands': (name: string) => Promise<Result<{ agent: string; shell: string }>>
   'instance:shell': (name: string) => Promise<Result<null>>
   'instance:stop': (name: string) => Promise<Result<null>>
@@ -248,6 +250,18 @@ export function buildHandlers(deps: Deps): {
       deps.log?.info(`Rebuilding instance "${name}" (recreate from definition ${definitionId} to apply current config/credentials).`)
       await cleanupInstance(deps, name)
       return launchDefinition(launchDeps(), definitionId, undefined, undefined, opener ?? 'terminal')
+    }),
+    'instance:applyCredentials': (name) => wrap(async () => {
+      // Live-apply service/custom credential changes to a running sandbox (no recreate):
+      // register values + inject placeholder env vars into /etc/sandbox-persistent.sh.
+      const { definitionId, spec } = await resolveInstanceDefinition(deps, name)
+      if (!definitionId || !spec) throw new SbxError('not-found', `Instance "${name}" has no linked definition to apply credentials from.`)
+      const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
+      deps.log?.info(`Applying credentials live to "${name}" from definition ${definitionId}.`)
+      return applyCredentialsLive(
+        { adapter: deps.adapter, store: deps.store, creds: requireCreds(deps), log: deps.log },
+        { name, definitionId, spec, storedFingerprint: meta?.credFingerprint ?? null }
+      )
     }),
     'instance:shell': (name) => wrap(async () => {
       const cmd = hostShellCommand(name)
@@ -430,6 +444,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode') => handlers['instance:launch'](id, name, sessionName, opener))
   ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:attach'](name, opener))
   ipcMain.handle('instance:rebuild', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:rebuild'](name, opener))
+  ipcMain.handle('instance:applyCredentials', (_e, name: string) => handlers['instance:applyCredentials'](name))
   ipcMain.handle('instance:commands', (_e, name: string) => handlers['instance:commands'](name))
   ipcMain.handle('instance:shell', (_e, name: string) => handlers['instance:shell'](name))
   ipcMain.handle('instance:stop', (_e, name: string) => handlers['instance:stop'](name))
