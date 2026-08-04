@@ -28,12 +28,20 @@ const PLACEHOLDER_RE = /^sbx-cs-\S+$/
 
 export function parseCustomSecretPlaceholders(stdout: string): CustomSecretPlaceholder[] {
   const out: CustomSecretPlaceholder[] = []
+  // Only scan rows in the CUSTOM SECRETS section — the services section above it has no
+  // PLACEHOLDER column, so never mine it for `sbx-cs-…` tokens.
+  let inCustom = false
   for (const raw of stdout.split('\n')) {
     const line = raw.trim()
     if (line === '') continue
+    if (/^CUSTOM SECRETS\b/i.test(line)) { inCustom = true; continue }
+    if (!inCustom) continue
     const tokens = line.split(/\s+/)
+    // Anchor on the placeholder token; the token before it is ENV, tokens[0] is SCOPE. (A TARGETS
+    // host that literally started with `sbx-cs-` would be matched first and drop that row — which
+    // fails SAFE: the secret is omitted, never injected with a wrong value.)
     const idx = tokens.findIndex((t) => PLACEHOLDER_RE.test(t))
-    // Need the placeholder AND a preceding ENV token AND a SCOPE at index 0.
+    // Need the placeholder AND a preceding ENV token AND a SCOPE at index 0; skip the header row.
     if (idx < 1) continue
     out.push({ scope: tokens[0], env: tokens[idx - 1], placeholder: tokens[idx] })
   }
