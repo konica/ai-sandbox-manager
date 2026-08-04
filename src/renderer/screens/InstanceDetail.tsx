@@ -24,13 +24,14 @@ function tabStyle(active: boolean): React.CSSProperties {
  * the definition spec (fetched here) feeds the Terminals info sidebar and the Ports
  * host-services list.
  */
-export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, onRemove, onRebuild, onAttach, onShell }: {
+export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, onRemove, onRebuild, onApplyCredentials, onAttach, onShell }: {
   instance: InstanceView
   hasVSCode?: boolean
   onBack: () => void
   onStop: (name: string) => void
   onRemove: (name: string) => void
   onRebuild: (name: string) => void
+  onApplyCredentials: (name: string) => void
   onAttach: (name: string, opener: 'terminal' | 'vscode') => void
   onShell: (name: string) => void
 }): JSX.Element {
@@ -106,7 +107,8 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
       {instance.credsDrift && (
         <div role="status" className="card" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', padding: 'var(--space-3) var(--space-4)', borderColor: 'var(--warning, var(--accent))' }}>
           <span style={{ fontSize: 13, flex: 1 }}>{t('detail.credsDriftNotice')}</span>
-          <button className="btn btn-primary btn-sm" onClick={() => onRebuild(instance.name)}>↻ {t('detail.rebuild')}</button>
+          <button className="btn btn-primary btn-sm" title={t('detail.applyLiveHint')} onClick={() => onApplyCredentials(instance.name)}>{t('detail.applyLive')}</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => onRebuild(instance.name)}>↻ {t('detail.rebuild')}</button>
         </div>
       )}
 
