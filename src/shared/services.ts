@@ -7,6 +7,8 @@ export interface KnownService {
   label: string
   envVars: string[]
   domains: string[]
+  /** Placeholder written into the sandbox env for this service's vars; defaults to 'proxy-managed'. */
+  sentinel?: string
 }
 
 export const KNOWN_SERVICES: KnownService[] = [
