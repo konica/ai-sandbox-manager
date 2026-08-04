@@ -20,7 +20,8 @@ function deps() {
     allowNetwork: vi.fn(async () => {}), removeNetwork: vi.fn(async () => {}),
     policyLog: vi.fn(async () => ({ allowed: 0, blocked: 0, events: [] })),
     checkDockerAuth: vi.fn(async () => 'pass'),
-    validateKit: vi.fn(async () => ({ code: 0, out: 'ok', ran: true }))
+    validateKit: vi.fn(async () => ({ code: 0, out: 'ok', ran: true })),
+    execScript: vi.fn(async () => {})
   }
   const store = {
     getDefinitionSpec: vi.fn(() => spec),
@@ -28,7 +29,8 @@ function deps() {
     listDefinitions: vi.fn(() => []),
     upsertInstanceMeta: vi.fn(),
     deleteInstanceMeta: vi.fn(),
-    listInstanceMeta: vi.fn(() => [])
+    listInstanceMeta: vi.fn(() => []),
+    updateInstanceFingerprint: vi.fn()
   }
   const creds = { getStaged: vi.fn(() => 'secret-val') }
   const probes = {} as never
@@ -167,5 +169,31 @@ describe('instance lifecycle IPC', () => {
     const h = buildHandlers(d as never)
     await h['instance:remove']('my-project')
     expect(d.cleanupKit).toHaveBeenCalledWith('/p')
+  })
+
+  it('instance:applyCredentials registers creds, injects the persistent-env script, and clears drift', async () => {
+    const d = deps()
+    d.store.listInstanceMeta.mockReturnValue([{ sbxName: 'sbx-1', definitionId: 'd1', createdByApp: true, createdAt: 't', credFingerprint: 'stale' }] as never)
+    d.store.getDefinitionSpec.mockReturnValue({
+      ...spec, hostServices: [],
+      credentials: [{ kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['api.acme.com'], store: 'encrypted' }]
+    } as never)
+    d.adapter.listSandboxes.mockResolvedValue([{ name: 'sbx-1', status: 'running', agent: 'claude', ports: [], workspace: '/p' }] as never)
+    const h = buildHandlers(d as never)
+    const r = await h['instance:applyCredentials']('sbx-1')
+    expect(r).toEqual({ ok: true, data: { applied: 1, skipped: 0 } })
+    expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['api.acme.com'], 'ACME_KEY', 'secret-val', { sandbox: 'sbx-1' })
+    expect(d.adapter.execScript).toHaveBeenCalledWith('sbx-1', expect.stringContaining("export ACME_KEY='proxy-managed'"))
+    expect(d.store.updateInstanceFingerprint).toHaveBeenCalledWith('sbx-1', expect.any(String))
+  })
+
+  it('instance:applyCredentials fails cleanly when the instance has no linked definition', async () => {
+    const d = deps()
+    d.store.listInstanceMeta.mockReturnValue([{ sbxName: 'orphan', definitionId: null, createdByApp: true, createdAt: 't' }] as never)
+    d.adapter.listSandboxes.mockResolvedValue([{ name: 'orphan', status: 'running', agent: 'claude', ports: [], workspace: '/nope' }] as never)
+    const h = buildHandlers(d as never)
+    const r = await h['instance:applyCredentials']('orphan')
+    expect(r.ok).toBe(false)
+    expect(d.adapter.execScript).not.toHaveBeenCalled()
   })
 })
