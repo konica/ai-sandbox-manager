@@ -25,6 +25,17 @@ describe('parseCustomSecretPlaceholders', () => {
     expect(parseCustomSecretPlaceholders('SCOPE   TYPE   NAME   SECRET\n(global)   service   github   gho_x')).toEqual([])
     expect(parseCustomSecretPlaceholders('')).toEqual([])
   })
+  it('never mines the services section — only rows under the CUSTOM SECRETS header count', () => {
+    // A service row that (implausibly) contained an sbx-cs-like token must be ignored.
+    const out = `SCOPE      TYPE      NAME     SECRET
+(global)   service   weird    sbx-cs-NOTAPLACEHOLDER
+CUSTOM SECRETS
+SCOPE   TARGETS        ENV        PLACEHOLDER              SECRET
+sbx-1   api.acme.com   ACME_KEY   sbx-cs-realPlaceholder1  GIx*****...*****i2cm`
+    expect(parseCustomSecretPlaceholders(out)).toEqual([
+      { scope: 'sbx-1', env: 'ACME_KEY', placeholder: 'sbx-cs-realPlaceholder1' }
+    ])
+  })
 })
 
 describe('customPlaceholdersForScope', () => {
