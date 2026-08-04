@@ -1,10 +1,21 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { InstanceDetail } from '../../src/renderer/screens/InstanceDetail'
-import type { InstanceView } from '../../src/shared/types'
+import { api } from '../../src/renderer/ipc/client'
+import type { InstanceView, DefinitionSpec } from '../../src/shared/types'
 
 const inst: InstanceView = { name: 'sbx-a', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'prj', tier: 'locked' }
 const base = { onBack: vi.fn(), onStop: vi.fn(), onRemove: vi.fn(), onRebuild: vi.fn(), onApplyCredentials: vi.fn(), onAttach: vi.fn(), onShell: vi.fn() }
+
+const specWithCustom: DefinitionSpec = {
+  definition: { id: 'd1', name: 'P', description: '', agent: 'claude', baseImage: 'img', tier: 'locked', createdAt: 't' },
+  mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }],
+  domains: [], ports: [], hostServices: [],
+  credentials: [{ kind: 'custom', id: 'az', label: 'Azure', envVar: 'AZURE_OPENAI_API_KEY', domains: ['x.azure.com'], store: 'encrypted' }]
+}
+const specNoCreds: DefinitionSpec = { ...specWithCustom, credentials: [] }
+
+afterEach(() => vi.restoreAllMocks())
 
 describe('InstanceDetail', () => {
   it('shows the header, tabs, and switches tabs', () => {
@@ -51,5 +62,20 @@ describe('InstanceDetail', () => {
       onAttach={() => {}} onShell={() => {}} onApplyCredentials={() => {}}
     />)
     expect(screen.getByText('Apply live')).toBeDisabled()
+  })
+  it('shows a header "Apply live" for a running, definition-linked instance with credentials (no drift)', async () => {
+    vi.spyOn(api, 'defGetSpec').mockResolvedValue({ ok: true, data: specWithCustom })
+    const onApplyCredentials = vi.fn()
+    render(<InstanceDetail instance={inst} {...base} onApplyCredentials={onApplyCredentials} />)
+    const applyBtn = await screen.findByText('Apply live')
+    fireEvent.click(applyBtn)
+    expect(onApplyCredentials).toHaveBeenCalledWith('sbx-a')
+  })
+  it('does not show "Apply live" when the linked definition has no service/custom credentials', async () => {
+    vi.spyOn(api, 'defGetSpec').mockResolvedValue({ ok: true, data: specNoCreds })
+    render(<InstanceDetail instance={inst} {...base} />)
+    // give the spec fetch a tick to resolve, then assert the button is absent
+    await screen.findByRole('heading', { name: 'sbx-a' })
+    expect(screen.queryByText('Apply live')).toBeNull()
   })
 })
