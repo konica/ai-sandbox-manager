@@ -82,9 +82,29 @@ export async function reconcile(
     const def =
       (meta?.definitionId ? store.getDefinition(meta.definitionId) : null) ??
       (inst.workspace ? workspaceIndex.get(normalizePath(inst.workspace)) ?? null : null)
+
+    // Adopt/backfill so credential-drift detection keeps working: a definition-linkable instance
+    // with NO metadata row (app metadata pruned, or created from the CLI) — or a row with no
+    // fingerprint baseline (pre-v7) — gets an instance_meta row recording the definition's CURRENT
+    // credential fingerprint. We can't know what was actually baked at create time, so "now" is the
+    // baseline: this pass shows no drift, and any FUTURE definition change surfaces as drift. This
+    // is what lets a workspace-linked instance (no baseline) ever show the drift banner again.
+    if (def && (!meta || meta.credFingerprint == null)) {
+      const adoptSpec = store.getDefinitionSpec(def.id)
+      if (adoptSpec) {
+        store.upsertInstanceMeta({
+          sbxName: inst.name,
+          definitionId: def.id,
+          createdByApp: meta?.createdByApp ?? false,
+          createdAt: meta?.createdAt ?? new Date(nowMs).toISOString(),
+          credFingerprint: credFingerprint(adoptSpec.credentials)
+        })
+      }
+    }
+
     // Credential drift: the definition's credentials changed since this instance was created,
-    // so its baked-in env vars are stale (→ rebuild). Only credentials count — network/ports
-    // apply live. Null fingerprint (pre-v7 instances) → unknown, so never flagged.
+    // so its baked-in env vars are stale (→ rebuild / apply live). Only credentials count —
+    // network/ports apply live. Null fingerprint (just-adopted this pass) → unknown, not flagged yet.
     let credsDrift = false
     if (meta?.credFingerprint != null && meta.definitionId) {
       const spec = store.getDefinitionSpec(meta.definitionId)
