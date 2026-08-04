@@ -1,4 +1,4 @@
-import type { Dict } from './en'
+﻿import type { Dict } from './en'
 
 // German translations. Product names (Docker, sbx, Claude Code) are kept as-is.
 export const de: Dict = {

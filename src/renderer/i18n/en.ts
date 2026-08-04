@@ -1,4 +1,4 @@
-// English (default) translations. Keys are dot-addressed via t('a.b.c').
+﻿// English (default) translations. Keys are dot-addressed via t('a.b.c').
 export const en = {
   titlebar: { toggleTheme: 'Toggle theme', language: 'Language' },
   nav: {
