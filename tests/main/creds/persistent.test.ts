@@ -49,6 +49,14 @@ describe('persistentEnvScript', () => {
     expect(s).toContain("export GH_TOKEN='proxy-managed'")
     expect(s.trimEnd().endsWith('SBXMGR_EOF')).toBe(true)
   })
+  it('guards against a missing trailing newline before appending the managed block', () => {
+    const s = persistentEnvScript([svc], '/etc/sandbox-persistent.sh')
+    expect(s).toContain('tail -c1')
+    const guardIdx = s.indexOf('tail -c1')
+    const catIdx = s.indexOf("cat >> /etc/sandbox-persistent.sh <<'SBXMGR_EOF'")
+    expect(guardIdx).toBeGreaterThan(-1)
+    expect(guardIdx).toBeLessThan(catIdx)
+  })
 })
 
 describe('registrySubset', () => {

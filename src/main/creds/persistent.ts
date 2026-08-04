@@ -53,6 +53,7 @@ export function persistentEnvScript(credentials: CredentialRef[], file = PERSIST
   return [
     `touch ${file}`,
     `sed -i '/^${MANAGED_BEGIN}$/,/^${MANAGED_END}$/d' ${file}`,
+    `[ -s ${file} ] && [ "$(tail -c1 ${file})" != "" ] && printf '\n' >> ${file}`,
     `cat >> ${file} <<'SBXMGR_EOF'`,
     buildManagedBlock(credentials),
     'SBXMGR_EOF'

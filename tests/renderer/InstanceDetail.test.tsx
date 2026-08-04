@@ -44,4 +44,12 @@ describe('InstanceDetail', () => {
     // Rebuild remains available as the fallback.
     expect(screen.getAllByText(/Rebuild/).length).toBeGreaterThan(0)
   })
+  it('disables "Apply live" when the instance is stopped', () => {
+    render(<InstanceDetail
+      instance={{ name: 'sbx-2', status: 'stopped', agent: 'claude', ports: [], workspace: '/p', definitionId: 'd1', definitionName: 'P', tier: 'locked', credsDrift: true } as never}
+      onBack={() => {}} onStop={() => {}} onRemove={() => {}} onRebuild={() => {}}
+      onAttach={() => {}} onShell={() => {}} onApplyCredentials={() => {}}
+    />)
+    expect(screen.getByText('Apply live')).toBeDisabled()
+  })
 })
