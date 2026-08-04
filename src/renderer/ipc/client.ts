@@ -15,7 +15,7 @@ interface Api {
   instanceLaunch(definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
   instanceAttach(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<null>>
   instanceRebuild(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
-  instanceApplyCredentials(name: string): Promise<Result<{ applied: number; skipped: number }>>
+  instanceApplyCredentials(name: string): Promise<Result<{ applied: number; removed: number; skipped: number }>>
   instanceCommands(name: string): Promise<Result<{ agent: string; shell: string }>>
   instanceShell(name: string): Promise<Result<null>>
   instanceStop(name: string): Promise<Result<null>>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseCustomSecretPlaceholders, customPlaceholdersForScope } from '../../../src/main/creds/secret-ls'
+import { parseCustomSecretPlaceholders, customPlaceholdersForScope, parseInstanceSecrets } from '../../../src/main/creds/secret-ls'
 
 // Real `sbx secret ls` layout (from a live run): a services section (no PLACEHOLDER column) then a
 // CUSTOM SECRETS section whose PLACEHOLDER column carries the dynamic per-sandbox `sbx-cs-…` token.
@@ -46,5 +46,28 @@ describe('customPlaceholdersForScope', () => {
   })
   it('is empty for a scope with no custom secrets', () => {
     expect(customPlaceholdersForScope(OUTPUT, 'some-other-sandbox').size).toBe(0)
+  })
+})
+
+describe('parseInstanceSecrets', () => {
+  it('returns sandbox-scoped service names and custom {env, hosts}, ignoring global rows', () => {
+    const s = parseInstanceSecrets(OUTPUT, 'test-embedding-openai-11a2d936')
+    expect(s.services).toEqual(['openai']) // (global) github/anthropic excluded
+    expect(s.customs).toEqual([
+      { env: 'AZURE_OPENAI_API_KEY', hosts: ['mgm-datascience-openai-sweden.openai.azure.com'] }
+    ])
+  })
+  it('splits comma-joined TARGETS into separate hosts', () => {
+    const out = `CUSTOM SECRETS
+SCOPE   TARGETS         ENV       PLACEHOLDER          SECRET
+sbx-1   a.com,b.com     MY_KEY    sbx-cs-multi01       GIx*`
+    expect(parseInstanceSecrets(out, 'sbx-1').customs).toEqual([
+      { env: 'MY_KEY', hosts: ['a.com', 'b.com'] }
+    ])
+  })
+  it('returns nothing for a scope that owns no secrets', () => {
+    const s = parseInstanceSecrets(OUTPUT, 'unrelated-sandbox')
+    expect(s.services).toEqual([])
+    expect(s.customs).toEqual([])
   })
 })
