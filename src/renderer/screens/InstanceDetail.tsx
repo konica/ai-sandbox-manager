@@ -71,6 +71,13 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
   }, [tab, reloadPolicy])
 
   const running = instance.status === 'running'
+  // "Apply live" is actionable whenever a running instance is linked to a definition that has
+  // service/custom credentials — not only on detected drift. Instances linked by workspace path
+  // (no instance_meta baseline) can't surface drift, so a drift-only gate would hide the action
+  // from them entirely. The drift banner below shows its own prominent button, so hide this
+  // header one when drift is flagged to avoid a duplicate.
+  const hasApplicableCreds = (spec?.credentials ?? []).some((c) => c.kind === 'service' || c.kind === 'custom')
+  const showHeaderApplyLive = running && instance.definitionId != null && hasApplicableCreds && !instance.credsDrift
 
   // One row per host (most recent), with any optimistic Allow/Deny applied.
   const seenHosts = new Set<string>()
@@ -99,6 +106,9 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
         )}
         <div className="detail-actions">
           <button className="btn btn-secondary btn-sm" disabled={!running} onClick={() => onStop(instance.name)}>■ {t('detail.stop')}</button>
+          {showHeaderApplyLive && (
+            <button className="btn btn-secondary btn-sm" title={t('detail.applyLiveHint')} onClick={() => onApplyCredentials(instance.name)}>{t('detail.applyLive')}</button>
+          )}
           <button className="btn btn-secondary btn-sm" title={t('detail.rebuildHint')} onClick={() => onRebuild(instance.name)}>↻ {t('detail.rebuild')}</button>
           <button className="btn btn-destructive btn-sm" onClick={() => onRemove(instance.name)}>✕ {t('detail.remove')}</button>
         </div>
