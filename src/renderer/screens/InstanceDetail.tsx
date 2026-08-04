@@ -107,7 +107,7 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
       {instance.credsDrift && (
         <div role="status" className="card" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', padding: 'var(--space-3) var(--space-4)', borderColor: 'var(--warning, var(--accent))' }}>
           <span style={{ fontSize: 13, flex: 1 }}>{t('detail.credsDriftNotice')}</span>
-          <button className="btn btn-primary btn-sm" title={t('detail.applyLiveHint')} onClick={() => onApplyCredentials(instance.name)}>{t('detail.applyLive')}</button>
+          <button className="btn btn-primary btn-sm" disabled={!running} title={t('detail.applyLiveHint')} onClick={() => onApplyCredentials(instance.name)}>{t('detail.applyLive')}</button>
           <button className="btn btn-secondary btn-sm" onClick={() => onRebuild(instance.name)}>↻ {t('detail.rebuild')}</button>
         </div>
       )}

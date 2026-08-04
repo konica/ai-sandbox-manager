@@ -178,6 +178,8 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     }
   }
 
+  // No -d (detached): the exec must be synchronous so a failing script surfaces a non-zero exit
+  // (→ runSbx throws), which callers rely on to NOT clear credential drift.
   async function execScript(name: string, script: string): Promise<void> {
     await runSbx(['exec', name, 'bash', '-lc', script])
   }
