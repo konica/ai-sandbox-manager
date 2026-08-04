@@ -6,7 +6,7 @@ import { needsProviderDomainWarning } from '@shared/provider-domain'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
-import { reconcile } from './reconciler'
+import { reconcile, matchDefinitionByWorkspace } from './reconciler'
 import { launchDefinition } from './launch'
 import { SbxError } from '@shared/errors'
 import { registerCredentials } from './creds/register'
@@ -56,12 +56,32 @@ function requireCreds(deps: Deps): CredentialManager {
   return deps.creds
 }
 
+/**
+ * Resolve the definition backing a live instance the same way the UI does: the app-written
+ * metadata link first, then a workspace-path match (via the sandbox's `sbx ls` workspace) so
+ * an instance started outside the app — e.g. from the sbx CLI — attaches/rebuilds like any
+ * other. The `sbx ls` lookup only fires when there is no metadata, keeping app-created
+ * instances on their existing single-lookup path.
+ */
+async function resolveInstanceDefinition(
+  deps: Deps,
+  name: string
+): Promise<{ definitionId: string | null; spec: DefinitionSpec | null }> {
+  const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
+  let definitionId = meta?.definitionId ?? null
+  if (!definitionId) {
+    const inst = (await deps.adapter.listSandboxes()).find((i) => i.name === name)
+    if (inst?.workspace) definitionId = matchDefinitionByWorkspace(deps.store, inst.workspace)?.id ?? null
+  }
+  const spec = definitionId ? deps.store.getDefinitionSpec(definitionId) : null
+  return { definitionId, spec }
+}
+
 /** The agent to resume/attach with: the linked definition's own agent, or 'claude' when the
  * instance isn't tracked by the app (no definition to consult) — matching the app's
  * pre-multi-agent behavior for anything it doesn't manage. */
-function resolveAgentForInstance(deps: { store: Pick<Store, 'listInstanceMeta' | 'getDefinitionSpec'> }, name: string): AgentId {
-  const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
-  const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
+async function resolveAgentForInstance(deps: Deps, name: string): Promise<AgentId> {
+  const { spec } = await resolveInstanceDefinition(deps, name)
   return spec?.definition.agent ?? 'claude'
 }
 
@@ -192,13 +212,12 @@ export function buildHandlers(deps: Deps): {
       definitionId, name, sessionName, opener ?? 'terminal'
     )),
     'instance:attach': (name, opener) => wrap(async () => {
-      const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
-      const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
+      const { definitionId, spec } = await resolveInstanceDefinition(deps, name)
       const cmd = agentAttachCommand(name, spec?.definition.agent ?? 'claude')
       // Re-register the definition's current credentials scoped to this instance so any
       // added/changed since the initial launch are synced into sbx before the agent runs.
-      if (spec && deps.creds && meta?.definitionId && spec.credentials.length > 0) {
-        await registerCredentials({ adapter: deps.adapter, creds: deps.creds, log: deps.log }, meta.definitionId, spec.credentials, name)
+      if (spec && deps.creds && definitionId && spec.credentials.length > 0) {
+        await registerCredentials({ adapter: deps.adapter, creds: deps.creds, log: deps.log }, definitionId, spec.credentials, name)
       }
       const workspaceDir = (spec?.mounts.find((m) => m.isPrimary) ?? spec?.mounts[0])?.hostPath?.trim()
       if (opener === 'vscode') {
@@ -224,11 +243,11 @@ export function buildHandlers(deps: Deps): {
       // Recreate the sandbox from its definition so config/credential changes (e.g. new
       // custom-secret env vars, only injected at create time) take effect. Removes the old
       // sandbox + its scoped secrets/.sandbox, then launches a fresh instance.
-      const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
-      if (!meta?.definitionId) throw new SbxError('not-found', `Instance "${name}" has no linked definition to rebuild from.`)
-      deps.log?.info(`Rebuilding instance "${name}" (recreate from definition ${meta.definitionId} to apply current config/credentials).`)
+      const { definitionId } = await resolveInstanceDefinition(deps, name)
+      if (!definitionId) throw new SbxError('not-found', `Instance "${name}" has no linked definition to rebuild from.`)
+      deps.log?.info(`Rebuilding instance "${name}" (recreate from definition ${definitionId} to apply current config/credentials).`)
       await cleanupInstance(deps, name)
-      return launchDefinition(launchDeps(), meta.definitionId, undefined, undefined, opener ?? 'terminal')
+      return launchDefinition(launchDeps(), definitionId, undefined, undefined, opener ?? 'terminal')
     }),
     'instance:shell': (name) => wrap(async () => {
       const cmd = hostShellCommand(name)
@@ -237,7 +256,7 @@ export function buildHandlers(deps: Deps): {
       return null
     }),
     // The exact sbx commands to run the agent / open a shell manually (for copy-to-clipboard).
-    'instance:commands': (name) => wrap(async () => ({ agent: agentAttachCommand(name, resolveAgentForInstance(deps, name)), shell: hostShellCommand(name) })),
+    'instance:commands': (name) => wrap(async () => ({ agent: agentAttachCommand(name, await resolveAgentForInstance(deps, name)), shell: hostShellCommand(name) })),
     'instance:stop': (name) => wrap(async () => { await deps.adapter.stopSandbox(name); return null }),
     'instance:remove': (name) => wrap(async () => { await cleanupInstance(deps, name); return null }),
     'secret:listGlobal': () => wrap(async () => requireCreds(deps).listGlobalSecrets()),
