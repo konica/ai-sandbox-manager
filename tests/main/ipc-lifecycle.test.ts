@@ -21,7 +21,8 @@ function deps() {
     policyLog: vi.fn(async () => ({ allowed: 0, blocked: 0, events: [] })),
     checkDockerAuth: vi.fn(async () => 'pass'),
     validateKit: vi.fn(async () => ({ code: 0, out: 'ok', ran: true })),
-    execScript: vi.fn(async () => {})
+    execScript: vi.fn(async () => {}),
+    listInstanceSecretsRaw: vi.fn(async (_name: string) => 'CUSTOM SECRETS\nSCOPE   TARGETS        ENV        PLACEHOLDER          SECRET\nsbx-1   api.acme.com   ACME_KEY   sbx-cs-lifecycle01   GIx*****...*****i2cm\n')
   }
   const store = {
     getDefinitionSpec: vi.fn(() => spec),
@@ -183,7 +184,7 @@ describe('instance lifecycle IPC', () => {
     const r = await h['instance:applyCredentials']('sbx-1')
     expect(r).toEqual({ ok: true, data: { applied: 1, skipped: 0 } })
     expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['api.acme.com'], 'ACME_KEY', 'secret-val', { sandbox: 'sbx-1' })
-    expect(d.adapter.execScript).toHaveBeenCalledWith('sbx-1', expect.stringContaining("export ACME_KEY='proxy-managed'"))
+    expect(d.adapter.execScript).toHaveBeenCalledWith('sbx-1', expect.stringContaining("export ACME_KEY='sbx-cs-lifecycle01'"))
     expect(d.store.updateInstanceFingerprint).toHaveBeenCalledWith('sbx-1', expect.any(String))
   })
 

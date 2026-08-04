@@ -41,3 +41,14 @@ describe('createSbxAdapter.execScript', () => {
     expect(calls[0]).toEqual(['exec', 'sbx-1', 'bash', '-lc', 'touch /etc/sandbox-persistent.sh'])
   })
 })
+
+describe('createSbxAdapter.listInstanceSecretsRaw', () => {
+  it('runs `sbx secret ls <name>` (instance-scoped) and returns raw stdout', async () => {
+    const calls: string[][] = []
+    const spawn = async (_cmd: string, args: string[]) => { calls.push(args); return { stdout: 'CUSTOM SECRETS\n', stderr: '', code: 0 } }
+    const adapter = createSbxAdapter(spawn)
+    const out = await adapter.listInstanceSecretsRaw('test-embedding-openai-11a2d936')
+    expect(calls[0]).toEqual(['secret', 'ls', 'test-embedding-openai-11a2d936'])
+    expect(out).toBe('CUSTOM SECRETS\n')
+  })
+})

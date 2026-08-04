@@ -6,9 +6,10 @@ import type { Logger } from '../log'
 import { SbxError } from '@shared/errors'
 import { registerCredentials, credFingerprint } from './register'
 import { persistentEnvScript, registrySubset } from './persistent'
+import { customPlaceholdersForScope } from './secret-ls'
 
 export interface ApplyLiveDeps {
-  adapter: Pick<SbxAdapter, 'listSandboxes' | 'setSecret' | 'setCustomSecret' | 'setRegistrySecret' | 'execScript'>
+  adapter: Pick<SbxAdapter, 'listSandboxes' | 'setSecret' | 'setCustomSecret' | 'setRegistrySecret' | 'execScript' | 'listInstanceSecretsRaw'>
   store: Pick<Store, 'updateInstanceFingerprint'>
   creds: Pick<CredentialManager, 'getStaged'>
   log?: Logger
@@ -19,9 +20,11 @@ export interface ApplyLiveDeps {
  *  1. guard the sandbox is running (we exec into it),
  *  2. register service/custom values with the proxy (reuses registerCredentials; registry excluded
  *     because its auth applies only at the next image pull),
- *  3. inject/refresh the placeholder env vars in /etc/sandbox-persistent.sh (picked up by the next
+ *  3. read back each custom secret's DYNAMIC placeholder from `sbx secret ls` (services use a static
+ *     sentinel; custom secrets get a per-sandbox `sbx-cs-…` token the proxy matches — never hardcode),
+ *  4. inject/refresh the placeholder env vars in /etc/sandbox-persistent.sh (picked up by the next
  *     `sbx run` login shell),
- *  4. clear credential drift by updating the stored fingerprint — but ONLY when the registry subset
+ *  5. clear credential drift by updating the stored fingerprint — but ONLY when the registry subset
  *     is unchanged, so a registry-cred change correctly keeps drift + the Rebuild prompt.
  */
 export async function applyCredentialsLive(
@@ -41,8 +44,22 @@ export async function applyCredentialsLive(
     definitionId, live, name
   )
 
+  // Custom secrets carry a DYNAMIC per-sandbox placeholder (sbx-cs-…) that sbx generated at
+  // registration; read it back from `sbx secret ls` so we inject the exact token the proxy matches,
+  // never a hardcoded sentinel. Services use a static sentinel and need no lookup.
+  let customPlaceholders = new Map<string, string>()
+  if (spec.credentials.some((c) => c.kind === 'custom')) {
+    const raw = await deps.adapter.listInstanceSecretsRaw(name)
+    customPlaceholders = customPlaceholdersForScope(raw, name)
+    for (const c of spec.credentials) {
+      if (c.kind === 'custom' && !customPlaceholders.has(c.envVar)) {
+        deps.log?.info(`  ⚠ custom secret "${c.envVar}" has no placeholder in \`sbx secret ls\` for "${name}" — not injected (value may be unregistered).`)
+      }
+    }
+  }
+
   deps.log?.info(`Injecting credential env placeholders into "${name}" via /etc/sandbox-persistent.sh`)
-  await deps.adapter.execScript(name, persistentEnvScript(spec.credentials))
+  await deps.adapter.execScript(name, persistentEnvScript(spec.credentials, customPlaceholders))
 
   const wanted = credFingerprint(spec.credentials)
   if (registrySubset(storedFingerprint ?? '') === registrySubset(wanted)) {
