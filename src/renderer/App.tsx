@@ -171,6 +171,12 @@ export default function App(): JSX.Element {
     else setAttachFor(name)
   }
   function onShell(name: string): void { void runAction(api.instanceShell(name)) }
+  async function onApplyCredentials(name: string): Promise<void> {
+    const r = await api.instanceApplyCredentials(name)
+    if (r.ok) setNotice({ kind: 'info', text: t('instances.applyLiveDone') })
+    else if (r.error) setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
+    await loadInstances()
+  }
   function onConfirmPending(): void {
     const p = pending
     setPending(null)
@@ -227,6 +233,7 @@ export default function App(): JSX.Element {
             onStop={(name) => setPending({ kind: 'stop', name })}
             onRemove={(name) => setPending({ kind: 'remove', name })}
             onRebuild={(name) => setPending({ kind: 'rebuild', name })}
+            onApplyCredentials={(name) => void onApplyCredentials(name)}
           />
         ) : (
           <Instances
