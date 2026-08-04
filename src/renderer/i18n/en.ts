@@ -1,4 +1,4 @@
-﻿// English (default) translations. Keys are dot-addressed via t('a.b.c').
+// English (default) translations. Keys are dot-addressed via t('a.b.c').
 export const en = {
   titlebar: { toggleTheme: 'Toggle theme', language: 'Language' },
   nav: {
@@ -90,6 +90,7 @@ export const en = {
     confirmRebuild: 'Rebuild',
     cancel: 'Cancel',
     launched: 'Launched “{name}” — a terminal is opening.',
+    applyLiveDone: 'Credentials applied to the running sandbox. The agent will use them the next time you open it.',
     actionFailed: 'Action failed: {message}'
   },
   launch: {
@@ -259,7 +260,9 @@ export const en = {
     remove: 'Remove',
     rebuild: 'Rebuild',
     rebuildHint: 'Recreate this instance from its definition to apply create-time changes (e.g. newly added credentials).',
-    credsDriftNotice: 'This definition’s credentials changed since this instance was created. Their env vars are injected only when the sandbox is built — rebuild to apply them.',
+    applyLive: 'Apply live',
+    applyLiveHint: 'Apply the added/removed credentials to this running sandbox now, without a rebuild. The agent picks them up the next time you open it.',
+    credsDriftNotice: "This definition's credentials changed since this instance was created. Apply them to the running sandbox, or rebuild — their env vars are injected when the sandbox is built.",
     fromDefinition: 'from definition',
     tabTerminals: 'Terminals',
     tabPorts: 'Ports',

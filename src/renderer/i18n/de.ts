@@ -1,4 +1,4 @@
-﻿import type { Dict } from './en'
+import type { Dict } from './en'
 
 // German translations. Product names (Docker, sbx, Claude Code) are kept as-is.
 export const de: Dict = {
@@ -92,6 +92,7 @@ export const de: Dict = {
     confirmRebuild: 'Neu erstellen',
     cancel: 'Abbrechen',
     launched: '„{name}“ gestartet — ein Terminal wird geöffnet.',
+    applyLiveDone: 'Anmeldedaten auf die laufende Sandbox angewendet. Der Agent verwendet sie beim nächsten Öffnen.',
     actionFailed: 'Aktion fehlgeschlagen: {message}'
   },
   launch: {
@@ -261,7 +262,9 @@ export const de: Dict = {
     remove: 'Entfernen',
     rebuild: 'Neu erstellen',
     rebuildHint: 'Diese Instanz aus ihrer Definition neu erstellen, um Änderungen zur Erstellungszeit anzuwenden (z. B. neu hinzugefügte Anmeldedaten).',
-    credsDriftNotice: 'Die Anmeldedaten dieser Definition haben sich seit Erstellung dieser Instanz geändert. Deren Umgebungsvariablen werden nur beim Bau der Sandbox eingefügt — zum Anwenden neu erstellen.',
+    applyLive: 'Live anwenden',
+    applyLiveHint: 'Die hinzugefügten/entfernten Anmeldedaten jetzt auf diese laufende Sandbox anwenden, ohne Neuerstellung. Der Agent übernimmt sie beim nächsten Öffnen.',
+    credsDriftNotice: "Die Anmeldedaten dieser Definition haben sich seit Erstellung dieser Instanz geändert. Wenden Sie sie auf die laufende Sandbox an oder erstellen Sie neu — ihre Umgebungsvariablen werden beim Bau der Sandbox eingefügt.",
     fromDefinition: 'aus Definition',
     tabTerminals: 'Terminals',
     tabPorts: 'Ports',
