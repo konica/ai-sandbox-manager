@@ -89,6 +89,41 @@ describe('reconcile', () => {
     expect(views[0]).toMatchObject({ definitionId: 'd1', definitionName: 'Work Sample', tier: 'locked' })
   })
 
+  it('adopts a workspace-linked instance with no metadata so drift detection works going forward', async () => {
+    const store = openStore(':memory:')
+    const def = { id: 'd1', name: 'Adopt Me', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't' }
+    const spec0 = { definition: def, mounts: [{ hostPath: '/ws', mode: 'direct' as const, isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [{ kind: 'custom' as const, id: 'a', label: 'A', envVar: 'A', domains: ['a.com'], store: 'encrypted' as const }] }
+    store.insertDefinitionSpec(spec0)
+    // No instance_meta row for this running sandbox (app metadata pruned / CLI-created).
+    const adapter = fakeAdapterWorkspaces([{ name: 'adopt-box', workspace: '/ws' }])
+    const views = await reconcile(adapter, store)
+    // Adopted: a meta row now exists, linked to the definition, with the current fingerprint baseline.
+    const meta = store.listInstanceMeta().find((m) => m.sbxName === 'adopt-box')
+    expect(meta).toMatchObject({ definitionId: 'd1', createdByApp: false, credFingerprint: credFingerprint(spec0.credentials) })
+    expect(views[0].credsDrift).toBe(false) // in sync at adoption time
+    // A later credential change to the definition now surfaces as drift.
+    store.updateDefinitionSpec({ ...spec0, credentials: [...spec0.credentials, { kind: 'custom' as const, id: 'b', label: 'B', envVar: 'B', domains: ['b.com'], store: 'encrypted' as const }] })
+    const views2 = await reconcile(adapter, store)
+    expect(views2[0].credsDrift).toBe(true)
+  })
+
+  it('backfills a pre-v7 meta row that has no fingerprint baseline (preserving createdByApp)', async () => {
+    const store = openStore(':memory:')
+    const def = { id: 'd1', name: 'Old', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't' }
+    const spec0 = { definition: def, mounts: [{ hostPath: '/w', mode: 'direct' as const, isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [{ kind: 'service' as const, serviceId: 'openai', envVar: 'OPENAI_API_KEY', store: 'sbx' as const }] }
+    store.insertDefinitionSpec(spec0)
+    store.upsertInstanceMeta({ sbxName: 'old-box', definitionId: 'd1', createdByApp: true, createdAt: 't' }) // no credFingerprint (pre-v7)
+    const views = await reconcile(fakeAdapter(['old-box']), store)
+    const meta = store.listInstanceMeta().find((m) => m.sbxName === 'old-box')
+    expect(meta?.credFingerprint).toBe(credFingerprint(spec0.credentials))
+    expect(meta?.createdByApp).toBe(true) // preserved
+    expect(views[0].credsDrift).toBe(false) // in sync at backfill time
+    // A later credential change now surfaces as drift for the backfilled instance too.
+    store.updateDefinitionSpec({ ...spec0, credentials: [...spec0.credentials, { kind: 'custom' as const, id: 'b', label: 'B', envVar: 'B', domains: ['b.com'], store: 'encrypted' as const }] })
+    const views2 = await reconcile(fakeAdapter(['old-box']), store)
+    expect(views2[0].credsDrift).toBe(true)
+  })
+
   it('matches the workspace path case-insensitively, ignoring slash direction and trailing slash', async () => {
     const store = openStore(':memory:')
     const def = { id: 'd1', name: 'Work Sample', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't' }
