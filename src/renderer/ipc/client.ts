@@ -15,6 +15,7 @@ interface Api {
   instanceLaunch(definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
   instanceAttach(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<null>>
   instanceRebuild(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
+  instanceApplyCredentials(name: string): Promise<Result<{ applied: number; skipped: number }>>
   instanceCommands(name: string): Promise<Result<{ agent: string; shell: string }>>
   instanceShell(name: string): Promise<Result<null>>
   instanceStop(name: string): Promise<Result<null>>
@@ -61,6 +62,7 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   instanceLaunch: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceAttach: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceRebuild: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instanceApplyCredentials: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceShell: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceStop: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceRemove: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
