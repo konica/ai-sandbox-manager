@@ -24,6 +24,8 @@ function deps() {
   }
   const store = {
     getDefinitionSpec: vi.fn(() => spec),
+    getDefinition: vi.fn(() => spec.definition),
+    listDefinitions: vi.fn(() => []),
     upsertInstanceMeta: vi.fn(),
     deleteInstanceMeta: vi.fn(),
     listInstanceMeta: vi.fn(() => [])
@@ -84,6 +86,43 @@ describe('instance lifecycle IPC', () => {
     const r = await h['instance:rebuild']('orphan')
     expect(r.ok).toBe(false)
     expect(d.adapter.removeSandbox).not.toHaveBeenCalled()
+  })
+
+  // A sandbox started outside the app (e.g. from the sbx CLI) has no instance_meta row.
+  // The reconciler auto-links it to a definition by workspace path for display; the action
+  // handlers must resolve it the same way, or the (now-enabled) buttons fail.
+  const cliSpec: DefinitionSpec = {
+    ...spec,
+    definition: { ...spec.definition, id: 'dws', name: 'work_sample' },
+    mounts: [{ hostPath: 'C:\\Data\\Projects\\ERRIA\\work_sample', mode: 'direct', isPrimary: true }]
+  }
+  function cliInstanceDeps() {
+    const d = deps()
+    d.store.listInstanceMeta.mockReturnValue([] as never) // no app metadata
+    d.store.listDefinitions.mockReturnValue([cliSpec.definition] as never)
+    d.store.getDefinitionSpec.mockReturnValue(cliSpec as never)
+    d.adapter.listSandboxes.mockResolvedValue([
+      { name: 'work-sample-0ce2cb7a', status: 'running', agent: 'claude', ports: [], workspace: 'C:\\Data\\Projects\\ERRIA\\work_sample' }
+    ] as never)
+    return d
+  }
+
+  it('instance:attach opens VS Code for a CLI-created instance auto-linked by workspace path', async () => {
+    const d = cliInstanceDeps() as ReturnType<typeof deps> & { openVSCode: ReturnType<typeof vi.fn> }
+    d.openVSCode = vi.fn()
+    const h = buildHandlers(d as never)
+    const r = await h['instance:attach']('work-sample-0ce2cb7a', 'vscode')
+    expect(r.ok).toBe(true)
+    expect(d.openVSCode).toHaveBeenCalledWith(expect.any(String), 'C:\\Data\\Projects\\ERRIA\\work_sample', 'work-sample-0ce2cb7a')
+  })
+
+  it('instance:rebuild rebuilds a CLI-created instance auto-linked by workspace path', async () => {
+    const d = cliInstanceDeps()
+    const h = buildHandlers(d as never)
+    const r = await h['instance:rebuild']('work-sample-0ce2cb7a')
+    expect(r.ok).toBe(true)
+    expect(d.adapter.removeSandbox).toHaveBeenCalledWith('work-sample-0ce2cb7a')
+    expect(d.openTerminal).toHaveBeenCalled()
   })
 
   it('instance:stop calls the adapter', async () => {

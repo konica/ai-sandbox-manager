@@ -43,6 +43,17 @@ function buildWorkspaceIndex(store: Store): Map<string, Definition> {
   return index
 }
 
+/**
+ * Match a live instance's workspace path to a definition — the same rule reconcile()
+ * uses to populate the DEFINITION column. Returns null when nothing, or more than one
+ * definition, matches. The action handlers (attach, rebuild, …) call this so a sandbox
+ * started outside the app (no metadata) behaves like one the app launched: the UI shows
+ * it linked, so its buttons must resolve to the same definition.
+ */
+export function matchDefinitionByWorkspace(store: Store, workspace: string): Definition | null {
+  return buildWorkspaceIndex(store).get(normalizePath(workspace)) ?? null
+}
+
 export async function reconcile(
   adapter: SbxAdapter,
   store: Store,
