@@ -13,6 +13,7 @@ export interface Store {
   upsertInstanceMeta(m: InstanceMeta): void
   listInstanceMeta(): InstanceMeta[]
   deleteInstanceMeta(sbxName: string): void
+  updateInstanceFingerprint(sbxName: string, fingerprint: string): void
   listGlobalSecrets(): GlobalSecretMeta[]
   upsertGlobalSecret(g: GlobalSecretMeta): void
   deleteGlobalSecret(id: string): void
@@ -283,6 +284,9 @@ export function openStore(filename: string): Store {
     },
     deleteInstanceMeta(sbxName) {
       db.prepare(`DELETE FROM instance_meta WHERE sbx_name = ?`).run(sbxName)
+    },
+    updateInstanceFingerprint(sbxName, fingerprint) {
+      db.prepare(`UPDATE instance_meta SET cred_fingerprint = ? WHERE sbx_name = ?`).run(fingerprint, sbxName)
     },
     listGlobalSecrets(): GlobalSecretMeta[] {
       return db.prepare(`SELECT id, label, env_var AS envVar, store, created_at AS createdAt FROM global_secret ORDER BY created_at`).all() as GlobalSecretMeta[]

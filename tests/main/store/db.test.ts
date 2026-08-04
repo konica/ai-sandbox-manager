@@ -40,4 +40,19 @@ describe('metadata-store', () => {
     store.updateDefinitionSpec({ ...spec, kitCommandsYaml: 'commands:\n  startup: echo bye\n' })
     expect(store.getDefinitionSpec('k1')?.kitCommandsYaml).toBe('commands:\n  startup: echo bye\n')
   })
+
+  it('updateInstanceFingerprint updates only the fingerprint of an existing row', () => {
+    const store = openStore(':memory:')
+    store.upsertInstanceMeta({ sbxName: 'sbx-1', definitionId: null, createdByApp: true, createdAt: 't', credFingerprint: 'old' })
+    store.updateInstanceFingerprint('sbx-1', 'new')
+    expect(store.listInstanceMeta().find((m) => m.sbxName === 'sbx-1')?.credFingerprint).toBe('new')
+    store.close()
+  })
+
+  it('updateInstanceFingerprint is a no-op for an unknown sandbox name', () => {
+    const store = openStore(':memory:')
+    expect(() => store.updateInstanceFingerprint('nope', 'x')).not.toThrow()
+    expect(store.listInstanceMeta()).toEqual([])
+    store.close()
+  })
 })
