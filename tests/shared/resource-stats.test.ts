@@ -38,4 +38,12 @@ describe('parseResourceStats', () => {
     const s = parseResourceStats('garbage\n\nnonsense line')
     expect(s).toEqual({ cpu: null, memory: null, disk: null })
   })
+  it('subtracts inactive file cache from memory used when present', () => {
+    const s = parseResourceStats('mem_current 1000\nmem_inactive 600\nmem_max 2000')
+    expect(s.memory).toEqual({ usedBytes: 400, limitBytes: 2000 })
+  })
+  it('falls back to raw current when mem_inactive is absent', () => {
+    const s = parseResourceStats('mem_current 1000\nmem_max 2000')
+    expect(s.memory).toEqual({ usedBytes: 1000, limitBytes: 2000 })
+  })
 })

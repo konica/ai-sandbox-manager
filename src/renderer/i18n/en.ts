@@ -290,6 +290,7 @@ export const en = {
     statCpu: 'CPU',
     statMemory: 'Memory',
     statDisk: 'Disk',
+    statDiskHint: 'Container filesystem (overlay).',
     statUnavailable: 'Unavailable',
     cpuOfCpus: '{pct}% of {n} CPUs',
     memNoLimit: 'no limit',

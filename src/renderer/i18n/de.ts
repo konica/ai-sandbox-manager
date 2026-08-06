@@ -292,6 +292,7 @@ export const de: Dict = {
     statCpu: 'CPU',
     statMemory: 'Speicher',
     statDisk: 'Festplatte',
+    statDiskHint: 'Container-Dateisystem (Overlay).',
     statUnavailable: 'Nicht verfügbar',
     cpuOfCpus: '{pct}% von {n} CPUs',
     memNoLimit: 'kein Limit',

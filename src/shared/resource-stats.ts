@@ -25,8 +25,10 @@ function parseCpu(kv: Map<string, string>): ResourceStats['cpu'] {
 }
 
 function parseMemory(kv: Map<string, string>): ResourceStats['memory'] {
-  const used = num(kv.get('mem_current'))
-  if (used === null) return null
+  const current = num(kv.get('mem_current'))
+  if (current === null) return null
+  const inactive = num(kv.get('mem_inactive'))
+  const used = inactive !== null ? Math.max(0, current - inactive) : current
   const maxRaw = kv.get('mem_max')
   const limitBytes = maxRaw === undefined || maxRaw === 'max' ? null : num(maxRaw)
   return { usedBytes: used, limitBytes }
@@ -43,7 +45,9 @@ function parseDisk(kv: Map<string, string>): ResourceStats['disk'] {
  * Parse the container resource probe's `key value` stdout into ResourceStats.
  * Expected lines (each optional; a missing one → null for that metric):
  *   cpu_usec <s0> <s1> | cpu_elapsed_ns <ns> | nproc <n> |
- *   mem_current <bytes> | mem_max <bytes|max> | disk <totalBytes> <usedBytes>
+ *   mem_current <bytes> | mem_max <bytes|max> | mem_inactive <bytes> | disk <totalBytes> <usedBytes>
+ * mem_inactive (reclaimable page cache) is subtracted from mem_current for usedBytes when present,
+ * matching `docker stats`' memory accounting.
  */
 export function parseResourceStats(stdout: string): ResourceStats {
   const kv = new Map<string, string>()

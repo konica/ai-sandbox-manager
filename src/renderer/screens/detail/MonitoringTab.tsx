@@ -174,7 +174,7 @@ function ResourceCard({ stats, running, onFetch, t }: {
         <>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-5)', marginTop: 'var(--space-2)' }}>
             <Tile label={t('detail.statCpu')} value={stats.data.cpu ? `${stats.data.cpu.cores.toFixed(2)} cores` : t('detail.statUnavailable')}
-              title={stats.data.cpu ? t('detail.cpuOfCpus', { pct: Math.round((stats.data.cpu.cores / stats.data.cpu.ofCpus) * 100), n: stats.data.cpu.ofCpus }) : undefined} />
+              title={stats.data.cpu ? t('detail.cpuOfCpus', { pct: Math.min(100, Math.round((stats.data.cpu.cores / stats.data.cpu.ofCpus) * 100)), n: stats.data.cpu.ofCpus }) : undefined} />
             <Tile label={t('detail.statMemory')} value={stats.data.memory
               ? (stats.data.memory.limitBytes !== null
                   ? `${formatBytes(stats.data.memory.usedBytes)} / ${formatBytes(stats.data.memory.limitBytes)} (${pct(stats.data.memory.usedBytes, stats.data.memory.limitBytes)}%)`
@@ -182,9 +182,9 @@ function ResourceCard({ stats, running, onFetch, t }: {
               : t('detail.statUnavailable')} />
             <Tile label={t('detail.statDisk')} value={stats.data.disk
               ? `${formatBytes(stats.data.disk.usedBytes)} / ${formatBytes(stats.data.disk.totalBytes)} (${pct(stats.data.disk.usedBytes, stats.data.disk.totalBytes)}%)`
-              : t('detail.statUnavailable')} />
+              : t('detail.statUnavailable')} title={t('detail.statDiskHint')} />
           </div>
-          <p className="section-desc" style={{ fontSize: 11, marginTop: 'var(--space-2)', marginBottom: 0 }}>{t('detail.statsAsOf', { time: new Date(stats.at).toLocaleTimeString() })}</p>
+          <p className="section-desc" style={{ fontSize: 11, marginTop: 'var(--space-2)', marginBottom: 0 }}>{t('detail.statsAsOf', { time: fmtTime(stats.at) })}</p>
         </>
       )}
     </div>

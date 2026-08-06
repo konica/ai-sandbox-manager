@@ -4,7 +4,8 @@ import type { SbxAdapter } from './adapter'
 
 /**
  * Probe script run inside the container. Prints `key value` lines for CPU (two cgroup usage
- * samples ~1s apart + elapsed ns + nproc), memory (cgroup v2 then v1), and disk (df on /).
+ * samples ~1s apart + elapsed ns + nproc), memory (cgroup v2 then v1, plus inactive file cache
+ * for excluding reclaimable page cache from "used"), and disk (df on /).
  * Each metric is emitted only if its source is readable, so one missing file degrades to a
  * null metric rather than aborting — do NOT add `set -e`.
  */
@@ -14,7 +15,7 @@ export const RESOURCE_PROBE_SCRIPT = [
   `[ -n "$c0" ] && [ -n "$c1" ] && echo "cpu_usec $c0 $c1"`,
   `echo "cpu_elapsed_ns $((t1 - t0))"`,
   `echo "nproc $(nproc 2>/dev/null || echo 1)"`,
-  `if [ -r /sys/fs/cgroup/memory.current ]; then echo "mem_current $(cat /sys/fs/cgroup/memory.current)"; echo "mem_max $(cat /sys/fs/cgroup/memory.max)"; elif [ -r /sys/fs/cgroup/memory/memory.usage_in_bytes ]; then echo "mem_current $(cat /sys/fs/cgroup/memory/memory.usage_in_bytes)"; echo "mem_max $(cat /sys/fs/cgroup/memory/memory.limit_in_bytes)"; fi`,
+  `if [ -r /sys/fs/cgroup/memory.current ]; then echo "mem_current $(cat /sys/fs/cgroup/memory.current)"; echo "mem_max $(cat /sys/fs/cgroup/memory.max)"; [ -r /sys/fs/cgroup/memory.stat ] && echo "mem_inactive $(awk '/^inactive_file /{print $2}' /sys/fs/cgroup/memory.stat)"; elif [ -r /sys/fs/cgroup/memory/memory.usage_in_bytes ]; then echo "mem_current $(cat /sys/fs/cgroup/memory/memory.usage_in_bytes)"; echo "mem_max $(cat /sys/fs/cgroup/memory/memory.limit_in_bytes)"; [ -r /sys/fs/cgroup/memory/memory.stat ] && echo "mem_inactive $(awk '/^total_inactive_file /{print $2}' /sys/fs/cgroup/memory/memory.stat)"; fi`,
   `df -PB1 / 2>/dev/null | awk 'NR==2{print "disk", $2, $3}'`
 ].join('\n')
 
