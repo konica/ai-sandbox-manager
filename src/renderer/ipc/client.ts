@@ -1,4 +1,5 @@
 import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, KitValidation, StorageStatus } from '@shared/types'
+import type { ResourceStats } from '@shared/resource-stats'
 
 interface Api {
   prereqCheck(): Promise<Result<PrereqResult>>
@@ -36,6 +37,7 @@ interface Api {
   instanceDomainAllow(name: string, domain: string): Promise<Result<null>>
   instanceDomainDeny(name: string, domain: string): Promise<Result<null>>
   instancePolicyLog(name: string): Promise<Result<PolicySummary>>
+  instanceStats(name: string): Promise<Result<ResourceStats>>
   authStatus(): Promise<Result<AuthStatus>>
   authSignOut(): Promise<Result<null>>
   authStartLogin(): Promise<Result<{ name: string }>>
@@ -83,6 +85,7 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   instanceDomainAllow: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceDomainDeny: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instancePolicyLog: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instanceStats: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   authStatus: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   authSignOut: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   authStartLogin: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),

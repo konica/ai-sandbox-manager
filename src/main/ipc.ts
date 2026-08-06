@@ -1,5 +1,6 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, KitValidation, StorageStatus } from '@shared/types'
+import type { ResourceStats } from '@shared/resource-stats'
 import type { AgentId } from '@shared/agents'
 import { AGENT_PROFILES } from '@shared/agents'
 import { needsProviderDomainWarning } from '@shared/provider-domain'
@@ -13,6 +14,7 @@ import { normalizeTags } from '@shared/tags'
 import { registerCredentials } from './creds/register'
 import { applyCredentialsLive } from './creds/apply-live'
 import { agentAttachCommand, hostShellCommand, loginCommand } from './sbx/translate'
+import { fetchResourceStats } from './sbx/resource-stats'
 import { claudeAuthStatus, claudeSignOut } from './auth/manager'
 import { sshAgentPresent } from './ssh/detect'
 import { codeCliPresent } from './vscode'
@@ -130,6 +132,7 @@ export function buildHandlers(deps: Deps): {
   'instance:domain:allow': (name: string, domain: string) => Promise<Result<null>>
   'instance:domain:deny': (name: string, domain: string) => Promise<Result<null>>
   'instance:policyLog': (name: string) => Promise<Result<PolicySummary>>
+  'instance:stats': (name: string) => Promise<Result<ResourceStats>>
   'auth:status': () => Promise<Result<AuthStatus>>
   'auth:signOut': () => Promise<Result<null>>
   'auth:startLogin': () => Promise<Result<{ name: string }>>
@@ -348,6 +351,7 @@ export function buildHandlers(deps: Deps): {
       return null
     }),
     'instance:policyLog': (name) => wrap(async () => deps.adapter.policyLog(name)),
+    'instance:stats': (name) => wrap(() => fetchResourceStats(deps.adapter, name)),
     'auth:status': () => wrap(() => claudeAuthStatus(deps.adapter)),
     'auth:signOut': () => wrap(async () => { await claudeSignOut(deps.adapter); return null }),
     'auth:startLogin': () => wrap(async () => {
@@ -469,6 +473,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instance:domain:allow', (_e, name: string, domain: string) => handlers['instance:domain:allow'](name, domain))
   ipcMain.handle('instance:domain:deny', (_e, name: string, domain: string) => handlers['instance:domain:deny'](name, domain))
   ipcMain.handle('instance:policyLog', (_e, name: string) => handlers['instance:policyLog'](name))
+  ipcMain.handle('instance:stats', (_e, name: string) => handlers['instance:stats'](name))
   ipcMain.handle('auth:status', () => handlers['auth:status']())
   ipcMain.handle('auth:signOut', () => handlers['auth:signOut']())
   ipcMain.handle('auth:startLogin', () => handlers['auth:startLogin']())

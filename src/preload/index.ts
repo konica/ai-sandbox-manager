@@ -37,6 +37,7 @@ const api = {
   instanceDomainAllow: (name: string, domain: string) => ipcRenderer.invoke('instance:domain:allow', name, domain),
   instanceDomainDeny: (name: string, domain: string) => ipcRenderer.invoke('instance:domain:deny', name, domain),
   instancePolicyLog: (name: string) => ipcRenderer.invoke('instance:policyLog', name),
+  instanceStats: (name: string) => ipcRenderer.invoke('instance:stats', name),
   authStatus: () => ipcRenderer.invoke('auth:status'),
   authSignOut: () => ipcRenderer.invoke('auth:signOut'),
   authStartLogin: () => ipcRenderer.invoke('auth:startLogin'),
