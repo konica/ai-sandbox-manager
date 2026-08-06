@@ -1,6 +1,6 @@
 {
   "name": "ai-sandbox-manager",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "Local control-plane GUI for Docker Sandboxes running Claude Code",
   "main": "out/main/index.js",
   "type": "module",
