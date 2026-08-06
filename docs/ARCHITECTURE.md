@@ -53,9 +53,9 @@ flowchart TB
 | `index.ts` | App bootstrap: PATH repair (GUI apps miss login-shell PATH on macOS), opens the SQLite store, builds the `sbx` adapter/logger/vault/creds, wires IPC, creates the `BrowserWindow`. |
 | `ipc.ts` | Single registry of ~35 IPC handlers (`buildHandlers`/`registerIpc`), each wrapped in a `Result<T>` (`{ok:true,data}` / `{ok:false,error}`) so failures never throw across the IPC boundary. |
 | `sbx/adapter.ts` | The actual CLI wrapper — every `sbx` subcommand (`ls`, `create`, `policy allow/rm`, `ports`, `secret set/rm`, `diagnose`, `kit validate`) goes through `runSbx`, which spawns the binary and classifies non-zero exits into typed `SbxError`s. `sbx/parse.ts`, `policy-log.ts`, `diagnose.ts`, `translate.ts` handle output parsing and args-building. |
-| `store/db.ts` | `better-sqlite3` metadata store — **not** the source of truth for running containers, just the app's own bookkeeping: `definition` (+ child tables `mount_intent`, `policy_domain`, `port_intent`, `host_service`, `credential_ref`) and `instance_meta` (which sandboxes the app launched). Hand-rolled forward-only migrations gated on `PRAGMA table_info` checks, versioned via `user_version`. |
-| `reconciler.ts` | Merges live `sbx ls --json` output with `instance_meta`: GCs stale metadata (with a 10-min provisioning grace window), attaches definition name/tier to each live instance, and flags **credential drift** (a running instance's baked-in secrets fingerprint no longer matches its definition → needs rebuild). |
-| `launch.ts` | Orchestrates a launch: preflights Docker auth via `checkDockerAuth`, resolves a unique sandbox name, registers scoped credentials *before* the sandbox exists (so `sbx create` picks them up as env vars with no secret ever hitting a terminal command line), materializes the network-allowlist kit, builds one chained `create → ports → run` command and opens it in a **real terminal or VS Code** (a TTY is required for provisioning + the interactive agent session). |
+| `store/db.ts` | `better-sqlite3` metadata store — **not** the source of truth for running containers, just the app's own bookkeeping: `definition` (+ child tables `mount_intent`, `policy_domain`, `port_intent`, `host_service`, `credential_ref`) and `instance_meta` (+ child table `instance_tag` keyed by `sbx_name`, replaced on write, cascade-deleted with `instance_meta`). Hand-rolled forward-only migrations gated on `PRAGMA table_info` checks, versioned via `user_version`. |
+| `reconciler.ts` | Merges live `sbx ls --json` output with `instance_meta`: GCs stale metadata (with a 10-min provisioning grace window), attaches definition name/tier and per-instance `tags` to each live instance, and flags **credential drift** (a running instance's baked-in secrets fingerprint no longer matches its definition → needs rebuild). |
+| `launch.ts` | Orchestrates a launch: preflights Docker auth via `checkDockerAuth`, resolves a unique sandbox name (composed from definition slug + tags, with a hash suffix), registers scoped credentials *before* the sandbox exists (so `sbx create` picks them up as env vars with no secret ever hitting a terminal command line), materializes the network-allowlist kit, builds one chained `create → ports → run` command and opens it in a **real terminal or VS Code** (a TTY is required for provisioning + the interactive agent session). Fixed host-port forwards are skipped on the 2nd+ instance of a definition (ephemeral ports are always kept). |
 | `creds/` | `vault.ts` (Electron `safeStorage`-backed encrypted local vault), `manager.ts` (staged values + global secrets, orchestrates `sbx secret set/set-custom/set-registry`), `env-scan.ts` (detects service credentials already in the user's shell env), `register.ts` (fingerprinting + sandbox-scoped registration, shared by launch and re-attach). |
 | `auth/manager.ts` | Claude Code's own OAuth/API-key status, read via `sbx diagnose`/`sbx secret ls -g` — separate from the app's own credential vault. |
 | `kit/` | Generates and writes the per-launch "kit" — a `spec.yaml` mixin declaring the network allowlist (and optional custom command overrides) that `sbx create` consumes; carries no secrets, lives in `<workspace>/.sandbox/kit` (gitignored). |
@@ -158,6 +158,7 @@ erDiagram
     definition ||--o{ host_service : "host services"
     definition ||--o{ credential_ref : "credentials"
     definition ||--o{ instance_meta : "launched as (definition_id)"
+    instance_meta ||--o{ instance_tag : "tags"
 
     definition {
         text id PK
@@ -209,6 +210,10 @@ erDiagram
         int created_by_app
         text created_at
         text cred_fingerprint "drift detection"
+    }
+    instance_tag {
+        text sbx_name PK
+        text tag PK
     }
     global_secret {
         text id PK
