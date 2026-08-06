@@ -5,7 +5,7 @@ import { api } from '../ipc/client'
 import { useT } from '../i18n'
 import { TerminalsTab } from './detail/TerminalsTab'
 import { PortsTab } from './detail/PortsTab'
-import { MonitoringTab } from './detail/MonitoringTab'
+import { MonitoringTab, type ResourceStatsState } from './detail/MonitoringTab'
 import { MetadataTab } from './detail/MetadataTab'
 
 export type DetailTab = 'terminals' | 'ports' | 'monitoring' | 'metadata'
@@ -47,6 +47,8 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
   const [override, setOverride] = useState<Record<string, 'allow' | 'deny'>>({})
   const [commands, setCommands] = useState<{ agent: string; shell: string } | null>(null)
   const [tags, setTags] = useState<string[]>(instance.tags)
+  const [stats, setStats] = useState<ResourceStatsState>({ status: 'idle' })
+  useEffect(() => { setStats({ status: 'idle' }) }, [instance.name])
   useEffect(() => {
     setTags((prev) => {
       const next = instance.tags
@@ -97,6 +99,13 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
 
   function setHostOverride(host: string, state: 'allow' | 'deny'): void {
     setOverride((prev) => ({ ...prev, [host]: state }))
+  }
+
+  async function onFetchStats(): Promise<void> {
+    setStats({ status: 'loading' })
+    const r = await api.instanceStats(instance.name)
+    if (r.ok) setStats({ status: 'ready', data: r.data, at: new Date().toISOString() })
+    else setStats({ status: 'error', message: r.error.message })
   }
 
   return (
@@ -178,6 +187,9 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
       {tab === 'monitoring' && (
         <MonitoringTab
           summary={{ allowed: policy.allowed, blocked: policy.blocked, events: trafficEvents }}
+          stats={stats}
+          running={running}
+          onFetchStats={() => void onFetchStats()}
           onAllow={async (host) => {
             setHostOverride(host, 'allow') // reflect immediately (log keeps the stale row until next request)
             await api.instanceDomainAllow(instance.name, host)

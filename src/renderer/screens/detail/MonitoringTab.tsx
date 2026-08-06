@@ -1,6 +1,8 @@
 import type { PolicySummary } from '@shared/types'
 import { useT } from '../../i18n'
 import { PROXY_TYPES, proxyTone, proxyLabelKey, proxyMeaningKey } from '@shared/proxy-types'
+import { formatBytes } from '@shared/format-bytes'
+import type { ResourceStats } from '@shared/resource-stats'
 
 function fmtTime(at: string): string {
   if (!at) return ''
@@ -21,15 +23,26 @@ function ProxyBadge({ type }: { type: string }): JSX.Element | null {
   )
 }
 
+export type ResourceStatsState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; data: ResourceStats; at: string }
+
 /**
  * Monitoring tab: allowed/blocked request counters + a live traffic log from
  * `sbx policy log`. Each row shows the time and a live toggle — blocked hosts get
  * **Allow** (open), allowed hosts get **Deny** (close). Both dual-write to the definition.
+ * The Resource usage card is on-demand — the sandbox has no push metrics, so the
+ * Fetch/Refresh button probes it via `instance:stats` rather than polling continuously.
  */
-export function MonitoringTab({ summary, onAllow, onDeny }: {
+export function MonitoringTab({ summary, onAllow, onDeny, stats, running, onFetchStats }: {
   summary: PolicySummary
   onAllow: (host: string) => void
   onDeny: (host: string) => void
+  stats: ResourceStatsState
+  running: boolean
+  onFetchStats: () => void
 }): JSX.Element {
   const t = useT()
   // Counts are over distinct domains (one row per host) so they map to the list, the
@@ -40,6 +53,8 @@ export function MonitoringTab({ summary, onAllow, onDeny }: {
   const blockedDomains = blockedList.length
   return (
     <div>
+      <ResourceCard stats={stats} running={running} onFetch={onFetchStats} t={t} />
+
       <div className="mon-summary" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-5)', marginBottom: 'var(--space-5)' }}>
         <div className="mon-stat"><span className="mon-stat-value allowed">{summary.allowed}</span><span className="mon-stat-label">{t('detail.allowedRequests')}</span></div>
         <div className="mon-stat"><span className="mon-stat-value blocked">{summary.blocked}</span><span className="mon-stat-label">{t('detail.blockedRequests')}</span></div>
@@ -131,6 +146,56 @@ function DomainGroup({ label, rows, allowed, onAct, actLabel, t }: {
             <button className="btn btn-ghost btn-sm" style={{ flexShrink: 0, ...(allowed ? { color: 'var(--danger)' } : {}) }} onClick={() => onAct(r.host)}>{actLabel}</button>
           </div>
         ))}
+    </div>
+  )
+}
+
+function pct(used: number, total: number): number {
+  return total > 0 ? Math.round((used / total) * 100) : 0
+}
+
+function ResourceCard({ stats, running, onFetch, t }: {
+  stats: ResourceStatsState
+  running: boolean
+  onFetch: () => void
+  t: (k: string, vars?: Record<string, string | number>) => string
+}): JSX.Element {
+  const btnLabel = stats.status === 'loading' ? t('detail.statsFetching')
+    : stats.status === 'ready' ? t('detail.refreshStats') : t('detail.fetchStats')
+  return (
+    <div className="card" style={{ marginBottom: 'var(--space-5)' }}>
+      <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="card-title">{t('detail.resourceUsage')}</div>
+        <button className="btn btn-secondary btn-sm" disabled={!running || stats.status === 'loading'} onClick={onFetch}>{btnLabel}</button>
+      </div>
+      {!running && <p className="section-desc" style={{ fontSize: 12, marginTop: 0 }}>{t('detail.statsRunningHint')}</p>}
+      {stats.status === 'error' && <p className="section-desc" style={{ fontSize: 12, color: 'var(--danger)', marginTop: 0 }}>{t('detail.statsError', { message: stats.message })}</p>}
+      {stats.status === 'ready' && (
+        <>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-5)', marginTop: 'var(--space-2)' }}>
+            <Tile label={t('detail.statCpu')} value={stats.data.cpu ? `${stats.data.cpu.cores.toFixed(2)} cores` : t('detail.statUnavailable')}
+              title={stats.data.cpu ? t('detail.cpuOfCpus', { pct: Math.round((stats.data.cpu.cores / stats.data.cpu.ofCpus) * 100), n: stats.data.cpu.ofCpus }) : undefined} />
+            <Tile label={t('detail.statMemory')} value={stats.data.memory
+              ? (stats.data.memory.limitBytes !== null
+                  ? `${formatBytes(stats.data.memory.usedBytes)} / ${formatBytes(stats.data.memory.limitBytes)} (${pct(stats.data.memory.usedBytes, stats.data.memory.limitBytes)}%)`
+                  : `${formatBytes(stats.data.memory.usedBytes)} · ${t('detail.memNoLimit')}`)
+              : t('detail.statUnavailable')} />
+            <Tile label={t('detail.statDisk')} value={stats.data.disk
+              ? `${formatBytes(stats.data.disk.usedBytes)} / ${formatBytes(stats.data.disk.totalBytes)} (${pct(stats.data.disk.usedBytes, stats.data.disk.totalBytes)}%)`
+              : t('detail.statUnavailable')} />
+          </div>
+          <p className="section-desc" style={{ fontSize: 11, marginTop: 'var(--space-2)', marginBottom: 0 }}>{t('detail.statsAsOf', { time: new Date(stats.at).toLocaleTimeString() })}</p>
+        </>
+      )}
+    </div>
+  )
+}
+
+function Tile({ label, value, title }: { label: string; value: string; title?: string }): JSX.Element {
+  return (
+    <div className="mon-stat" title={title}>
+      <span className="mon-stat-value" style={{ fontSize: 15 }}>{value}</span>
+      <span className="mon-stat-label">{label}</span>
     </div>
   )
 }
