@@ -21,6 +21,10 @@ describe('parseResourceStats', () => {
     const s = parseResourceStats('mem_current 100\nmem_max max')
     expect(s.memory).toEqual({ usedBytes: 100, limitBytes: null })
   })
+  it('a bare key with no value is null, not 0', () => {
+    expect(parseResourceStats('mem_current\nmem_max 100').memory).toBeNull()
+    expect(parseResourceStats('mem_current 50\nmem_max').memory).toEqual({ usedBytes: 50, limitBytes: null })
+  })
   it('cpu null when a cpu field is missing or elapsed is zero', () => {
     expect(parseResourceStats('nproc 4\nmem_current 1').cpu).toBeNull()
     expect(parseResourceStats('cpu_usec 1 2\ncpu_elapsed_ns 0\nnproc 4').cpu).toBeNull()

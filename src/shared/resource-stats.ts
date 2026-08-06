@@ -9,7 +9,7 @@ export interface ResourceStats {
 }
 
 function num(s: string | undefined): number | null {
-  if (s === undefined) return null
+  if (s === undefined || s.trim() === '') return null
   const n = Number(s)
   return Number.isFinite(n) ? n : null
 }
