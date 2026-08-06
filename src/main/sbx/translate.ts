@@ -107,6 +107,16 @@ export function portIntentToPublishSpec(p: PortIntent): string {
   return `${host}${p.containerPort}/${p.protocol}`
 }
 
+/**
+ * The ports to publish for a launch. First instance of a definition → all ports.
+ * A subsequent instance → only ephemeral (OS-allocated) ports, since fixed host
+ * ports would collide with the sibling that already claimed them. Corrected fixed
+ * ports are added later from the instance's Ports tab.
+ */
+export function portsForLaunch(ports: PortIntent[], isSubsequent: boolean): PortIntent[] {
+  return isSubsequent ? ports.filter((p) => p.hostPort === null) : ports
+}
+
 /** Single-quote a string for safe embedding in a POSIX shell command. */
 export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`
@@ -147,7 +157,7 @@ export function shellCommand(argv: string[]): string {
  *   create (provision) → apply network tier → publish ports → run (attach agent).
  * Chained with `&&` so a failed step stops the sequence and stays visible.
  */
-export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string): string {
+export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string, ports: PortIntent[] = spec.ports): string {
   const steps: string[] = [shellCommand(['sbx', ...specToCreateArgs(spec, name, kitDir)])]
   if (!kitDir) {
     // A generated kit owns `allowedDomains`; only apply standalone policy without one.
@@ -156,7 +166,7 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
       steps.push(shellCommand(['sbx', 'policy', 'allow', 'network', '--sandbox', name, resources.join(',')]))
     }
   }
-  for (const p of spec.ports) {
+  for (const p of ports) {
     steps.push(shellCommand(['sbx', 'ports', name, '--publish', portIntentToPublishSpec(p)]))
   }
   // `sbx run` attaches the agent; args after `--` go to the agent CLI. A session
