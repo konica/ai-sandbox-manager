@@ -31,7 +31,7 @@ vi.mock('../../src/renderer/ipc/client', () => ({
 import App from '../../src/renderer/App'
 
 const oneDef = { ok: true, data: [{ id: 'd1', name: 'My Project', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked', createdAt: '2026-01-01T00:00:00.000Z' }] }
-const runningInst = { ok: true, data: [{ name: 'my-project', status: 'running', agent: 'Claude Code', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'My Project', tier: 'locked' }] }
+const runningInst = { ok: true, data: [{ name: 'my-project', status: 'running', agent: 'Claude Code', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'My Project', tier: 'locked', tags: [] }] }
 
 beforeEach(() => {
   prereqCheck.mockReset(); instancesList.mockReset(); defList.mockReset()
