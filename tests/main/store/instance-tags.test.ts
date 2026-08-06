@@ -29,4 +29,13 @@ describe('instance tags', () => {
     store.deleteInstanceMeta('proj-a1')
     expect(store.listInstanceTags().has('proj-a1')).toBe(false)
   })
+  it('isolates tags across instances: deleting one leaves the other untouched', () => {
+    seedInstance('proj-a1')
+    seedInstance('proj-b1')
+    store.setInstanceTags('proj-a1', ['prod', 'eu'])
+    store.setInstanceTags('proj-b1', ['staging'])
+    store.deleteInstanceMeta('proj-a1')
+    expect(store.listInstanceTags().has('proj-a1')).toBe(false)
+    expect(store.listInstanceTags().get('proj-b1')).toEqual(['staging'])
+  })
 })

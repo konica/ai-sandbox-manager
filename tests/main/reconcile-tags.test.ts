@@ -21,3 +21,18 @@ describe('reconcile attaches tags', () => {
     expect(views[0].tags).toEqual([])
   })
 })
+
+describe('reconcile prunes orphan tag rows', () => {
+  it('deletes tags for a name that is neither live nor tracked in instance_meta', async () => {
+    const store = openStore(':memory:')
+    store.setInstanceTags('ghost-1', ['x'])
+    await reconcile(fakeAdapter([{ name: 'proj-a1', status: 'running', agent: 'claude', workspace: null, ports: [] }]), store)
+    expect(store.listInstanceTags().has('ghost-1')).toBe(false)
+  })
+  it('does not prune tags for a live instance', async () => {
+    const store = openStore(':memory:')
+    store.setInstanceTags('proj-a1', ['prod'])
+    await reconcile(fakeAdapter([{ name: 'proj-a1', status: 'running', agent: 'claude', workspace: null, ports: [] }]), store)
+    expect(store.listInstanceTags().get('proj-a1')).toEqual(['prod'])
+  })
+})

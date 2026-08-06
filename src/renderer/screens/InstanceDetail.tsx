@@ -47,7 +47,12 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
   const [override, setOverride] = useState<Record<string, 'allow' | 'deny'>>({})
   const [commands, setCommands] = useState<{ agent: string; shell: string } | null>(null)
   const [tags, setTags] = useState<string[]>(instance.tags)
-  useEffect(() => { setTags(instance.tags) }, [instance.name, instance.tags])
+  useEffect(() => {
+    setTags((prev) => {
+      const next = instance.tags
+      return prev.length === next.length && prev.every((t, i) => t === next[i]) ? prev : next
+    })
+  }, [instance.name, instance.tags])
 
   const reloadSpec = useCallback(async () => {
     if (!instance.definitionId) { setSpec(null); return }

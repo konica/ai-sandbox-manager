@@ -77,7 +77,6 @@ export const en = {
     colTags: 'Tags',
     filterByTags: 'Filter by tag:',
     filterClear: 'Clear filter',
-    noTags: 'No tags',
     attach: 'Attach',
     shell: 'Shell',
     stop: 'Stop',

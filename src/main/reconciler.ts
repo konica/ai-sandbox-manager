@@ -74,6 +74,13 @@ export async function reconcile(
     if (!provisioning) store.deleteInstanceMeta(m.sbxName)
   }
 
+  // Prune tags whose instance is neither live nor tracked in metadata (e.g. a CLI instance
+  // that was tagged in-app, then removed outside the app — its meta never existed, so the
+  // instance_meta GC above never sees it).
+  for (const name of tagsByName.keys()) {
+    if (!liveNames.has(name) && !metaByName.has(name)) store.deleteInstanceTags(name)
+  }
+
   const workspaceIndex = buildWorkspaceIndex(store)
 
   return instances.map((inst) => {

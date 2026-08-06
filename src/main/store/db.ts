@@ -16,6 +16,7 @@ export interface Store {
   updateInstanceFingerprint(sbxName: string, fingerprint: string): void
   setInstanceTags(sbxName: string, tags: string[]): void
   listInstanceTags(): Map<string, string[]>
+  deleteInstanceTags(sbxName: string): void
   listGlobalSecrets(): GlobalSecretMeta[]
   upsertGlobalSecret(g: GlobalSecretMeta): void
   deleteGlobalSecret(id: string): void
@@ -313,6 +314,9 @@ export function openStore(filename: string): Store {
         map.set(r.sbxName, arr)
       }
       return map
+    },
+    deleteInstanceTags(sbxName) {
+      db.prepare(`DELETE FROM instance_tag WHERE sbx_name = ?`).run(sbxName)
     },
     listGlobalSecrets(): GlobalSecretMeta[] {
       return db.prepare(`SELECT id, label, env_var AS envVar, store, created_at AS createdAt FROM global_secret ORDER BY created_at`).all() as GlobalSecretMeta[]

@@ -40,3 +40,41 @@ describe('instance:launch tags', () => {
     expect(res.ok && res.data.name).toBe('proj-prod-cafebabe')
   })
 })
+
+describe('instance:rebuild carries tags', () => {
+  it('applies the old instance tags to the newly-launched instance', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec({
+      definition: { id: 'd1', name: 'proj', description: '', baseImage: '', agent: 'claude', tier: 'open', createdAt: new Date().toISOString() },
+      mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+    })
+    let hashCounter = 0
+    const deps = {
+      adapter: {
+        listSandboxes: async () => [],
+        removeSandbox: async () => {},
+        removeSecret: async () => {},
+        removeCustomSecret: async () => {},
+        removeRegistrySecret: async () => {},
+        setSecret: async () => {}, setCustomSecret: async () => {}, setRegistrySecret: async () => {},
+        checkDockerAuth: async () => 'ok'
+      } as never,
+      store,
+      probes: {} as never,
+      openTerminal: () => {},
+      materializeKit: () => undefined,
+      genHash: () => `hash${hashCounter++}`
+    }
+    const h = buildHandlers(deps)
+    const launched = await h['instance:launch']('d1', undefined, undefined, 'terminal', ['prod', 'eu'])
+    expect(launched.ok).toBe(true)
+    const oldName = launched.ok ? launched.data.name : ''
+    expect(store.listInstanceTags().get(oldName)).toEqual(['prod', 'eu'])
+
+    const rebuilt = await h['instance:rebuild'](oldName)
+    expect(rebuilt.ok).toBe(true)
+    const newName = rebuilt.ok ? rebuilt.data.name : ''
+    expect(newName).not.toBe(oldName)
+    expect(store.listInstanceTags().get(newName)).toEqual(['prod', 'eu'])
+  })
+})

@@ -79,7 +79,6 @@ export const de: Dict = {
     colTags: 'Tags',
     filterByTags: 'Nach Tag filtern:',
     filterClear: 'Filter zurücksetzen',
-    noTags: 'Keine Tags',
     attach: 'Verbinden',
     shell: 'Shell',
     stop: 'Stoppen',
