@@ -279,6 +279,7 @@ export const de: Dict = {
     tabTerminals: 'Terminals',
     tabPorts: 'Ports',
     tabMonitoring: 'Überwachung',
+    tabMetadata: 'Metadaten',
     terminals: 'Terminals',
     nativeNote: 'Der Agent öffnet sich in Ihrem System-Terminal oder in VS Code; eine Shell öffnet sich in einem Terminal-Fenster.',
     openAgentTerminal: 'Agent im Terminal öffnen',

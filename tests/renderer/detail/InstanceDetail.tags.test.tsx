@@ -17,6 +17,7 @@ describe('InstanceDetail tags editor', () => {
         onApplyCredentials={noop} onAttach={noop} onShell={noop} onSetTags={onSetTags}
       />
     )
+    fireEvent.click(screen.getByRole('tab', { name: 'Metadata' }))
     const tagInput = screen.getByLabelText('Edit instance tags')
     fireEvent.change(tagInput, { target: { value: 'eu' } })
     fireEvent.keyDown(tagInput, { key: 'Enter' })

@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceView, DefinitionSpec, LivePort, PolicySummary } from '@shared/types'
 import { StatusBadge } from '../components/badges'
-import { TagInput } from '../components/TagInput'
 import { api } from '../ipc/client'
 import { useT } from '../i18n'
 import { TerminalsTab } from './detail/TerminalsTab'
 import { PortsTab } from './detail/PortsTab'
 import { MonitoringTab } from './detail/MonitoringTab'
+import { MetadataTab } from './detail/MetadataTab'
 
-export type DetailTab = 'terminals' | 'ports' | 'monitoring'
+export type DetailTab = 'terminals' | 'ports' | 'monitoring' | 'metadata'
 
 function tabStyle(active: boolean): React.CSSProperties {
   return {
@@ -20,10 +20,10 @@ function tabStyle(active: boolean): React.CSSProperties {
 }
 
 /**
- * Sandbox instance detail — a drill-in from the Instances list. Header + three tabs
- * (Terminals / Ports / Monitoring). Terminals use the native Terminal.app launch IPC;
+ * Sandbox instance detail — a drill-in from the Instances list. Header + four tabs
+ * (Terminals / Ports / Monitoring / Metadata). Terminals use the native Terminal.app launch IPC;
  * the definition spec (fetched here) feeds the Terminals info sidebar and the Ports
- * host-services list.
+ * host-services list. Metadata holds per-instance tags for organization and filtering.
  */
 export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, onRemove, onRebuild, onApplyCredentials, onAttach, onShell, onSetTags }: {
   instance: InstanceView
@@ -123,17 +123,6 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-3) var(--space-4)' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 'var(--space-2)' }}>{t('detail.tagsTitle')}</div>
-        <TagInput
-          tags={tags}
-          onChange={(next) => { setTags(next); onSetTags(instance.name, next) }}
-          placeholder={t('detail.tagsPlaceholder')}
-          ariaLabel="Edit instance tags"
-        />
-        <p className="section-desc" style={{ fontSize: 11, margin: '6px 0 0' }}>{t('detail.tagsHint')}</p>
-      </div>
-
       {instance.credsDrift && (
         <div role="status" className="card" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', padding: 'var(--space-3) var(--space-4)', borderColor: 'var(--warning, var(--accent))' }}>
           <span style={{ fontSize: 13, flex: 1 }}>{t('detail.credsDriftNotice')}</span>
@@ -158,6 +147,7 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
             >{blockedHosts}</span>
           )}
         </button>
+        <button role="tab" aria-selected={tab === 'metadata'} style={tabStyle(tab === 'metadata')} onClick={() => setTab('metadata')}>{t('detail.tabMetadata')}</button>
       </div>
 
       {tab === 'terminals' && (
@@ -198,6 +188,12 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
             await api.instanceDomainDeny(instance.name, host)
             void reloadPolicy(); void reloadSpec()
           }}
+        />
+      )}
+      {tab === 'metadata' && (
+        <MetadataTab
+          tags={tags}
+          onChange={(next) => { setTags(next); onSetTags(instance.name, next) }}
         />
       )}
     </section>

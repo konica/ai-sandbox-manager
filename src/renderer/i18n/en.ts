@@ -277,6 +277,7 @@ export const en = {
     tabTerminals: 'Terminals',
     tabPorts: 'Ports',
     tabMonitoring: 'Monitoring',
+    tabMetadata: 'Metadata',
     terminals: 'Terminals',
     nativeNote: 'The agent opens in your system terminal or in VS Code; a shell opens in a terminal window.',
     openAgentTerminal: 'Open Agent in Terminal',
