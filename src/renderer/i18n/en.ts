@@ -263,6 +263,9 @@ export const en = {
   },
   detail: {
     back: 'Back',
+    tagsTitle: 'Tags',
+    tagsHint: 'Organize and filter this instance. Changes apply immediately.',
+    tagsPlaceholder: 'Add a tag — Enter to confirm',
     sshAgent: 'SSH Agent',
     stop: 'Stop',
     remove: 'Remove',

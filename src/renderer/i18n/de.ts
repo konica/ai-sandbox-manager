@@ -265,6 +265,9 @@ export const de: Dict = {
   },
   detail: {
     back: 'Zurück',
+    tagsTitle: 'Tags',
+    tagsHint: 'Diese Instanz organisieren und filtern. Änderungen werden sofort übernommen.',
+    tagsPlaceholder: 'Tag hinzufügen — Enter zum Bestätigen',
     sshAgent: 'SSH-Agent',
     stop: 'Stoppen',
     remove: 'Entfernen',

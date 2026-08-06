@@ -5,7 +5,7 @@ import { api } from '../../src/renderer/ipc/client'
 import type { InstanceView, DefinitionSpec } from '../../src/shared/types'
 
 const inst: InstanceView = { name: 'sbx-a', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'prj', tier: 'locked', tags: [] }
-const base = { onBack: vi.fn(), onStop: vi.fn(), onRemove: vi.fn(), onRebuild: vi.fn(), onApplyCredentials: vi.fn(), onAttach: vi.fn(), onShell: vi.fn() }
+const base = { onBack: vi.fn(), onStop: vi.fn(), onRemove: vi.fn(), onRebuild: vi.fn(), onApplyCredentials: vi.fn(), onAttach: vi.fn(), onShell: vi.fn(), onSetTags: vi.fn() }
 
 const specWithCustom: DefinitionSpec = {
   definition: { id: 'd1', name: 'P', description: '', agent: 'claude', baseImage: 'img', tier: 'locked', createdAt: 't' },
@@ -47,7 +47,7 @@ describe('InstanceDetail', () => {
     render(<InstanceDetail
       instance={{ name: 'sbx-1', status: 'running', agent: 'claude', ports: [], workspace: '/p', definitionId: 'd1', definitionName: 'P', tier: 'locked', tags: [], credsDrift: true } as never}
       onBack={() => {}} onStop={() => {}} onRemove={() => {}} onRebuild={onRebuild}
-      onAttach={() => {}} onShell={() => {}} onApplyCredentials={onApplyCredentials}
+      onAttach={() => {}} onShell={() => {}} onApplyCredentials={onApplyCredentials} onSetTags={() => {}}
     />)
     const applyBtn = await screen.findByText('Apply live')
     fireEvent.click(applyBtn)
@@ -59,7 +59,7 @@ describe('InstanceDetail', () => {
     render(<InstanceDetail
       instance={{ name: 'sbx-2', status: 'stopped', agent: 'claude', ports: [], workspace: '/p', definitionId: 'd1', definitionName: 'P', tier: 'locked', tags: [], credsDrift: true } as never}
       onBack={() => {}} onStop={() => {}} onRemove={() => {}} onRebuild={() => {}}
-      onAttach={() => {}} onShell={() => {}} onApplyCredentials={() => {}}
+      onAttach={() => {}} onShell={() => {}} onApplyCredentials={() => {}} onSetTags={() => {}}
     />)
     expect(screen.getByText('Apply live')).toBeDisabled()
   })

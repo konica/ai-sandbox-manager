@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceView, DefinitionSpec, LivePort, PolicySummary } from '@shared/types'
 import { StatusBadge } from '../components/badges'
+import { TagInput } from '../components/TagInput'
 import { api } from '../ipc/client'
 import { useT } from '../i18n'
 import { TerminalsTab } from './detail/TerminalsTab'
@@ -24,7 +25,7 @@ function tabStyle(active: boolean): React.CSSProperties {
  * the definition spec (fetched here) feeds the Terminals info sidebar and the Ports
  * host-services list.
  */
-export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, onRemove, onRebuild, onApplyCredentials, onAttach, onShell }: {
+export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, onRemove, onRebuild, onApplyCredentials, onAttach, onShell, onSetTags }: {
   instance: InstanceView
   hasVSCode?: boolean
   onBack: () => void
@@ -34,6 +35,7 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
   onApplyCredentials: (name: string) => void
   onAttach: (name: string, opener: 'terminal' | 'vscode') => void
   onShell: (name: string) => void
+  onSetTags: (name: string, tags: string[]) => void
 }): JSX.Element {
   const t = useT()
   const [tab, setTab] = useState<DetailTab>('terminals')
@@ -44,6 +46,8 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
   // row until a new request re-classifies it, so we reflect the intent immediately.
   const [override, setOverride] = useState<Record<string, 'allow' | 'deny'>>({})
   const [commands, setCommands] = useState<{ agent: string; shell: string } | null>(null)
+  const [tags, setTags] = useState<string[]>(instance.tags)
+  useEffect(() => { setTags(instance.tags) }, [instance.name, instance.tags])
 
   const reloadSpec = useCallback(async () => {
     if (!instance.definitionId) { setSpec(null); return }
@@ -112,6 +116,17 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
           <button className="btn btn-secondary btn-sm" title={t('detail.rebuildHint')} onClick={() => onRebuild(instance.name)}>↻ {t('detail.rebuild')}</button>
           <button className="btn btn-destructive btn-sm" onClick={() => onRemove(instance.name)}>✕ {t('detail.remove')}</button>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-3) var(--space-4)' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 'var(--space-2)' }}>{t('detail.tagsTitle')}</div>
+        <TagInput
+          tags={tags}
+          onChange={(next) => { setTags(next); onSetTags(instance.name, next) }}
+          placeholder={t('detail.tagsPlaceholder')}
+          ariaLabel="Edit instance tags"
+        />
+        <p className="section-desc" style={{ fontSize: 11, margin: '6px 0 0' }}>{t('detail.tagsHint')}</p>
       </div>
 
       {instance.credsDrift && (

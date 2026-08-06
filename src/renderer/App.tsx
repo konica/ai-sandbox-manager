@@ -179,6 +179,11 @@ export default function App(): JSX.Element {
     else if (r.error) setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
     await loadInstances()
   }
+  async function onSetTags(name: string, tags: string[]): Promise<void> {
+    const r = await api.instanceSetTags(name, tags)
+    if (!r.ok && r.error) setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
+    await loadInstances()
+  }
   function onConfirmPending(): void {
     const p = pending
     setPending(null)
@@ -236,6 +241,7 @@ export default function App(): JSX.Element {
             onRemove={(name) => setPending({ kind: 'remove', name })}
             onRebuild={(name) => setPending({ kind: 'rebuild', name })}
             onApplyCredentials={(name) => void onApplyCredentials(name)}
+            onSetTags={(name, tags) => void onSetTags(name, tags)}
           />
         ) : (
           <Instances
