@@ -1,0 +1,42 @@
+import { describe, it, expect } from 'vitest'
+import { buildHandlers } from '@main/ipc'
+import { openStore, type Store } from '@main/store/db'
+
+function baseDeps(store: Store) {
+  return {
+    adapter: {
+      listSandboxes: async () => [],
+      setSecret: async () => {}, setCustomSecret: async () => {}, setRegistrySecret: async () => {},
+      checkDockerAuth: async () => 'ok'
+    } as never,
+    store,
+    probes: {} as never,
+    openTerminal: () => {},
+    materializeKit: () => undefined,
+    genHash: () => 'cafebabe'
+  }
+}
+
+describe('instance:setTags', () => {
+  it('normalizes and stores tags for an instance', async () => {
+    const store = openStore(':memory:')
+    store.upsertInstanceMeta({ sbxName: 'proj-a1', definitionId: null, createdByApp: true, createdAt: new Date().toISOString(), credFingerprint: null })
+    const h = buildHandlers(baseDeps(store))
+    const res = await h['instance:setTags']('proj-a1', [' Prod ', 'prod', 'eu'])
+    expect(res.ok).toBe(true)
+    expect(store.listInstanceTags().get('proj-a1')).toEqual(['Prod', 'eu'])
+  })
+})
+
+describe('instance:launch tags', () => {
+  it('passes tags through to the launched instance name', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec({
+      definition: { id: 'd1', name: 'proj', description: '', baseImage: '', agent: 'claude', tier: 'open', createdAt: new Date().toISOString() },
+      mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+    })
+    const h = buildHandlers(baseDeps(store))
+    const res = await h['instance:launch']('d1', undefined, undefined, 'terminal', ['prod'])
+    expect(res.ok && res.data.name).toBe('proj-prod-cafebabe')
+  })
+})

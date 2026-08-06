@@ -12,7 +12,7 @@ interface Api {
   defRemove(id: string): Promise<Result<{ removedInstances: number }>>
   pickFolder(): Promise<string | null>
   pickFile(): Promise<string | null>
-  instanceLaunch(definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
+  instanceLaunch(definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', tags?: string[]): Promise<Result<{ name: string }>>
   instanceAttach(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<null>>
   instanceRebuild(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
   instanceApplyCredentials(name: string): Promise<Result<{ applied: number; removed: number; skipped: number }>>
@@ -20,6 +20,7 @@ interface Api {
   instanceShell(name: string): Promise<Result<null>>
   instanceStop(name: string): Promise<Result<null>>
   instanceRemove(name: string): Promise<Result<null>>
+  instanceSetTags(name: string, tags: string[]): Promise<Result<null>>
   secretListGlobal(): Promise<Result<GlobalSecretMeta[]>>
   secretSetGlobal(serviceId: string, value: string): Promise<Result<GlobalSecretMeta>>
   secretSetGlobalFromEnv(serviceId: string): Promise<Result<GlobalSecretMeta>>
@@ -66,6 +67,7 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   instanceShell: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceStop: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceRemove: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instanceSetTags: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   secretListGlobal: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   secretSetGlobal: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   secretSetGlobalFromEnv: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),

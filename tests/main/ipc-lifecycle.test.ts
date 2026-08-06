@@ -31,7 +31,9 @@ function deps() {
     upsertInstanceMeta: vi.fn(),
     deleteInstanceMeta: vi.fn(),
     listInstanceMeta: vi.fn(() => []),
-    updateInstanceFingerprint: vi.fn()
+    updateInstanceFingerprint: vi.fn(),
+    setInstanceTags: vi.fn(),
+    listInstanceTags: vi.fn(() => new Map())
   }
   const creds = { getStaged: vi.fn(() => 'secret-val') }
   const probes = {} as never
