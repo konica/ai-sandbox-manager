@@ -15,4 +15,7 @@ describe('composeInstanceBaseName', () => {
     // budget 12: "proj" (4) + "-aaaa" (5) = 9 ok; next "-bbbbb" (6) => 15 > 12 => stop
     expect(composeInstanceBaseName('proj', ['aaaa', 'bbbbb', 'c'], 12)).toBe('proj-aaaa')
   })
+  it('skips a tag with no alphanumeric characters', () => {
+    expect(composeInstanceBaseName('proj', ['!!!', 'eu'])).toBe('proj-eu')
+  })
 })

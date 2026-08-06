@@ -13,13 +13,13 @@ export function toSbxName(raw: string): string {
  * Tags are appended in entry order only while the result stays within `maxLen`
  * (appending stops at the first tag that would overflow); the definition slug is
  * always kept. A launch hash is added separately by hashedSandboxName().
+ * Symbol-only tags (no alphanumeric chars) are skipped to avoid `-sandbox` suffix.
  */
 export function composeInstanceBaseName(definitionName: string, tags: string[], maxLen = 40): string {
   let base = toSbxName(definitionName)
   for (const tag of tags) {
+    if (!/[a-z0-9]/i.test(tag)) continue // symbol-only tag → toSbxName would yield 'sandbox'; skip it
     const slug = toSbxName(tag)
-    if (slug === 'sandbox' && tag.trim() === '') continue
-    if (!slug) continue
     const next = `${base}-${slug}`
     if (next.length > maxLen) break
     base = next
