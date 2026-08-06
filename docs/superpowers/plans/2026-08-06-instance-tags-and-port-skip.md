@@ -131,11 +131,11 @@ import { describe, it, expect } from 'vitest'
 import { composeInstanceBaseName } from '../../src/shared/names'
 
 describe('composeInstanceBaseName', () => {
-  it('slugifies the definition name when there are no tags', () => {
-    expect(composeInstanceBaseName('My Proj', [])).toBe('myproj')
+  it('slugifies the definition name with toSbxName when there are no tags', () => {
+    expect(composeInstanceBaseName('My Proj', [])).toBe('my-proj')
   })
   it('appends slugified tags in entry order', () => {
-    expect(composeInstanceBaseName('My Proj', ['prod', 'eu'])).toBe('myproj-prod-eu')
+    expect(composeInstanceBaseName('My Proj', ['prod', 'eu'])).toBe('my-proj-prod-eu')
   })
   it('slugifies tags (lowercase, non-alphanumerics to hyphens)', () => {
     expect(composeInstanceBaseName('proj', ['EU West'])).toBe('proj-eu-west')
@@ -574,8 +574,8 @@ describe('launchDefinition tags + port skip', () => {
     insertDef(store, 'd1', 'My Proj')
     const opened: string[] = []
     const { name } = await launchDefinition(deps(store, opened), 'd1', undefined, undefined, 'terminal', ['prod', 'eu'])
-    expect(name).toBe('myproj-prod-eu-deadbeef')
-    expect(store.listInstanceTags().get('myproj-prod-eu-deadbeef')).toEqual(['prod', 'eu'])
+    expect(name).toBe('my-proj-prod-eu-deadbeef')
+    expect(store.listInstanceTags().get('my-proj-prod-eu-deadbeef')).toEqual(['prod', 'eu'])
   })
 
   it('publishes all ports for the first instance', async () => {
