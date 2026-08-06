@@ -10,9 +10,9 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime('', NOW)).toBeNull()
     expect(formatRelativeTime('not-a-date', NOW)).toBeNull()
   })
-  it('"just now" under 45 seconds', () => {
+  it('"just now" under 60 seconds', () => {
     expect(formatRelativeTime(ago(0), NOW)).toBe('just now')
-    expect(formatRelativeTime(ago(44_000), NOW)).toBe('just now')
+    expect(formatRelativeTime(ago(59_000), NOW)).toBe('just now')
   })
   it('minutes with singular/plural', () => {
     expect(formatRelativeTime(ago(60_000), NOW)).toBe('1 minute ago')

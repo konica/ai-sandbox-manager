@@ -9,7 +9,7 @@ export function formatRelativeTime(iso: string | null, now: number = Date.now())
   const then = Date.parse(iso)
   if (Number.isNaN(then)) return null
   const secs = Math.max(0, Math.floor((now - then) / 1000))
-  if (secs < 45) return 'just now'
+  if (secs < 60) return 'just now'
   const mins = Math.floor(secs / 60)
   if (mins < 60) return `${mins} ${mins === 1 ? 'minute' : 'minutes'} ago`
   const hours = Math.floor(mins / 60)
