@@ -75,7 +75,7 @@ export function formatRelativeTime(iso: string | null, now?: number): string | n
 
 Behavior:
 - Null / empty / unparseable → returns `null`.
-- < 45s → "just now".
+- < 60s → "just now" (the whole sub-minute range, so no "0 minutes ago").
 - Minutes / hours / days buckets with singular/plural ("1 minute ago" vs "5 minutes ago").
 - Future timestamps (clock skew) → treat as "just now" (don't render negative ages).
 - Exact thresholds and bucket boundaries are pinned by the unit tests.
@@ -110,7 +110,7 @@ No new failure modes. Null/invalid timestamps degrade to "Unknown". The value is
 
 ## Testing
 
-- **Shared:** unit-test `formatRelativeTime` — just-now (<45s), minutes (singular + plural),
+- **Shared:** unit-test `formatRelativeTime` — just-now (<60s), minutes (singular + plural),
   hours, days, null input, empty string, unparseable string, and a future timestamp → "just now".
 - **Main:** reconcile test — `createdAt` populated on the view from an existing meta row; and
   present immediately for a just-adopted instance (workspace-linked, no prior meta row) in the

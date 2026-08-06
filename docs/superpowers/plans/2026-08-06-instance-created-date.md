@@ -55,9 +55,9 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime('', NOW)).toBeNull()
     expect(formatRelativeTime('not-a-date', NOW)).toBeNull()
   })
-  it('"just now" under 45 seconds', () => {
+  it('"just now" under 60 seconds', () => {
     expect(formatRelativeTime(ago(0), NOW)).toBe('just now')
-    expect(formatRelativeTime(ago(44_000), NOW)).toBe('just now')
+    expect(formatRelativeTime(ago(59_000), NOW)).toBe('just now')
   })
   it('minutes with singular/plural', () => {
     expect(formatRelativeTime(ago(60_000), NOW)).toBe('1 minute ago')
@@ -96,7 +96,7 @@ export function formatRelativeTime(iso: string | null, now: number = Date.now())
   const then = Date.parse(iso)
   if (Number.isNaN(then)) return null
   const secs = Math.max(0, Math.floor((now - then) / 1000))
-  if (secs < 45) return 'just now'
+  if (secs < 60) return 'just now'
   const mins = Math.floor(secs / 60)
   if (mins < 60) return `${mins} ${mins === 1 ? 'minute' : 'minutes'} ago`
   const hours = Math.floor(mins / 60)
