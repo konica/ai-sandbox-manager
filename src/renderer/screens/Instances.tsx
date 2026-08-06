@@ -93,7 +93,7 @@ export function Instances({ instances, onOpen, onAttach, onShell, onStop, onRemo
                     {i.tags.length === 0 ? dash : (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                         {i.tags.map((tag) => (
-                          <span key={tag} style={{ fontSize: 11, background: 'var(--accent-soft, rgba(0,120,255,.12))', color: 'var(--accent)', borderRadius: 999, padding: '1px 7px' }}>{tag}</span>
+                          <span key={tag} className="tag">{tag}</span>
                         ))}
                       </div>
                     )}

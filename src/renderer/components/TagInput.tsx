@@ -25,17 +25,16 @@ export function TagInput({ tags, onChange, placeholder, ariaLabel }: {
   }
 
   return (
-    <div className="tag-input" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', alignItems: 'center', padding: 'var(--space-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+    <div className="tag-input">
       {tags.map((tag) => (
-        <span key={tag} className="tag-chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, background: 'var(--accent-soft, rgba(0,120,255,.12))', color: 'var(--accent)', borderRadius: 999, padding: '2px 8px' }}>
+        <span key={tag} className="tag">
           {tag}
-          <button type="button" className="tag-remove" aria-label={`Remove tag ${tag}`} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, lineHeight: 1 }} onClick={() => remove(tag)}>✕</button>
+          <button type="button" className="tag-remove" aria-label={`Remove tag ${tag}`} onClick={() => remove(tag)}>✕</button>
         </span>
       ))}
       <input
-        className="input"
+        className="tag-input__field"
         aria-label={ariaLabel ?? 'Tags'}
-        style={{ flex: 1, minWidth: 100, border: 'none', outline: 'none', background: 'none', fontSize: 13 }}
         value={draft}
         placeholder={placeholder}
         onChange={(e) => {
