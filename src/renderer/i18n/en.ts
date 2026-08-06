@@ -262,6 +262,8 @@ export const en = {
   },
   detail: {
     back: 'Back',
+    createdLabel: 'Created',
+    createdUnknown: 'Unknown',
     tagsTitle: 'Tags',
     tagsHint: 'Organize and filter this instance. Changes apply immediately.',
     tagsPlaceholder: 'Add a tag — Enter to confirm',

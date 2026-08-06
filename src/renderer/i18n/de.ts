@@ -264,6 +264,8 @@ export const de: Dict = {
   },
   detail: {
     back: 'Zurück',
+    createdLabel: 'Erstellt',
+    createdUnknown: 'Unbekannt',
     tagsTitle: 'Tags',
     tagsHint: 'Diese Instanz organisieren und filtern. Änderungen werden sofort übernommen.',
     tagsPlaceholder: 'Tag hinzufügen — Enter zum Bestätigen',

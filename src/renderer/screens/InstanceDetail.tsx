@@ -194,6 +194,7 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
         <MetadataTab
           tags={tags}
           onChange={(next) => { setTags(next); onSetTags(instance.name, next) }}
+          createdAt={instance.createdAt}
         />
       )}
     </section>
