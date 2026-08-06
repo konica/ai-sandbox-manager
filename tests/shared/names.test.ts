@@ -3,10 +3,10 @@ import { composeInstanceBaseName } from '../../src/shared/names'
 
 describe('composeInstanceBaseName', () => {
   it('slugifies the definition name when there are no tags', () => {
-    expect(composeInstanceBaseName('My Proj', [])).toBe('myproj')
+    expect(composeInstanceBaseName('My Proj', [])).toBe('my-proj')
   })
   it('appends slugified tags in entry order', () => {
-    expect(composeInstanceBaseName('My Proj', ['prod', 'eu'])).toBe('myproj-prod-eu')
+    expect(composeInstanceBaseName('My Proj', ['prod', 'eu'])).toBe('my-proj-prod-eu')
   })
   it('slugifies tags (lowercase, non-alphanumerics to hyphens)', () => {
     expect(composeInstanceBaseName('proj', ['EU West'])).toBe('proj-eu-west')
