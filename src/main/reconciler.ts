@@ -62,6 +62,7 @@ export async function reconcile(
   const instances = await adapter.listSandboxes()
   const liveNames = new Set(instances.map((i) => i.name))
   const metaByName = new Map(store.listInstanceMeta().map((m) => [m.sbxName, m]))
+  const tagsByName = store.listInstanceTags()
   const nowMs = now()
 
   // GC: metadata whose sandbox sbx no longer reports — except recently
@@ -115,7 +116,8 @@ export async function reconcile(
       definitionId: def?.id ?? null,
       definitionName: def?.name ?? null,
       tier: def?.tier ?? 'custom',
-      credsDrift
+      credsDrift,
+      tags: tagsByName.get(inst.name) ?? []
     }
   })
 }

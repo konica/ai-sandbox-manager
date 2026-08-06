@@ -4,7 +4,7 @@ import { InstanceDetail } from '../../src/renderer/screens/InstanceDetail'
 import { api } from '../../src/renderer/ipc/client'
 import type { InstanceView, DefinitionSpec } from '../../src/shared/types'
 
-const inst: InstanceView = { name: 'sbx-a', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'prj', tier: 'locked' }
+const inst: InstanceView = { name: 'sbx-a', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'prj', tier: 'locked', tags: [] }
 const base = { onBack: vi.fn(), onStop: vi.fn(), onRemove: vi.fn(), onRebuild: vi.fn(), onApplyCredentials: vi.fn(), onAttach: vi.fn(), onShell: vi.fn() }
 
 const specWithCustom: DefinitionSpec = {
@@ -45,7 +45,7 @@ describe('InstanceDetail', () => {
     const onApplyCredentials = vi.fn()
     const onRebuild = vi.fn()
     render(<InstanceDetail
-      instance={{ name: 'sbx-1', status: 'running', agent: 'claude', ports: [], workspace: '/p', definitionId: 'd1', definitionName: 'P', tier: 'locked', credsDrift: true } as never}
+      instance={{ name: 'sbx-1', status: 'running', agent: 'claude', ports: [], workspace: '/p', definitionId: 'd1', definitionName: 'P', tier: 'locked', tags: [], credsDrift: true } as never}
       onBack={() => {}} onStop={() => {}} onRemove={() => {}} onRebuild={onRebuild}
       onAttach={() => {}} onShell={() => {}} onApplyCredentials={onApplyCredentials}
     />)
@@ -57,7 +57,7 @@ describe('InstanceDetail', () => {
   })
   it('disables "Apply live" when the instance is stopped', () => {
     render(<InstanceDetail
-      instance={{ name: 'sbx-2', status: 'stopped', agent: 'claude', ports: [], workspace: '/p', definitionId: 'd1', definitionName: 'P', tier: 'locked', credsDrift: true } as never}
+      instance={{ name: 'sbx-2', status: 'stopped', agent: 'claude', ports: [], workspace: '/p', definitionId: 'd1', definitionName: 'P', tier: 'locked', tags: [], credsDrift: true } as never}
       onBack={() => {}} onStop={() => {}} onRemove={() => {}} onRebuild={() => {}}
       onAttach={() => {}} onShell={() => {}} onApplyCredentials={() => {}}
     />)

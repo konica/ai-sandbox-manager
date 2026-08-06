@@ -179,6 +179,8 @@ export interface InstanceView extends SbxInstance {
   tier: Tier | 'custom'
   /** The definition's credentials changed since this instance was created — rebuild to apply. */
   credsDrift?: boolean
+  /** App-side tags assigned to this instance (empty when untagged). */
+  tags: string[]
 }
 
 // Structured prerequisite result. The main process reports the id, pass/fail,

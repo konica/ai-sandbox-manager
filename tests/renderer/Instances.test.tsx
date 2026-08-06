@@ -4,7 +4,7 @@ import { Instances } from '../../src/renderer/screens/Instances'
 import type { InstanceView } from '@shared/types'
 
 const rows: InstanceView[] = [
-  { name: 'sbx-a', status: 'running', agent: 'claude', workspace: '/w', ports: ['127.0.0.1:8080->3000/tcp'], definitionId: 'd1', definitionName: 'prj-alpha', tier: 'locked' }
+  { name: 'sbx-a', status: 'running', agent: 'claude', workspace: '/w', ports: ['127.0.0.1:8080->3000/tcp'], definitionId: 'd1', definitionName: 'prj-alpha', tier: 'locked', tags: [] }
 ]
 
 describe('Instances screen', () => {

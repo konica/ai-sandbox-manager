@@ -5,7 +5,7 @@ import type { InstanceView } from '../../src/shared/types'
 
 const inst: InstanceView = {
   name: 'my-project', status: 'running', agent: 'Claude Code', workspace: '/p', ports: [],
-  definitionId: 'd1', definitionName: 'My Project', tier: 'locked'
+  definitionId: 'd1', definitionName: 'My Project', tier: 'locked', tags: []
 }
 
 describe('Instances actions', () => {
