@@ -14,6 +14,8 @@ export interface Store {
   listInstanceMeta(): InstanceMeta[]
   deleteInstanceMeta(sbxName: string): void
   updateInstanceFingerprint(sbxName: string, fingerprint: string): void
+  setInstanceTags(sbxName: string, tags: string[]): void
+  listInstanceTags(): Map<string, string[]>
   listGlobalSecrets(): GlobalSecretMeta[]
   upsertGlobalSecret(g: GlobalSecretMeta): void
   deleteGlobalSecret(id: string): void
@@ -104,7 +106,12 @@ CREATE TABLE IF NOT EXISTS global_secret (
   store TEXT NOT NULL DEFAULT 'sbx',
   created_at TEXT NOT NULL
 );
-PRAGMA user_version = 10;
+CREATE TABLE IF NOT EXISTS instance_tag (
+  sbx_name TEXT NOT NULL,
+  tag      TEXT NOT NULL,
+  PRIMARY KEY (sbx_name, tag)
+);
+PRAGMA user_version = 11;
 `
 
 export function openStore(filename: string): Store {
@@ -283,10 +290,29 @@ export function openStore(filename: string): Store {
       return rows.map((r) => ({ sbxName: String(r.sbxName), definitionId: r.definitionId ? String(r.definitionId) : null, createdByApp: r.createdByApp === 1, createdAt: String(r.createdAt), credFingerprint: r.credFingerprint != null ? String(r.credFingerprint) : null }))
     },
     deleteInstanceMeta(sbxName) {
+      db.prepare(`DELETE FROM instance_tag WHERE sbx_name = ?`).run(sbxName)
       db.prepare(`DELETE FROM instance_meta WHERE sbx_name = ?`).run(sbxName)
     },
     updateInstanceFingerprint(sbxName, fingerprint) {
       db.prepare(`UPDATE instance_meta SET cred_fingerprint = ? WHERE sbx_name = ?`).run(fingerprint, sbxName)
+    },
+    setInstanceTags(sbxName, tags) {
+      const tx = db.transaction((name: string, ts: string[]) => {
+        db.prepare(`DELETE FROM instance_tag WHERE sbx_name = ?`).run(name)
+        const ins = db.prepare(`INSERT OR IGNORE INTO instance_tag (sbx_name, tag) VALUES (?, ?)`)
+        for (const tag of ts) ins.run(name, tag)
+      })
+      tx(sbxName, tags)
+    },
+    listInstanceTags() {
+      const rows = db.prepare(`SELECT sbx_name AS sbxName, tag FROM instance_tag ORDER BY rowid`).all() as Array<{ sbxName: string; tag: string }>
+      const map = new Map<string, string[]>()
+      for (const r of rows) {
+        const arr = map.get(r.sbxName) ?? []
+        arr.push(r.tag)
+        map.set(r.sbxName, arr)
+      }
+      return map
     },
     listGlobalSecrets(): GlobalSecretMeta[] {
       return db.prepare(`SELECT id, label, env_var AS envVar, store, created_at AS createdAt FROM global_secret ORDER BY created_at`).all() as GlobalSecretMeta[]
