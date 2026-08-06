@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { InstanceDetail } from '../../../src/renderer/screens/InstanceDetail'
 import type { InstanceView } from '@shared/types'
 
-const instance: InstanceView = { name: 'proj-a1', status: 'running', agent: 'claude', workspace: null, ports: [], definitionId: 'd1', definitionName: 'Proj', tier: 'open', tags: ['prod'] }
+const instance: InstanceView = { name: 'proj-a1', status: 'running', agent: 'claude', workspace: null, ports: [], definitionId: 'd1', definitionName: 'Proj', tier: 'open', tags: ['prod'], createdAt: null }
 
 function noop(): void {}
 

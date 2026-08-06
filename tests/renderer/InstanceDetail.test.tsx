@@ -4,7 +4,7 @@ import { InstanceDetail } from '../../src/renderer/screens/InstanceDetail'
 import { api } from '../../src/renderer/ipc/client'
 import type { InstanceView, DefinitionSpec } from '../../src/shared/types'
 
-const inst: InstanceView = { name: 'sbx-a', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'prj', tier: 'locked', tags: [] }
+const inst: InstanceView = { name: 'sbx-a', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'prj', tier: 'locked', tags: [], createdAt: null }
 const base = { onBack: vi.fn(), onStop: vi.fn(), onRemove: vi.fn(), onRebuild: vi.fn(), onApplyCredentials: vi.fn(), onAttach: vi.fn(), onShell: vi.fn(), onSetTags: vi.fn() }
 
 const specWithCustom: DefinitionSpec = {

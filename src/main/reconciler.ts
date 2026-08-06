@@ -85,6 +85,7 @@ export async function reconcile(
 
   return instances.map((inst) => {
     const meta = metaByName.get(inst.name) ?? null
+    let createdAt: string | null = meta?.createdAt ?? null
     // Prefer the explicit metadata link (written when the app launched the sandbox);
     // fall back to matching the workspace path so CLI-created instances auto-link too.
     const def =
@@ -100,11 +101,13 @@ export async function reconcile(
     if (def && (!meta || meta.credFingerprint == null)) {
       const adoptSpec = store.getDefinitionSpec(def.id)
       if (adoptSpec) {
+        const adoptedCreatedAt = meta?.createdAt ?? new Date(nowMs).toISOString()
+        createdAt = adoptedCreatedAt
         store.upsertInstanceMeta({
           sbxName: inst.name,
           definitionId: def.id,
           createdByApp: meta?.createdByApp ?? false,
-          createdAt: meta?.createdAt ?? new Date(nowMs).toISOString(),
+          createdAt: adoptedCreatedAt,
           credFingerprint: credFingerprint(adoptSpec.credentials)
         })
       }
@@ -124,7 +127,8 @@ export async function reconcile(
       definitionName: def?.name ?? null,
       tier: def?.tier ?? 'custom',
       credsDrift,
-      tags: tagsByName.get(inst.name) ?? []
+      tags: tagsByName.get(inst.name) ?? [],
+      createdAt
     }
   })
 }

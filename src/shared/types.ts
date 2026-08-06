@@ -181,6 +181,9 @@ export interface InstanceView extends SbxInstance {
   credsDrift?: boolean
   /** App-side tags assigned to this instance (empty when untagged). */
   tags: string[]
+  /** ISO timestamp the app recorded (launch time; "first observed" for adopted/CLI instances;
+   *  null when there is no metadata row). */
+  createdAt: string | null
 }
 
 // Structured prerequisite result. The main process reports the id, pass/fail,

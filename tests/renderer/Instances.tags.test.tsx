@@ -4,7 +4,7 @@ import { Instances } from '../../src/renderer/screens/Instances'
 import type { InstanceView } from '@shared/types'
 
 function inst(name: string, tags: string[]): InstanceView {
-  return { name, status: 'running', agent: 'claude', workspace: null, ports: [], definitionId: 'd1', definitionName: 'Proj', tier: 'open', tags }
+  return { name, status: 'running', agent: 'claude', workspace: null, ports: [], definitionId: 'd1', definitionName: 'Proj', tier: 'open', tags, createdAt: null }
 }
 
 const data = [inst('proj-prod-1', ['prod']), inst('proj-eu-1', ['eu']), inst('proj-x', [])]

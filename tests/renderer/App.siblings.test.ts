@@ -3,7 +3,7 @@ import { hasSiblingInstances } from '../../src/renderer/App'
 import type { InstanceView } from '../../src/shared/types'
 
 const inst = (name: string, definitionId: string | null): InstanceView =>
-  ({ name, status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId, definitionName: 'P', tier: 'locked', tags: [] })
+  ({ name, status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId, definitionName: 'P', tier: 'locked', tags: [], createdAt: null })
 
 describe('hasSiblingInstances', () => {
   it('true when another instance shares the definition', () => {

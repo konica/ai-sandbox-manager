@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { PortsTab } from '../../../src/renderer/screens/detail/PortsTab'
 import type { InstanceView, LivePort, HostServiceIntent } from '../../../src/shared/types'
 
-const inst: InstanceView = { name: 'box', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'p', tier: 'locked', tags: [] }
+const inst: InstanceView = { name: 'box', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'p', tier: 'locked', tags: [], createdAt: null }
 const ports: LivePort[] = [{ hostPort: 8080, containerPort: 3000, protocol: 'tcp' }]
 const hs: HostServiceIntent[] = [{ hostPort: 11434, label: 'Ollama' }]
 

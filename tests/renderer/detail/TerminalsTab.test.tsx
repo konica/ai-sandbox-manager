@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { TerminalsTab } from '../../../src/renderer/screens/detail/TerminalsTab'
 import type { InstanceView, DefinitionSpec } from '../../../src/shared/types'
 
-const inst: InstanceView = { name: 'sbx-a', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'prj', tier: 'locked', tags: [] }
+const inst: InstanceView = { name: 'sbx-a', status: 'running', agent: 'claude', workspace: '/p', ports: [], definitionId: 'd1', definitionName: 'prj', tier: 'locked', tags: [], createdAt: null }
 const spec: DefinitionSpec = {
   definition: { id: 'd1', name: 'prj', description: '', agent: 'claude', baseImage: 'i:t', tier: 'locked', createdAt: 't' },
   mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }, { hostPath: '/shared', mode: 'clone', isPrimary: false }],
