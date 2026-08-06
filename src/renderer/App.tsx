@@ -44,6 +44,7 @@ export default function App(): JSX.Element {
   const [defFlash, setDefFlash] = useState<{ kind: 'info' | 'error'; text: string } | null>(null)
   const [pendingDefRemove, setPendingDefRemove] = useState<{ id: string; name: string; count: number } | null>(null)
   const [launchCloneMode, setLaunchCloneMode] = useState(false)
+  const [launchHasFixedPorts, setLaunchHasFixedPorts] = useState(false)
   const t = useT()
 
   useEffect(() => { void api.envHasVSCode().then((r) => { if (r.ok) setHasVSCode(r.data.present) }) }, [])
@@ -138,16 +139,17 @@ export default function App(): JSX.Element {
     // Clone-mode note: VS Code shows the host copy, not the agent's in-container clone.
     const specR = await api.defGetSpec(def.id)
     setLaunchCloneMode(specR.ok && !!specR.data && ((specR.data.mounts.find((m) => m.isPrimary) ?? specR.data.mounts[0])?.mode === 'clone'))
+    setLaunchHasFixedPorts(specR.ok && !!specR.data && specR.data.ports.some((p) => p.hostPort !== null))
     setLaunchFor(def)
     void loadInstances() // refresh existing sandbox names for the dialog
   }
 
-  async function submitLaunch(definition: Definition, sessionName: string, opener: 'terminal' | 'vscode'): Promise<void> {
+  async function submitLaunch(definition: Definition, sessionName: string, opener: 'terminal' | 'vscode', tags: string[]): Promise<void> {
     setLaunchFor(null)
     setNotice(null)
     setBusyId(definition.id)
     try {
-      const r = await api.instanceLaunch(definition.id, undefined, sessionName, opener)
+      const r = await api.instanceLaunch(definition.id, undefined, sessionName, opener, tags)
       if (r.ok) {
         setNotice({ kind: 'info', text: t('instances.launched', { name: r.data.name }) })
         setScreen('instances')
@@ -273,15 +275,20 @@ export default function App(): JSX.Element {
         onConfirm={() => void confirmDefRemove()}
         onCancel={() => setPendingDefRemove(null)}
       />
-      {launchFor && (
-        <LaunchDialog
-          definition={launchFor}
-          hasVSCode={hasVSCode}
-          cloneMode={launchCloneMode}
-          onLaunch={(session, opener) => void submitLaunch(launchFor, session, opener)}
-          onCancel={() => setLaunchFor(null)}
-        />
-      )}
+      {launchFor && (() => {
+        const existingCount = instances.filter((i) => i.definitionId === launchFor.id).length
+        return (
+          <LaunchDialog
+            definition={launchFor}
+            hasVSCode={hasVSCode}
+            cloneMode={launchCloneMode}
+            willSkipFixedPorts={existingCount >= 1 && launchHasFixedPorts}
+            instanceNumber={existingCount + 1}
+            onLaunch={(session, opener, tags) => void submitLaunch(launchFor, session, opener, tags)}
+            onCancel={() => setLaunchFor(null)}
+          />
+        )
+      })()}
       {attachFor && (
         <OpenWithDialog
           title={t('launch.attachTitle', { name: attachFor })}

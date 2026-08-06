@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Definition } from '@shared/types'
 import { useT } from '../i18n'
+import { TagInput } from './TagInput'
 
 const labelStyle = { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', margin: 'var(--space-4) 0 var(--space-2)' } as const
 
@@ -10,11 +11,13 @@ const labelStyle = { display: 'block', fontSize: 12, fontWeight: 500, color: 'va
  * (`claude --name`). Re-attaching to an existing sandbox is done from the
  * Instances screen, not here.
  */
-export function LaunchDialog({ definition, hasVSCode, cloneMode, onLaunch, onCancel }: {
+export function LaunchDialog({ definition, hasVSCode, cloneMode, willSkipFixedPorts, instanceNumber, onLaunch, onCancel }: {
   definition: Definition
   hasVSCode: boolean
   cloneMode: boolean
-  onLaunch: (sessionName: string, opener: 'terminal' | 'vscode') => void
+  willSkipFixedPorts: boolean
+  instanceNumber: number
+  onLaunch: (sessionName: string, opener: 'terminal' | 'vscode', tags: string[]) => void
   onCancel: () => void
 }): JSX.Element {
   const t = useT()
@@ -22,9 +25,10 @@ export function LaunchDialog({ definition, hasVSCode, cloneMode, onLaunch, onCan
   // Default to VS Code when it's available; fall back to Terminal when the code
   // CLI wasn't detected (the VS Code radio is disabled in that case).
   const [opener, setOpener] = useState<'terminal' | 'vscode'>(hasVSCode ? 'vscode' : 'terminal')
+  const [tags, setTags] = useState<string[]>([])
 
   function submit(): void {
-    onLaunch(sessionName.trim(), opener)
+    onLaunch(sessionName.trim(), opener, tags)
   }
 
   return (
@@ -45,6 +49,15 @@ export function LaunchDialog({ definition, hasVSCode, cloneMode, onLaunch, onCan
           onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
         />
         <p className="section-desc" style={{ fontSize: 12, marginTop: 'var(--space-2)', marginBottom: 0 }}>{t('launch.sessionSub')}</p>
+
+        <label style={labelStyle}>{t('launch.tagsLabel')}</label>
+        <TagInput tags={tags} onChange={setTags} placeholder={t('launch.tagsPlaceholder')} ariaLabel="Instance tags" />
+        <p className="section-desc" style={{ fontSize: 12, marginTop: 'var(--space-2)', marginBottom: 0 }}>{t('launch.tagsSub')}</p>
+        {willSkipFixedPorts && (
+          <p role="note" className="section-desc" style={{ fontSize: 12, marginTop: 'var(--space-3)', color: 'var(--warning, #b8860b)' }}>
+            {t('launch.portSkipNote', { number: instanceNumber })}
+          </p>
+        )}
 
         <label style={labelStyle}>{t('launch.openWith')}</label>
         <div role="radiogroup" style={{ display: 'flex', gap: 'var(--space-4)' }}>

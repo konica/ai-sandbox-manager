@@ -106,6 +106,10 @@ export const de: Dict = {
     openVSCode: 'VS Code',
     openVSCodeUnavailable: 'VS Code (code) nicht gefunden — installieren Sie VS Code, um diese Funktion zu nutzen.',
     openVSCodeCloneNote: 'VS Code zeigt den Host-Ordner. Im Clone-Modus bearbeitet der Agent eine Kopie im Container; seine Änderungen erscheinen über das Git-Remote sandbox-<name>, nicht live.',
+    tagsLabel: 'Tags (optional)',
+    tagsPlaceholder: 'z. B. prod, eu — Enter zum Hinzufügen',
+    tagsSub: 'Tags helfen beim Organisieren und Filtern von Instanzen und werden dem Instanznamen hinzugefügt.',
+    portSkipNote: 'Dies ist Instanz #{number} dieser Definition — feste Host-Port-Weiterleitungen werden übersprungen, um Konflikte zu vermeiden. Füge einen korrigierten Port später im Ports-Tab der Instanz hinzu.',
     attachTitle: 'Agent-Session für „{name}“ öffnen',
     launch: 'Starten',
     cancel: 'Abbrechen'

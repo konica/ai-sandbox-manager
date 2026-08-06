@@ -104,6 +104,10 @@ export const en = {
     openVSCode: 'VS Code',
     openVSCodeUnavailable: 'VS Code (code) not found — install it to use this feature.',
     openVSCodeCloneNote: 'VS Code shows the host folder. In clone mode the agent edits an in-container copy, so its changes appear via the sandbox-<name> git remote, not live.',
+    tagsLabel: 'Tags (optional)',
+    tagsPlaceholder: 'e.g. prod, eu — Enter to add',
+    tagsSub: 'Tags help you organize and filter instances, and are added to the instance name.',
+    portSkipNote: 'This is instance #{number} for this definition — fixed host-port forwards are skipped to avoid conflicts. Add a corrected port later from the instance’s Ports tab.',
     attachTitle: 'Open agent session for “{name}”',
     launch: 'Launch',
     cancel: 'Cancel'
