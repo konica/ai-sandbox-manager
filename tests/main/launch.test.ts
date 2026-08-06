@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { launchDefinition } from '../../src/main/launch'
+import { openStore, type Store } from '../../src/main/store/db'
 import type { DefinitionSpec, InstanceMeta, SbxInstance } from '../../src/shared/types'
 
 const spec: DefinitionSpec = {
@@ -16,7 +17,8 @@ function deps(getSpec: () => DefinitionSpec | undefined, live: string[] = [], me
   const store = {
     getDefinitionSpec: vi.fn(getSpec),
     upsertInstanceMeta: vi.fn((m: InstanceMeta) => { metas.push(m) }),
-    listInstanceMeta: vi.fn(() => metas)
+    listInstanceMeta: vi.fn(() => metas),
+    setInstanceTags: vi.fn()
   } as never
   const setSecret = vi.fn(async () => {})
   const setCustomSecret = vi.fn(async () => {})
@@ -202,5 +204,65 @@ describe('launchDefinition', () => {
     await launchDefinition(d as never, 'd1')
     expect(d.infos.some((l) => /Launching sandbox "my-project-3323dc52"/.test(l))).toBe(true)
     expect(d.infos.some((l) => /terminal/i.test(l))).toBe(true)
+  })
+})
+
+describe('launchDefinition — tags + port skip', () => {
+  function insertDef(store: Store, id: string, name: string): void {
+    const s: DefinitionSpec = {
+      definition: { id, name, description: '', baseImage: '', agent: 'claude', tier: 'open', createdAt: new Date().toISOString() },
+      mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }],
+      domains: [],
+      ports: [
+        { hostPort: 8080, containerPort: 3000, protocol: 'tcp', label: '' },
+        { hostPort: null, containerPort: 9229, protocol: 'tcp', label: '' }
+      ],
+      hostServices: [], credentials: []
+    }
+    store.insertDefinitionSpec(s)
+  }
+  function tagDeps(store: Store, opened: string[], genHash: () => string = () => 'deadbeef') {
+    return {
+      adapter: {
+        listSandboxes: async () => [],
+        setSecret: async () => {}, setCustomSecret: async () => {}, setRegistrySecret: async () => {},
+        checkDockerAuth: async (): Promise<'pass' | 'fail' | 'unknown'> => 'pass'
+      },
+      store,
+      creds: { getStaged: () => null },
+      materializeKit: () => undefined,
+      openTerminal: (cmd: string) => opened.push(cmd),
+      genHash
+    }
+  }
+
+  it('folds tags into the instance name and persists them', async () => {
+    const store = openStore(':memory:')
+    insertDef(store, 'd1', 'My Proj')
+    const opened: string[] = []
+    const { name } = await launchDefinition(tagDeps(store, opened) as never, 'd1', undefined, undefined, 'terminal', ['prod', 'eu'])
+    expect(name).toBe('my-proj-prod-eu-deadbeef')
+    expect(store.listInstanceTags().get('my-proj-prod-eu-deadbeef')).toEqual(['prod', 'eu'])
+  })
+
+  it('publishes all ports for the first instance', async () => {
+    const store = openStore(':memory:')
+    insertDef(store, 'd1', 'proj')
+    const opened: string[] = []
+    await launchDefinition(tagDeps(store, opened) as never, 'd1', undefined, undefined, 'terminal', [])
+    expect(opened[0]).toContain('8080:3000')
+    expect(opened[0]).toContain('9229/tcp')
+  })
+
+  it('skips fixed host-port forwards on the second instance', async () => {
+    const store = openStore(':memory:')
+    insertDef(store, 'd1', 'proj')
+    const opened: string[] = []
+    const hashes = ['h1', 'h2']; let i = 0
+    const d = tagDeps(store, opened, () => hashes[i++])
+    await launchDefinition(d as never, 'd1', undefined, undefined, 'terminal', [])   // first
+    await launchDefinition(d as never, 'd1', undefined, undefined, 'terminal', [])   // second
+    expect(opened[1]).not.toContain('8080:3000')
+    expect(opened[1]).toContain('9229/tcp')
   })
 })

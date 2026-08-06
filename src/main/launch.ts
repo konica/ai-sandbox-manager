@@ -4,9 +4,10 @@ import type { CredentialManager } from './creds/manager'
 import type { Logger } from './log'
 import type { DefinitionSpec } from '@shared/types'
 import { randomBytes } from 'crypto'
-import { resolveSandboxName, hashedSandboxName, launchCommand } from './sbx/translate'
+import { hashedSandboxName, launchCommand, portsForLaunch } from './sbx/translate'
 import { registerCredentials, credFingerprint } from './creds/register'
-import { toSbxName } from '@shared/names'
+import { toSbxName, composeInstanceBaseName } from '@shared/names'
+import { normalizeTags } from '@shared/tags'
 import { SbxError } from '@shared/errors'
 
 export interface LaunchDeps {
@@ -41,10 +42,12 @@ export async function launchDefinition(
   definitionId: string,
   requestedName?: string,
   sessionName?: string,
-  opener: 'terminal' | 'vscode' = 'terminal'
+  opener: 'terminal' | 'vscode' = 'terminal',
+  rawTags: string[] = []
 ): Promise<{ name: string }> {
   const spec = deps.store.getDefinitionSpec(definitionId)
   if (!spec) throw new SbxError('not-found', `Definition ${definitionId} not found`)
+  const tags = normalizeTags(rawTags)
 
   // Preflight: a launch needs the sbx client registered with Docker. When it is
   // definitively not (diagnose → Authentication:fail), Docker's remote governance
@@ -57,7 +60,7 @@ export async function launchDefinition(
     throw new SbxError('not-authed', 'Sign in to Docker to launch a sandbox: run `sbx login` (and make sure Docker Desktop is running), then launch again.')
   }
 
-  const base = requestedName && requestedName.trim() ? toSbxName(requestedName) : resolveSandboxName(spec)
+  const base = requestedName && requestedName.trim() ? toSbxName(requestedName) : composeInstanceBaseName(spec.definition.name, tags)
   let liveNames: string[] = []
   try {
     liveNames = (await deps.adapter.listSandboxes()).map((i) => i.name)
@@ -69,12 +72,19 @@ export async function launchDefinition(
   const name = hashedSandboxName(base, existing, genHash)
   deps.log?.info(`Instance name: "${name}" (unique per launch).`)
 
+  const priorInstances = deps.store.listInstanceMeta().filter((m) => m.definitionId === definitionId).length
+  const isSubsequent = priorInstances >= 1
+  const ports = portsForLaunch(spec.ports, isSubsequent)
+  if (isSubsequent && ports.length < spec.ports.length) {
+    deps.log?.info(`Instance #${priorInstances + 1} of definition ${definitionId}: skipping ${spec.ports.length - ports.length} fixed host-port forward(s) to avoid conflicts. Add corrected ports from the instance's Ports tab.`)
+  }
+
   // Register secrets scoped to <name>, pre-create, from this process (never in the terminal).
   // Shared with the re-attach path so credentials stay in sync with the definition.
   await registerCredentials({ adapter: deps.adapter, creds: deps.creds, log: deps.log }, definitionId, spec.credentials, name)
 
   const kitDir = deps.materializeKit(spec, name)
-  const command = launchCommand(spec, name, sessionName, kitDir)
+  const command = launchCommand(spec, name, sessionName, kitDir, ports)
   deps.log?.info(`Launching sandbox "${name}"${sessionName ? ` (session "${sessionName}")` : ''} from definition ${definitionId} (tier: ${spec.definition.tier}, creds: ${spec.credentials.length}, ports: ${spec.ports.length})`)
   deps.log?.info(`Opening terminal to provision and run: ${command}`)
 
@@ -87,6 +97,7 @@ export async function launchDefinition(
     // definition can be flagged as drift (→ needs rebuild). See reconcile().
     credFingerprint: credFingerprint(spec.credentials)
   })
+  deps.store.setInstanceTags(name, tags)
   const primary = spec.mounts.find((m) => m.isPrimary) ?? spec.mounts[0]
   const workspaceDir = primary?.hostPath?.trim()
   if (opener === 'vscode' && deps.openVSCode && workspaceDir) {
