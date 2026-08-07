@@ -1,5 +1,6 @@
 import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, KitValidation, StorageStatus } from '@shared/types'
 import type { ResourceStats } from '@shared/resource-stats'
+import type { CopyDirection, ListResult, PlanResult, CopyResult } from '@shared/copy'
 
 interface Api {
   prereqCheck(): Promise<Result<PrereqResult>>
@@ -38,6 +39,10 @@ interface Api {
   instanceDomainDeny(name: string, domain: string): Promise<Result<null>>
   instancePolicyLog(name: string): Promise<Result<PolicySummary>>
   instanceStats(name: string): Promise<Result<ResourceStats>>
+  instanceFsListDir(name: string, path: string): Promise<Result<ListResult>>
+  instanceFsPlan(name: string, direction: CopyDirection, sources: string[], dest: string, defaults: { host: string; sandbox: string }): Promise<Result<PlanResult>>
+  instanceFsCopy(name: string, direction: CopyDirection, sources: string[], dest: string): Promise<Result<CopyResult[]>>
+  pickPaths(mode: 'files' | 'folder'): Promise<string[]>
   authStatus(): Promise<Result<AuthStatus>>
   authSignOut(): Promise<Result<null>>
   authStartLogin(): Promise<Result<{ name: string }>>
@@ -86,6 +91,10 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   instanceDomainDeny: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instancePolicyLog: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   instanceStats: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instanceFsListDir: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instanceFsPlan: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  instanceFsCopy: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  pickPaths: async () => [],
   authStatus: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   authSignOut: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   authStartLogin: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),

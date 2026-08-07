@@ -28,7 +28,9 @@ import type { Logger } from './log'
 import { normalizeCommandsYaml } from '@shared/kit-commands'
 import * as nodeFs from 'node:fs'
 import os from 'node:os'
-import { join } from 'node:path'
+import { join, isAbsolute, resolve } from 'node:path'
+import { resolveSandboxPath, basenameAny, posixJoin } from '@shared/copy'
+import type { CopyDirection, ListResult, PlanResult, CopyResult } from '@shared/copy'
 
 interface Deps {
   adapter: SbxAdapter
@@ -89,6 +91,12 @@ async function resolveAgentForInstance(deps: Deps, name: string): Promise<AgentI
   return spec?.definition.agent ?? 'claude'
 }
 
+/** Resolve a host path: absolute passes through; relative resolves against the default dir. */
+function resolveHostPath(defaultDir: string, input: string): string {
+  const s = input.trim()
+  return isAbsolute(s) ? s : resolve(defaultDir || process.cwd(), s)
+}
+
 async function wrap<T>(fn: () => Promise<T>): Promise<Result<T>> {
   try {
     return { ok: true, data: await fn() }
@@ -133,6 +141,9 @@ export function buildHandlers(deps: Deps): {
   'instance:domain:deny': (name: string, domain: string) => Promise<Result<null>>
   'instance:policyLog': (name: string) => Promise<Result<PolicySummary>>
   'instance:stats': (name: string) => Promise<Result<ResourceStats>>
+  'instance:fs:listDir': (name: string, path: string) => Promise<Result<ListResult>>
+  'instance:fs:plan': (name: string, direction: CopyDirection, sources: string[], dest: string, defaults: { host: string; sandbox: string }) => Promise<Result<PlanResult>>
+  'instance:fs:copy': (name: string, direction: CopyDirection, sources: string[], dest: string) => Promise<Result<CopyResult[]>>
   'auth:status': () => Promise<Result<AuthStatus>>
   'auth:signOut': () => Promise<Result<null>>
   'auth:startLogin': () => Promise<Result<{ name: string }>>
@@ -352,6 +363,42 @@ export function buildHandlers(deps: Deps): {
     }),
     'instance:policyLog': (name) => wrap(async () => deps.adapter.policyLog(name)),
     'instance:stats': (name) => wrap(() => fetchResourceStats(deps.adapter, name)),
+    'instance:fs:listDir': (name, path) => wrap(() => deps.adapter.listSandboxDir(name, path)),
+    'instance:fs:plan': (name, direction, sources, dest, defaults) => wrap(async () => {
+      const resolvedSources = sources.map((s) =>
+        direction === 'toSandbox' ? resolveHostPath(defaults.host, s) : resolveSandboxPath(defaults.sandbox, s))
+      const resolvedDest = direction === 'toSandbox'
+        ? resolveSandboxPath(defaults.sandbox, dest)
+        : resolveHostPath(defaults.host, dest)
+      const destIsDir = direction === 'toSandbox'
+        ? (await deps.adapter.probeSandboxPath(name, resolvedDest)) === 'dir'
+        : nodeFs.existsSync(resolvedDest) && nodeFs.statSync(resolvedDest).isDirectory()
+      const targets = resolvedSources.map((rs) => {
+        if (!destIsDir) return resolvedDest
+        const base = basenameAny(rs)
+        return direction === 'toSandbox' ? posixJoin(resolvedDest, base) : join(resolvedDest, base)
+      })
+      const existing = direction === 'toSandbox'
+        ? await deps.adapter.sandboxTargetsExist(name, targets)
+        : targets.map((t) => nodeFs.existsSync(t))
+      const items = resolvedSources.map((rs, i) => ({
+        source: sources[i], resolvedSource: rs, target: targets[i], willOverwrite: existing[i]
+      }))
+      return { resolvedDest, items }
+    }),
+    'instance:fs:copy': (name, direction, sources, dest) => wrap(async () => {
+      const results: CopyResult[] = []
+      for (const src of sources) {
+        try {
+          if (direction === 'toSandbox') await deps.adapter.copyToSandbox(name, src, dest)
+          else await deps.adapter.copyFromSandbox(name, src, dest)
+          results.push({ source: src, ok: true })
+        } catch (e) {
+          results.push({ source: src, ok: false, error: (e as Error).message })
+        }
+      }
+      return results
+    }),
     'auth:status': () => wrap(() => claudeAuthStatus(deps.adapter)),
     'auth:signOut': () => wrap(async () => { await claudeSignOut(deps.adapter); return null }),
     'auth:startLogin': () => wrap(async () => {
@@ -474,6 +521,9 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instance:domain:deny', (_e, name: string, domain: string) => handlers['instance:domain:deny'](name, domain))
   ipcMain.handle('instance:policyLog', (_e, name: string) => handlers['instance:policyLog'](name))
   ipcMain.handle('instance:stats', (_e, name: string) => handlers['instance:stats'](name))
+  ipcMain.handle('instance:fs:listDir', (_e, name: string, path: string) => handlers['instance:fs:listDir'](name, path))
+  ipcMain.handle('instance:fs:plan', (_e, name: string, direction: CopyDirection, sources: string[], dest: string, defaults: { host: string; sandbox: string }) => handlers['instance:fs:plan'](name, direction, sources, dest, defaults))
+  ipcMain.handle('instance:fs:copy', (_e, name: string, direction: CopyDirection, sources: string[], dest: string) => handlers['instance:fs:copy'](name, direction, sources, dest))
   ipcMain.handle('auth:status', () => handlers['auth:status']())
   ipcMain.handle('auth:signOut', () => handlers['auth:signOut']())
   ipcMain.handle('auth:startLogin', () => handlers['auth:startLogin']())
@@ -494,5 +544,14 @@ export function registerIpc(deps: Deps): void {
     const opts = { properties: ['openFile' as const] }
     const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
     return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0]
+  })
+  ipcMain.handle('dialog:pickPaths', async (e, mode: 'files' | 'folder') => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    const properties = mode === 'folder'
+      ? (['openDirectory', 'multiSelections'] as const)
+      : (['openFile', 'multiSelections'] as const)
+    const opts = { properties: [...properties] }
+    const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    return res.canceled ? [] : res.filePaths
   })
 }
