@@ -192,4 +192,13 @@ describe('CreateDefinition wizard', () => {
     await waitFor(() => expect(screen.getByLabelText(/workspace/i)).toBeInTheDocument())
     expect(prefsGet).not.toHaveBeenCalledWith('defaultTier')
   })
+
+  it('shows an error and disables Next when memory is invalid', () => {
+    render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Workspace'), { target: { value: '/tmp/proj' } })
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 1 -> 2
+    fireEvent.change(screen.getByLabelText('Memory'), { target: { value: '8gb' } }) // invalid
+    expect(screen.getByText(/binary size like 8g/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()
+  })
 })
