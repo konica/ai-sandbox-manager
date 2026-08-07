@@ -6,6 +6,8 @@ import { parsePolicyLog } from './policy-log'
 import { parseDiagnoseAuth, type AuthCheck } from './diagnose'
 import { specToCreateArgs, tierToAllowlist, portIntentToPublishSpec } from './translate'
 import type { Logger } from '../log'
+import { parseListOutput, type ListResult } from '@shared/copy'
+import { listDirScript, statScript, existsScript, parseStat, parseExists } from './fs-probe'
 
 export interface SbxResult { stdout: string; stderr: string; code: number }
 
@@ -42,6 +44,17 @@ export interface SbxAdapter {
   execScript(name: string, script: string): Promise<void>
   /** Like execScript but returns the exec's stdout: `sbx exec <name> bash -lc <script>`. Throws on non-zero exit. */
   execCapture(name: string, script: string): Promise<string>
+  /** List a directory inside a running sandbox (`ls -1Ap` in a login shell). Never throws on an
+   * unreadable dir — returns `{ ok:false }`; only exec/spawn failures reject. */
+  listSandboxDir(name: string, path: string): Promise<ListResult>
+  /** Classify a sandbox path as dir/file/missing. */
+  probeSandboxPath(name: string, path: string): Promise<'dir' | 'file' | 'missing'>
+  /** For each path, whether it exists inside the sandbox (order-preserving). Empty → []. */
+  sandboxTargetsExist(name: string, paths: string[]): Promise<boolean[]>
+  /** `sbx cp <hostSrc> <name>:<sandboxDest>`. Throws SbxError on failure. */
+  copyToSandbox(name: string, hostSrc: string, sandboxDest: string): Promise<void>
+  /** `sbx cp <name>:<sandboxSrc> <hostDest>`. Throws SbxError on failure. */
+  copyFromSandbox(name: string, sandboxSrc: string, hostDest: string): Promise<void>
 }
 
 export const defaultSpawn: SpawnFn = (cmd, args, opts) =>
@@ -199,6 +212,24 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     return res.stdout
   }
 
+  async function listSandboxDir(name: string, path: string): Promise<ListResult> {
+    const out = await execCapture(name, listDirScript(path))
+    return parseListOutput(out)
+  }
+  async function probeSandboxPath(name: string, path: string): Promise<'dir' | 'file' | 'missing'> {
+    return parseStat(await execCapture(name, statScript(path)))
+  }
+  async function sandboxTargetsExist(name: string, paths: string[]): Promise<boolean[]> {
+    if (paths.length === 0) return []
+    return parseExists(await execCapture(name, existsScript(paths)), paths.length)
+  }
+  async function copyToSandbox(name: string, hostSrc: string, sandboxDest: string): Promise<void> {
+    await runSbx(['cp', hostSrc, `${name}:${sandboxDest}`])
+  }
+  async function copyFromSandbox(name: string, sandboxSrc: string, hostDest: string): Promise<void> {
+    await runSbx(['cp', `${name}:${sandboxSrc}`, hostDest])
+  }
+
   async function validateKit(dir: string): Promise<{ code: number; out: string; ran: boolean }> {
     logger?.command(['kit', 'validate', dir])
     try {
@@ -210,5 +241,5 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     }
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, listInstanceSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, execScript, execCapture, validateKit }
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, listInstanceSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, execScript, execCapture, validateKit, listSandboxDir, probeSandboxPath, sandboxTargetsExist, copyToSandbox, copyFromSandbox }
 }
