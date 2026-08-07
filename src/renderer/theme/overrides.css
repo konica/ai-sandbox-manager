@@ -1,7 +1,10 @@
 /* Electron-specific tweaks layered on top of the mockup's app.css.
    Kept separate so app.css stays a faithful copy of the design export. */
 
-/* Clear the macOS traffic-light buttons under titleBarStyle: hiddenInset. */
-.titlebar {
+/* Clear the macOS traffic-light buttons (they sit at the top-left; see main's
+   trafficLightPosition). Scoped to macOS via the `.is-mac` root class set in main.tsx —
+   on Windows/Linux the controls are overlaid on the RIGHT, so the title keeps app.css's
+   tight left inset instead of an 80px gap. */
+.is-mac .titlebar {
   padding-left: 80px;
 }
