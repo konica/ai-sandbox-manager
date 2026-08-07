@@ -97,6 +97,9 @@ export function specToCreateArgs(spec: DefinitionSpec, name: string = resolveSan
   args.push('--name', name)
   if (spec.definition.baseImage.trim().length > 0) args.push('--template', spec.definition.baseImage)
   if (kitDir) args.push('--kit', kitDir)
+  const { cpus, memory } = spec.definition
+  if (typeof cpus === 'number' && cpus >= 1) args.push('--cpus', String(cpus))
+  if (memory && memory.trim().length > 0) args.push('-m', memory.trim())
   return args
 }
 
