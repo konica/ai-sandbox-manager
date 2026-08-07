@@ -1,4 +1,4 @@
-import { useEffect, useReducer } from 'react'
+import { useEffect, useReducer, useRef } from 'react'
 import type { CopyDirection, ListResult, PlanResult, CopyResult } from '@shared/copy'
 import { posixJoin } from '@shared/copy'
 import { useT } from '../../i18n'
@@ -30,17 +30,28 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
   const [state, dispatch] = useReducer(filesReducer, initialFilesState)
   const { direction, sources, dest, browser } = state
   const toSandbox = direction === 'toSandbox'
+  // The destination side's configured default dir; used as the destination when the user
+  // hasn't picked/typed one, so a configured default is enough to enable Copy.
+  const destDefault = toSandbox ? sandboxDir : hostDir
+  const effectiveDest = dest.trim() || destDefault.trim()
 
-  // Load the sandbox browser at the default dir whenever it becomes relevant.
+  // Load the sandbox browser at the default dir whenever it becomes relevant. Skip while the
+  // sandbox default dir is still empty (e.g. before prefs load) — listing '' just errors.
   useEffect(() => {
-    if (!running) return
+    if (!running || !sandboxDir.trim()) return
     void loadDir(sandboxDir)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, direction, sandboxDir])
 
+  // Monotonic token so a slow/stale listDir response can never overwrite a newer one — the
+  // mount-time load and a later prefs-driven load would otherwise race and the loser (often an
+  // empty-path error) could clobber the good listing.
+  const loadSeq = useRef(0)
   async function loadDir(path: string): Promise<void> {
+    const seq = ++loadSeq.current
     dispatch({ type: 'browserLoading' })
     const r = await props.listDir(path)
+    if (seq !== loadSeq.current) return // superseded by a newer load
     if (r) dispatch({ type: 'browserLoaded', result: r })
     else dispatch({ type: 'browserLoaded', result: { ok: false, error: 'IPC unavailable' } })
   }
@@ -58,9 +69,9 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
   }
 
   async function onCopy(): Promise<void> {
-    if (!sources.length || !dest.trim()) return
+    if (!sources.length || !effectiveDest) return
     dispatch({ type: 'setBusy', busy: true })
-    const p = await props.plan(direction, sources, dest)
+    const p = await props.plan(direction, sources, effectiveDest)
     dispatch({ type: 'setBusy', busy: false })
     if (!p) return
     const hasOverwrite = p.items.some((it) => it.willOverwrite)
@@ -140,32 +151,34 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
         </div>
         {browser.error && <p className="section-desc" style={{ fontSize: 12, color: 'var(--danger)' }}>{t('detail.filesBrowserError', { error: browser.error })}</p>}
         {!browser.error && browser.entries.length === 0 && !browser.loading && <p className="section-desc" style={{ fontSize: 12 }}>{t('detail.filesEmptyDir')}</p>}
-        {browser.entries.map((e) => {
-          const full = posixJoin(browser.cwd, e.name)
-          return (
-            <div key={e.name} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '3px 0', fontSize: 13 }}>
-              {!toSandbox && !e.isDir && (
-                <input type="checkbox" checked={sources.includes(full)}
-                  onChange={(ev) => dispatch(ev.target.checked ? { type: 'addSources', paths: [full] } : { type: 'removeSource', path: full })} />
-              )}
-              <span style={{ flex: 1, cursor: e.isDir ? 'pointer' : 'default', fontFamily: 'var(--font-mono, monospace)' }}
-                onClick={() => { if (e.isDir) void loadDir(full) }}>
-                {e.isDir ? `📁 ${e.name}/` : `📄 ${e.name}`}
-              </span>
-              {toSandbox && e.isDir && (
-                <button className="btn btn-ghost btn-sm" onClick={() => dispatch({ type: 'setDest', dest: full })}>→ {t('detail.filesDestination')}</button>
-              )}
-            </div>
-          )
-        })}
+        <div style={{ maxHeight: 280, overflowY: 'auto' }}>
+          {browser.entries.map((e) => {
+            const full = posixJoin(browser.cwd, e.name)
+            return (
+              <div key={e.name} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '3px 0', fontSize: 13 }}>
+                {!toSandbox && !e.isDir && (
+                  <input type="checkbox" checked={sources.includes(full)}
+                    onChange={(ev) => dispatch(ev.target.checked ? { type: 'addSources', paths: [full] } : { type: 'removeSource', path: full })} />
+                )}
+                <span style={{ flex: 1, cursor: e.isDir ? 'pointer' : 'default', fontFamily: 'var(--font-mono, monospace)' }}
+                  onClick={() => { if (e.isDir) void loadDir(full) }}>
+                  {e.isDir ? `📁 ${e.name}/` : `📄 ${e.name}`}
+                </span>
+                {toSandbox && e.isDir && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => dispatch({ type: 'setDest', dest: full })}>→ {t('detail.filesDestination')}</button>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {/* Destination + Copy */}
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
-        <input className="input" style={{ flex: 1 }} placeholder={t('detail.filesDestPlaceholder')} aria-label={t('detail.filesDestination')} value={dest}
+        <input className="input" style={{ flex: 1 }} placeholder={destDefault.trim() || t('detail.filesDestPlaceholder')} aria-label={t('detail.filesDestination')} value={dest}
           onChange={(e) => dispatch({ type: 'setDest', dest: e.target.value })} />
         {!toSandbox && <button className="btn btn-secondary btn-sm" onClick={async () => { const d = await props.pickFolder(); if (d) dispatch({ type: 'setDest', dest: d }) }}>{t('detail.filesBrowse')}</button>}
-        <button className="btn btn-primary btn-sm" disabled={!running || state.busy || sources.length === 0 || !dest.trim()} onClick={() => void onCopy()}>
+        <button className="btn btn-primary btn-sm" disabled={!running || state.busy || sources.length === 0 || !effectiveDest} onClick={() => void onCopy()}>
           {state.busy ? t('detail.filesCopying') : t('detail.filesCopy')}
         </button>
       </div>

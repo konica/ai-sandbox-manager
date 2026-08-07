@@ -38,10 +38,22 @@ describe('FilesTab', () => {
     render(<FilesTab {...p} />)
     fireEvent.click(screen.getByRole('button', { name: /add files/i }))
     await screen.findByText('C:\\proj\\a.txt')
-    fireEvent.change(screen.getByPlaceholderText(/destination/i), { target: { value: '/workspace' } })
+    fireEvent.change(screen.getByLabelText(/destination/i), { target: { value: '/workspace' } })
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     await waitFor(() => expect(p.copy).toHaveBeenCalledWith('toSandbox', ['C:\\proj\\a.txt'], '/workspace'))
     await screen.findByText(/copied/i)
+  })
+
+  it('uses the sandbox default dir as destination and enables Copy without a typed dest', async () => {
+    const p = props() // sandboxDir '/workspace' is the destination default
+    render(<FilesTab {...p} />)
+    const copyBtn = () => screen.getByRole('button', { name: 'Copy' }) as HTMLButtonElement
+    expect(copyBtn().disabled).toBe(true) // no sources yet
+    fireEvent.click(screen.getByRole('button', { name: /add files/i }))
+    await screen.findByText('C:\\proj\\a.txt')
+    expect(copyBtn().disabled).toBe(false) // default dir + a source is enough — no typed dest
+    fireEvent.click(copyBtn())
+    await waitFor(() => expect(p.plan).toHaveBeenCalledWith('toSandbox', ['C:\\proj\\a.txt'], '/workspace'))
   })
 
   it('shows the overwrite confirm when the plan flags a conflict', async () => {
@@ -51,7 +63,7 @@ describe('FilesTab', () => {
     render(<FilesTab {...p} />)
     fireEvent.click(screen.getByRole('button', { name: /add files/i }))
     await screen.findByText('C:\\proj\\a.txt')
-    fireEvent.change(screen.getByPlaceholderText(/destination/i), { target: { value: '/workspace' } })
+    fireEvent.change(screen.getByLabelText(/destination/i), { target: { value: '/workspace' } })
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     await screen.findByText(/overwrite existing files/i)
     expect(p.copy).not.toHaveBeenCalled()

@@ -30,10 +30,12 @@ describe('filesReducer', () => {
     s = filesReducer(s, { type: 'browserLoaded', result: { ok: true, cwd: '/workspace', entries: [{ name: 'out', isDir: true }] } })
     expect(s.browser).toEqual({ cwd: '/workspace', entries: [{ name: 'out', isDir: true }], error: null, loading: false })
   })
-  it('browserLoaded with an error result stores the message', () => {
-    const s = filesReducer(initialFilesState, { type: 'browserLoaded', result: { ok: false, error: 'nope' } })
+  it('browserLoaded with an error result stores the message and clears stale entries', () => {
+    let s = filesReducer(initialFilesState, { type: 'browserLoaded', result: { ok: true, cwd: '/w', entries: [{ name: 'a', isDir: false }] } })
+    s = filesReducer(s, { type: 'browserLoaded', result: { ok: false, error: 'nope' } })
     expect(s.browser.error).toBe('nope')
     expect(s.browser.loading).toBe(false)
+    expect(s.browser.entries).toEqual([])
   })
   it('setPlan opens the confirm only when asked', () => {
     const plan = { resolvedDest: '/x', items: [] }

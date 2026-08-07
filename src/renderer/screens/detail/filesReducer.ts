@@ -60,7 +60,7 @@ export function filesReducer(state: FilesState, action: FilesAction): FilesState
     case 'browserLoaded':
       return action.result.ok
         ? { ...state, browser: { cwd: action.result.cwd, entries: action.result.entries, error: null, loading: false } }
-        : { ...state, browser: { ...state.browser, error: action.result.error, loading: false } }
+        : { ...state, browser: { ...state.browser, entries: [], error: action.result.error, loading: false } }
     case 'setPlan':
       return { ...state, plan: action.plan, confirmOpen: action.confirmOpen, results: null }
     case 'closeConfirm':
