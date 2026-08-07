@@ -91,7 +91,7 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
   return (
     <div>
       {/* Direction toggle */}
-      <div role="tablist" style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+      <div role="tablist" style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
         <button className={`btn btn-sm ${toSandbox ? 'btn-primary' : 'btn-secondary'}`} onClick={() => dispatch({ type: 'setDirection', direction: 'toSandbox' })}>{t('detail.filesToSandbox')}</button>
         <button className={`btn btn-sm ${!toSandbox ? 'btn-primary' : 'btn-secondary'}`} onClick={() => dispatch({ type: 'setDirection', direction: 'fromSandbox' })}>{t('detail.filesFromSandbox')}</button>
       </div>
@@ -99,7 +99,7 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
       {!running && <p className="section-desc" style={{ fontSize: 12 }}>{t('detail.filesRunningHint')}</p>}
 
       {/* Default directories — host + sandbox share one row (and both directions); wraps when narrow */}
-      <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
+      <div className="card" style={{ marginBottom: 'var(--space-3)' }}>
         <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 220 }}>
             <label className="field-label">{t('detail.filesHostDir')}</label>
@@ -115,17 +115,15 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
         </div>
       </div>
 
-      {/* Sources */}
-      <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-        <div className="card-header"><div className="card-title">{t('detail.filesSources')}</div></div>
-        {toSandbox && (
-          <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+      {/* Sources — title + add controls collapsed onto one wrapping row to save space */}
+      <div className="card" style={{ marginBottom: 'var(--space-3)' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap', marginBottom: sources.length ? 'var(--space-2)' : 0 }}>
+          <span className="card-title">{t('detail.filesSources')}</span>
+          {toSandbox && <>
             <button className="btn btn-secondary btn-sm" disabled={!running} onClick={() => void addFiles('files')}>{t('detail.filesAddFiles')}</button>
             <button className="btn btn-secondary btn-sm" disabled={!running} onClick={() => void addFiles('folder')}>{t('detail.filesAddFolder')}</button>
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-          <input className="input" style={{ flex: 1 }} placeholder={t('detail.filesSourcePlaceholder')} value={state.typedSource}
+          </>}
+          <input className="input" style={{ flex: 1, minWidth: 160 }} placeholder={t('detail.filesSourcePlaceholder')} value={state.typedSource}
             onChange={(e) => dispatch({ type: 'setTypedSource', value: e.target.value })}
             onKeyDown={(e) => { if (e.key === 'Enter') addTypedSource() }} />
           <button className="btn btn-secondary btn-sm" disabled={!running} onClick={addTypedSource}>{t('detail.filesAddPath')}</button>
@@ -141,10 +139,13 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
       </div>
 
       {/* Sandbox browser — used to pick the destination dir (toSandbox) or sources (fromSandbox) */}
-      <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="card-title" style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 12 }}>{browser.cwd || sandboxDir}</div>
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+      <div className="card" style={{ marginBottom: 'var(--space-3)' }}>
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: 0, flex: 1 }}>
+            <span className="card-title" style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{browser.cwd || sandboxDir}</span>
+            {browser.loading && <span className="spinner" role="status" aria-label={t('detail.filesLoading')} />}
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexShrink: 0 }}>
             <button className="btn btn-ghost btn-sm" disabled={!running || !browser.cwd} onClick={() => void loadDir(browser.cwd ? posixJoin(browser.cwd, '..') : sandboxDir)}>{t('detail.filesUp')}</button>
             <button className="btn btn-ghost btn-sm" disabled={!running} onClick={() => void loadDir(browser.cwd || sandboxDir)}>{t('detail.filesRefresh')}</button>
           </div>
@@ -174,7 +175,7 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
       </div>
 
       {/* Destination + Copy */}
-      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
         <input className="input" style={{ flex: 1 }} placeholder={destDefault.trim() || t('detail.filesDestPlaceholder')} aria-label={t('detail.filesDestination')} value={dest}
           onChange={(e) => dispatch({ type: 'setDest', dest: e.target.value })} />
         {!toSandbox && <button className="btn btn-secondary btn-sm" onClick={async () => { const d = await props.pickFolder(); if (d) dispatch({ type: 'setDest', dest: d }) }}>{t('detail.filesBrowse')}</button>}

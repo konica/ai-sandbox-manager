@@ -300,6 +300,7 @@ export const de: Dict = {
     filesUp: 'Nach oben',
     filesRefresh: 'Aktualisieren',
     filesEmptyDir: 'Leeres Verzeichnis',
+    filesLoading: 'Verzeichnis wird geladen…',
     filesBrowserError: 'Verzeichnis nicht lesbar: {error}',
     filesCopy: 'Kopieren',
     filesCopying: 'Kopiere…',

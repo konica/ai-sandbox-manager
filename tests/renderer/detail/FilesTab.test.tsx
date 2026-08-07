@@ -56,6 +56,16 @@ describe('FilesTab', () => {
     await waitFor(() => expect(p.plan).toHaveBeenCalledWith('toSandbox', ['C:\\proj\\a.txt'], '/workspace'))
   })
 
+  it('shows a loading indicator while the directory listing is fetching', async () => {
+    let resolveList: (r: { ok: true; cwd: string; entries: [] }) => void = () => {}
+    const listDir = vi.fn(() => new Promise<{ ok: true; cwd: string; entries: [] }>((res) => { resolveList = res }))
+    render(<FilesTab {...props({ listDir })} />)
+    // The mount effect fetches the sandbox default dir → spinner shows while pending
+    expect(await screen.findByRole('status')).toBeInTheDocument()
+    resolveList({ ok: true, cwd: '/workspace', entries: [] })
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
+  })
+
   it('shows the overwrite confirm when the plan flags a conflict', async () => {
     const p = props({
       plan: vi.fn(async () => ({ resolvedDest: '/workspace', items: [{ source: 'C:\\proj\\a.txt', resolvedSource: 'C:\\proj\\a.txt', target: '/workspace/a.txt', willOverwrite: true }] }))

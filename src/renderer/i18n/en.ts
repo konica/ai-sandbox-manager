@@ -298,6 +298,7 @@ export const en = {
     filesUp: 'Up',
     filesRefresh: 'Refresh',
     filesEmptyDir: 'Empty directory',
+    filesLoading: 'Loading directory…',
     filesBrowserError: 'Couldn’t read directory: {error}',
     filesCopy: 'Copy',
     filesCopying: 'Copying…',
