@@ -8,7 +8,6 @@ import { PortsTab } from './detail/PortsTab'
 import { MonitoringTab, type ResourceStatsState } from './detail/MonitoringTab'
 import { MetadataTab } from './detail/MetadataTab'
 import { FilesTab } from './detail/FilesTab'
-import type { CopyDirection } from '@shared/copy'
 
 export type DetailTab = 'terminals' | 'ports' | 'monitoring' | 'metadata' | 'files'
 

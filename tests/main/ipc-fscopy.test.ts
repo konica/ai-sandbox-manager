@@ -49,6 +49,48 @@ describe('instance:fs:plan (sandbox → host)', () => {
   })
 })
 
+describe('instance:fs:plan (tilde expansion)', () => {
+  it('expands a bare `~` sandbox dest to /home/agent and probes/targets accordingly', async () => {
+    const probeSandboxPath = vi.fn(async () => 'dir')
+    const sandboxTargetsExist = vi.fn(async () => [false])
+    const h = buildHandlers(deps({ probeSandboxPath, sandboxTargetsExist }))
+    const res = await h['instance:fs:plan']('proj', 'toSandbox', ['C:\\a\\report.csv'], '~', { host: 'C:\\a', sandbox: '/home' })
+    expect(res.ok).toBe(true)
+    if (!res.ok) return
+    expect(res.data.resolvedDest).toBe('/home/agent')
+    expect(res.data.items[0].target).toBe('/home/agent/report.csv')
+    expect(probeSandboxPath).toHaveBeenCalledWith('proj', '/home/agent')
+    expect(sandboxTargetsExist).toHaveBeenCalledWith('proj', ['/home/agent/report.csv'])
+  })
+
+  it('expands `~/out` sandbox dest to /home/agent/out', async () => {
+    const probeSandboxPath = vi.fn(async () => 'dir')
+    const sandboxTargetsExist = vi.fn(async () => [false])
+    const h = buildHandlers(deps({ probeSandboxPath, sandboxTargetsExist }))
+    const res = await h['instance:fs:plan']('proj', 'toSandbox', ['C:\\a\\report.csv'], '~/out', { host: 'C:\\a', sandbox: '/home' })
+    expect(res.ok).toBe(true)
+    if (!res.ok) return
+    expect(res.data.resolvedDest).toBe('/home/agent/out')
+  })
+
+  it('expands a bare `~` host dest to the OS home dir', async () => {
+    const h = buildHandlers(deps({}))
+    const res = await h['instance:fs:plan']('proj', 'fromSandbox', ['/workspace/out.log'], '~', { host: 'C:\\dl', sandbox: '/workspace' })
+    expect(res.ok).toBe(true)
+    if (!res.ok) return
+    expect(res.data.resolvedDest).toBe(os.homedir())
+  })
+})
+
+describe('instance:fs:listDir (tilde expansion)', () => {
+  it('expands `~` before calling the adapter', async () => {
+    const listSandboxDir = vi.fn(async () => ({ ok: true, cwd: '/home/agent', entries: [] }))
+    const h = buildHandlers(deps({ listSandboxDir }))
+    await h['instance:fs:listDir']('proj', '~')
+    expect(listSandboxDir).toHaveBeenCalledWith('proj', '/home/agent')
+  })
+})
+
 describe('instance:fs:copy', () => {
   it('copies each source and reports per-item results without aborting', async () => {
     const copyToSandbox = vi.fn(async (_n: string, src: string) => {

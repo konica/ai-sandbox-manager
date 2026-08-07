@@ -34,9 +34,9 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
   // Load the sandbox browser at the default dir whenever it becomes relevant.
   useEffect(() => {
     if (!running) return
-    void loadDir(toSandbox ? sandboxDir : sandboxDir)
+    void loadDir(sandboxDir)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, direction])
+  }, [running, direction, sandboxDir])
 
   async function loadDir(path: string): Promise<void> {
     dispatch({ type: 'browserLoading' })
@@ -69,6 +69,7 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
   }
 
   async function runCopy(p: PlanResult): Promise<void> {
+    dispatch({ type: 'closeConfirm' })
     dispatch({ type: 'setBusy', busy: true })
     const results = await props.copy(direction, p.items.map((it) => it.resolvedSource), p.resolvedDest)
     dispatch({ type: 'setResults', results: results ?? [] })
@@ -110,7 +111,7 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
           <input className="input" style={{ flex: 1 }} placeholder={t('detail.filesSourcePlaceholder')} value={state.typedSource}
             onChange={(e) => dispatch({ type: 'setTypedSource', value: e.target.value })}
             onKeyDown={(e) => { if (e.key === 'Enter') addTypedSource() }} />
-          <button className="btn btn-secondary btn-sm" onClick={addTypedSource}>{t('detail.filesAddPath')}</button>
+          <button className="btn btn-secondary btn-sm" disabled={!running} onClick={addTypedSource}>{t('detail.filesAddPath')}</button>
         </div>
         {sources.length === 0
           ? <p className="section-desc" style={{ fontSize: 12, margin: 0 }}>{t('detail.filesNoSources')}</p>

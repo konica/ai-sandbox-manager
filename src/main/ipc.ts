@@ -13,7 +13,7 @@ import { SbxError } from '@shared/errors'
 import { normalizeTags } from '@shared/tags'
 import { registerCredentials } from './creds/register'
 import { applyCredentialsLive } from './creds/apply-live'
-import { agentAttachCommand, hostShellCommand, loginCommand } from './sbx/translate'
+import { agentAttachCommand, hostShellCommand, loginCommand, expandSandboxPath, expandHostPath } from './sbx/translate'
 import { fetchResourceStats } from './sbx/resource-stats'
 import { claudeAuthStatus, claudeSignOut } from './auth/manager'
 import { sshAgentPresent } from './ssh/detect'
@@ -91,10 +91,19 @@ async function resolveAgentForInstance(deps: Deps, name: string): Promise<AgentI
   return spec?.definition.agent ?? 'claude'
 }
 
-/** Resolve a host path: absolute passes through; relative resolves against the default dir. */
+/** Resolve a host path: absolute passes through; relative resolves against the default dir.
+ * A leading `~`/`~/…` in either the input or the default dir is expanded to the OS home dir
+ * first (`sbx cp`'s shell-quoter never expands `~` on its own). */
 function resolveHostPath(defaultDir: string, input: string): string {
-  const s = input.trim()
-  return isAbsolute(s) ? s : resolve(defaultDir || process.cwd(), s)
+  const s = expandHostPath(input.trim())
+  if (isAbsolute(s)) return resolve(s)
+  return resolve(expandHostPath(defaultDir) || process.cwd(), s)
+}
+
+/** Resolve a sandbox path via the shared resolver, expanding `~` in both the default dir and
+ * the final result — a `~`-relative default or input must never reach `sbx cp`/probes unexpanded. */
+function resolveSandboxPathM(defaultDir: string, input: string): string {
+  return expandSandboxPath(resolveSandboxPath(expandSandboxPath(defaultDir), input))
 }
 
 async function wrap<T>(fn: () => Promise<T>): Promise<Result<T>> {
@@ -363,12 +372,12 @@ export function buildHandlers(deps: Deps): {
     }),
     'instance:policyLog': (name) => wrap(async () => deps.adapter.policyLog(name)),
     'instance:stats': (name) => wrap(() => fetchResourceStats(deps.adapter, name)),
-    'instance:fs:listDir': (name, path) => wrap(() => deps.adapter.listSandboxDir(name, path)),
+    'instance:fs:listDir': (name, path) => wrap(() => deps.adapter.listSandboxDir(name, expandSandboxPath(path))),
     'instance:fs:plan': (name, direction, sources, dest, defaults) => wrap(async () => {
       const resolvedSources = sources.map((s) =>
-        direction === 'toSandbox' ? resolveHostPath(defaults.host, s) : resolveSandboxPath(defaults.sandbox, s))
+        direction === 'toSandbox' ? resolveHostPath(defaults.host, s) : resolveSandboxPathM(defaults.sandbox, s))
       const resolvedDest = direction === 'toSandbox'
-        ? resolveSandboxPath(defaults.sandbox, dest)
+        ? resolveSandboxPathM(defaults.sandbox, dest)
         : resolveHostPath(defaults.host, dest)
       const destIsDir = direction === 'toSandbox'
         ? (await deps.adapter.probeSandboxPath(name, resolvedDest)) === 'dir'
