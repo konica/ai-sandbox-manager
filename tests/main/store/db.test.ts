@@ -55,4 +55,33 @@ describe('metadata-store', () => {
     expect(store.listInstanceMeta()).toEqual([])
     store.close()
   })
+
+  it('persists and reads cpus/memory on a definition spec', () => {
+    const base = {
+      definition: { id: 'r1', name: 'r', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't', cpus: 4, memory: '8g' },
+      mounts: [{ hostPath: '/w', mode: 'direct' as const, isPrimary: true }],
+      domains: [], ports: [], hostServices: [], credentials: []
+    }
+    store.insertDefinitionSpec(base)
+    const got = store.getDefinitionSpec('r1')
+    expect(got?.definition.cpus).toBe(4)
+    expect(got?.definition.memory).toBe('8g')
+
+    store.updateDefinitionSpec({ ...base, definition: { ...base.definition, cpus: 2, memory: '1024m' } })
+    const updated = store.getDefinitionSpec('r1')
+    expect(updated?.definition.cpus).toBe(2)
+    expect(updated?.definition.memory).toBe('1024m')
+  })
+
+  it('reads cpus/memory back as undefined when never set', () => {
+    const base = {
+      definition: { id: 'r2', name: 'r2', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't' },
+      mounts: [{ hostPath: '/w', mode: 'direct' as const, isPrimary: true }],
+      domains: [], ports: [], hostServices: [], credentials: []
+    }
+    store.insertDefinitionSpec(base)
+    const got = store.getDefinitionSpec('r2')
+    expect(got?.definition.cpus).toBeUndefined()
+    expect(got?.definition.memory).toBeUndefined()
+  })
 })

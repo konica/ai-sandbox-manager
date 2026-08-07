@@ -160,6 +160,13 @@ export function openStore(filename: string): Store {
     db.exec(`UPDATE definition SET agent = 'codex' WHERE base_image LIKE '%:codex';`)
     db.exec(`UPDATE definition SET agent = 'copilot' WHERE base_image LIKE '%:copilot';`)
   }
+  // v10 → v11: definitions gain optional CPU/memory limits (create-time only).
+  // Non-destructive; existing rows stay NULL → the flag is omitted at create and
+  // sbx applies its own defaults.
+  if (!defCols.includes('cpus')) {
+    db.exec(`ALTER TABLE definition ADD COLUMN cpus INTEGER;`)
+    db.exec(`ALTER TABLE definition ADD COLUMN memory TEXT;`)
+  }
 
   // v3 → v4: port_intent gains `protocol` + nullable host_port; add host_service. Recreate
   // port_intent (old rows are dev throwaway — SQLite can't relax NOT NULL in place).
@@ -167,6 +174,17 @@ export function openStore(filename: string): Store {
   if (!portCols.includes('protocol')) {
     db.exec(`DROP TABLE IF EXISTS port_intent;`)
     db.exec(SCHEMA) // re-creates port_intent (new shape) + host_service
+  }
+
+  // NULL columns come back as JS null; the Definition type uses optional (undefined).
+  function defWithLimits(row: Record<string, unknown>): Definition {
+    return {
+      id: String(row.id), name: String(row.name), description: String(row.description),
+      baseImage: String(row.baseImage), agent: row.agent as Definition['agent'], tier: row.tier as Definition['tier'],
+      createdAt: String(row.createdAt),
+      cpus: row.cpus == null ? undefined : Number(row.cpus),
+      memory: row.memory == null ? undefined : String(row.memory)
+    }
   }
 
   function insertChildren(s: DefinitionSpec): void {
@@ -204,25 +222,26 @@ export function openStore(filename: string): Store {
   return {
     insertDefinition(d) {
       db.prepare(
-        `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at)
-         VALUES (@id, @name, @description, @baseImage, @agent, @tier, @createdAt)`
-      ).run(d)
+        `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at, cpus, memory)
+         VALUES (@id, @name, @description, @baseImage, @agent, @tier, @createdAt, @cpus, @memory)`
+      ).run({ ...d, cpus: d.cpus ?? null, memory: d.memory ?? null })
     },
     listDefinitions() {
-      return db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt FROM definition ORDER BY created_at DESC`).all() as Definition[]
+      const rows = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt, cpus, memory FROM definition ORDER BY created_at DESC`).all() as Array<Record<string, unknown>>
+      return rows.map(defWithLimits)
     },
     getDefinition(id) {
-      const row = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt FROM definition WHERE id = ?`).get(id)
-      return (row as Definition) ?? null
+      const row = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt, cpus, memory FROM definition WHERE id = ?`).get(id) as Record<string, unknown> | undefined
+      return row ? defWithLimits(row) : null
     },
     insertDefinitionSpec(spec) {
       const insertAll = db.transaction((s: DefinitionSpec) => {
         const ssh = s.ssh ?? DEFAULT_SSH
         db.prepare(
-          `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at, ssh_forward_agent, ssh_commit_signing, kit_commands_yaml)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at, ssh_forward_agent, ssh_commit_signing, kit_commands_yaml, cpus, memory)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).run(s.definition.id, s.definition.name, s.definition.description, s.definition.baseImage, s.definition.agent, s.definition.tier, s.definition.createdAt,
-          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null)
+          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.cpus ?? null, s.definition.memory ?? null)
         insertChildren(s)
       })
       insertAll(spec)
@@ -231,9 +250,9 @@ export function openStore(filename: string): Store {
       const updateAll = db.transaction((s: DefinitionSpec) => {
         const ssh = s.ssh ?? DEFAULT_SSH
         const res = db.prepare(
-          `UPDATE definition SET name = ?, description = ?, base_image = ?, agent = ?, tier = ?, ssh_forward_agent = ?, ssh_commit_signing = ?, kit_commands_yaml = ? WHERE id = ?`
+          `UPDATE definition SET name = ?, description = ?, base_image = ?, agent = ?, tier = ?, ssh_forward_agent = ?, ssh_commit_signing = ?, kit_commands_yaml = ?, cpus = ?, memory = ? WHERE id = ?`
         ).run(s.definition.name, s.definition.description, s.definition.baseImage, s.definition.agent, s.definition.tier,
-          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.id)
+          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.cpus ?? null, s.definition.memory ?? null, s.definition.id)
         if (res.changes === 0) throw new Error(`Definition ${s.definition.id} not found`)
         deleteChildren(s.definition.id)
         insertChildren(s)
@@ -241,8 +260,9 @@ export function openStore(filename: string): Store {
       updateAll(spec)
     },
     getDefinitionSpec(id) {
-      const def = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt FROM definition WHERE id = ?`).get(id) as Definition | undefined
-      if (!def) return null
+      const row = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt, cpus, memory FROM definition WHERE id = ?`).get(id) as Record<string, unknown> | undefined
+      if (!row) return null
+      const def = defWithLimits(row)
       const mounts = (db.prepare(`SELECT host_path AS hostPath, mode, is_primary AS isPrimary FROM mount_intent WHERE definition_id = ? ORDER BY id`).all(id) as Array<Record<string, unknown>>)
         .map((r) => ({ hostPath: String(r.hostPath), mode: String(r.mode) as MountMode, isPrimary: r.isPrimary === 1 }))
       const domains = (db.prepare(`SELECT host FROM policy_domain WHERE definition_id = ? ORDER BY id`).all(id) as Array<{ host: string }>).map((r) => r.host)
