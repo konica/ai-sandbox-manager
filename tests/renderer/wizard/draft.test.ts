@@ -305,6 +305,12 @@ describe('cpus and memory fields', () => {
     expect(d.memory).toBe('8g')
   })
 
+  it('draftFromSpec handles cpus: 0 correctly (null-safe check)', () => {
+    const spec = { ...storedSpec, definition: { ...storedSpec.definition, cpus: 0 } }
+    const d = draftFromSpec(spec)
+    expect(d.cpus).toBe('0')
+  })
+
   it('draftFromSpec seeds cpus and memory as empty strings when undefined', () => {
     const d = draftFromSpec(storedSpec)
     expect(d.cpus).toBe('')

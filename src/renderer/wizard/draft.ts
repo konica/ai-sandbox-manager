@@ -235,7 +235,7 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
     sshForwardAgent: (spec.ssh ?? DEFAULT_SSH).forwardAgent,
     sshCommitSigning: (spec.ssh ?? DEFAULT_SSH).commitSigning,
     kitCommandsYaml: spec.kitCommandsYaml ?? '',
-    cpus: spec.definition.cpus ? String(spec.definition.cpus) : '',
+    cpus: spec.definition.cpus != null ? String(spec.definition.cpus) : '',
     memory: spec.definition.memory ?? ''
   }
 }
