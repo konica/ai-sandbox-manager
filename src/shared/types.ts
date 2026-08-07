@@ -20,6 +20,8 @@ export interface Definition {
   agent: AgentId
   tier: Tier
   createdAt: string
+  cpus?: number // optional CPU count; absent → sbx default (all host CPUs)
+  memory?: string // optional binary-unit memory limit (e.g. '8g'); absent → sbx default
 }
 
 export interface InstanceMeta {
