@@ -9,7 +9,7 @@ import { MonitoringTab, type ResourceStatsState } from './detail/MonitoringTab'
 import { MetadataTab } from './detail/MetadataTab'
 import { FilesTab } from './detail/FilesTab'
 
-export type DetailTab = 'terminals' | 'ports' | 'monitoring' | 'metadata' | 'files'
+export type DetailTab = 'terminals' | 'files' | 'ports' | 'monitoring' | 'metadata'
 
 function tabStyle(active: boolean): React.CSSProperties {
   return {
@@ -151,6 +151,7 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
 
       <div role="tablist" className="tabs detail-tabs" style={{ display: 'flex', gap: 'var(--space-2)', borderBottom: '1px solid var(--border)', marginBottom: 'var(--space-5)' }}>
         <button role="tab" aria-selected={tab === 'terminals'} style={tabStyle(tab === 'terminals')} onClick={() => setTab('terminals')}>{t('detail.tabTerminals')}</button>
+        <button role="tab" aria-selected={tab === 'files'} style={tabStyle(tab === 'files')} onClick={() => setTab('files')}>{t('detail.tabFiles')}</button>
         <button role="tab" aria-selected={tab === 'ports'} style={tabStyle(tab === 'ports')} onClick={() => setTab('ports')}>{t('detail.tabPorts')}</button>
         <button role="tab" aria-selected={tab === 'monitoring'} style={tabStyle(tab === 'monitoring')} onClick={() => setTab('monitoring')}>
           {t('detail.tabMonitoring')}
@@ -166,7 +167,6 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
           )}
         </button>
         <button role="tab" aria-selected={tab === 'metadata'} style={tabStyle(tab === 'metadata')} onClick={() => setTab('metadata')}>{t('detail.tabMetadata')}</button>
-        <button role="tab" aria-selected={tab === 'files'} style={tabStyle(tab === 'files')} onClick={() => setTab('files')}>{t('detail.tabFiles')}</button>
       </div>
 
       {tab === 'terminals' && (
@@ -180,6 +180,20 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
           onShell={onShell}
           onAllowDomain={async (d) => { await api.instanceDomainAllow(instance.name, d); void reloadSpec() }}
           onDenyDomain={async (d) => { await api.instanceDomainDeny(instance.name, d); void reloadSpec() }}
+        />
+      )}
+      {tab === 'files' && (
+        <FilesTab
+          running={running}
+          hostDir={hostDir}
+          sandboxDir={sandboxDir}
+          onSetHostDir={saveHostDir}
+          onSetSandboxDir={saveSandboxDir}
+          listDir={async (path) => { const r = await api.instanceFsListDir(instance.name, path); return r.ok ? r.data : null }}
+          plan={async (direction, sources, dst) => { const r = await api.instanceFsPlan(instance.name, direction, sources, dst, { host: hostDir, sandbox: sandboxDir }); return r.ok ? r.data : null }}
+          copy={async (direction, sources, dst) => { const r = await api.instanceFsCopy(instance.name, direction, sources, dst); return r.ok ? r.data : null }}
+          pickPaths={(mode) => api.pickPaths(mode)}
+          pickFolder={() => api.pickFolder()}
         />
       )}
       {tab === 'ports' && (
@@ -217,20 +231,6 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
           tags={tags}
           onChange={(next) => { setTags(next); onSetTags(instance.name, next) }}
           createdAt={instance.createdAt}
-        />
-      )}
-      {tab === 'files' && (
-        <FilesTab
-          running={running}
-          hostDir={hostDir}
-          sandboxDir={sandboxDir}
-          onSetHostDir={saveHostDir}
-          onSetSandboxDir={saveSandboxDir}
-          listDir={async (path) => { const r = await api.instanceFsListDir(instance.name, path); return r.ok ? r.data : null }}
-          plan={async (direction, sources, dst) => { const r = await api.instanceFsPlan(instance.name, direction, sources, dst, { host: hostDir, sandbox: sandboxDir }); return r.ok ? r.data : null }}
-          copy={async (direction, sources, dst) => { const r = await api.instanceFsCopy(instance.name, direction, sources, dst); return r.ok ? r.data : null }}
-          pickPaths={(mode) => api.pickPaths(mode)}
-          pickFolder={() => api.pickFolder()}
         />
       )}
     </section>
