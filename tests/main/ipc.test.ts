@@ -28,7 +28,12 @@ const adapter: SbxAdapter = {
   execScript: async () => {},
   execCapture: async () => '',
   listInstanceSecretsRaw: async () => '',
-  validateKit: async () => ({ code: 0, out: 'ok', ran: true })
+  validateKit: async () => ({ code: 0, out: 'ok', ran: true }),
+  listSandboxDir: async () => ({ ok: true, cwd: '', entries: [] }),
+  probeSandboxPath: async () => 'missing',
+  sandboxTargetsExist: async () => [],
+  copyToSandbox: async () => {},
+  copyFromSandbox: async () => {}
 }
 const probes: Probes = {
   dockerVersion: async () => 'Docker version 24.0.7', sbxVersion: async () => 'sbx 1.0', sbxAuthed: async () => true,

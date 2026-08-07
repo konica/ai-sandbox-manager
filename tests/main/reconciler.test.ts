@@ -24,7 +24,12 @@ function fakeAdapter(names: string[]): SbxAdapter {
     execScript: async () => {},
     execCapture: async () => '',
   listInstanceSecretsRaw: async () => '',
-    validateKit: async () => ({ code: 0, out: 'ok', ran: true })
+    validateKit: async () => ({ code: 0, out: 'ok', ran: true }),
+    listSandboxDir: async () => ({ ok: true, cwd: '', entries: [] }),
+    probeSandboxPath: async () => 'missing',
+    sandboxTargetsExist: async () => [],
+    copyToSandbox: async () => {},
+    copyFromSandbox: async () => {}
   }
 }
 
