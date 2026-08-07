@@ -130,6 +130,34 @@ describe('non-claude agent full round trip', () => {
   })
 })
 
+describe('cpus/memory round-trip on import', () => {
+  it('carries valid cpus and memory through export + import', () => {
+    const withLimits: DefinitionSpec = { ...spec('d1', 'Alpha'), definition: { ...spec('d1', 'Alpha').definition, cpus: 4, memory: '8g' } }
+    const bundle = buildExportBundle([withLimits], 'now')
+    const { definitions } = parseImportBundle(JSON.stringify(bundle))
+    expect(definitions[0].definition.cpus).toBe(4)
+    expect(definitions[0].definition.memory).toBe('8g')
+  })
+  it('drops invalid cpus (non-integer) and invalid memory (bad unit) to undefined', () => {
+    const bundle = JSON.stringify({
+      formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now',
+      definitions: [{
+        definition: { name: 'Tampered', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked', cpus: 2.5, memory: 'lots' },
+        mounts: [], domains: [], ports: [], hostServices: [], credentials: []
+      }]
+    })
+    const { definitions } = parseImportBundle(bundle)
+    expect(definitions[0].definition.cpus).toBeUndefined()
+    expect(definitions[0].definition.memory).toBeUndefined()
+  })
+  it('yields undefined (not a crash) when cpus/memory are absent', () => {
+    const bundle = buildExportBundle([spec('d1', 'Alpha')], 'now')
+    const { definitions } = parseImportBundle(JSON.stringify(bundle))
+    expect(definitions[0].definition.cpus).toBeUndefined()
+    expect(definitions[0].definition.memory).toBeUndefined()
+  })
+})
+
 describe('dedupeName', () => {
   it('leaves a free name unchanged; suffixes on collision', () => {
     expect(dedupeName('Alpha', new Set())).toBe('Alpha')

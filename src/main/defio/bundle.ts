@@ -1,6 +1,7 @@
 import type { DefinitionSpec } from '@shared/types'
 import { AGENT_PROFILES, agentFromBaseImage } from '@shared/agents'
 import type { AgentId } from '@shared/agents'
+import { isValidMemory, parseMemory } from '@shared/resources'
 
 export type ExportableDefinition = Omit<DefinitionSpec, 'definition'> & {
   definition: Omit<DefinitionSpec['definition'], 'id' | 'createdAt'>
@@ -50,7 +51,9 @@ function normalizeEntry(raw: unknown): ExportableDefinition | null {
       description: typeof def.description === 'string' ? def.description : '',
       agent: normalizeAgent(def.agent, def.baseImage),
       baseImage: def.baseImage,
-      tier: def.tier as DefinitionSpec['definition']['tier']
+      tier: def.tier as DefinitionSpec['definition']['tier'],
+      cpus: typeof def.cpus === 'number' && Number.isInteger(def.cpus) && def.cpus >= 1 ? def.cpus : undefined,
+      memory: typeof def.memory === 'string' && isValidMemory(def.memory) ? parseMemory(def.memory) : undefined
     },
     mounts: arr(e.mounts), domains: arr(e.domains), ports: arr(e.ports),
     hostServices: arr(e.hostServices), credentials: arr(e.credentials),
