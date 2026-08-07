@@ -7,8 +7,10 @@ import { TerminalsTab } from './detail/TerminalsTab'
 import { PortsTab } from './detail/PortsTab'
 import { MonitoringTab, type ResourceStatsState } from './detail/MonitoringTab'
 import { MetadataTab } from './detail/MetadataTab'
+import { FilesTab } from './detail/FilesTab'
+import type { CopyDirection } from '@shared/copy'
 
-export type DetailTab = 'terminals' | 'ports' | 'monitoring' | 'metadata'
+export type DetailTab = 'terminals' | 'ports' | 'monitoring' | 'metadata' | 'files'
 
 function tabStyle(active: boolean): React.CSSProperties {
   return {
@@ -48,6 +50,14 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
   const [commands, setCommands] = useState<{ agent: string; shell: string } | null>(null)
   const [tags, setTags] = useState<string[]>(instance.tags)
   const [stats, setStats] = useState<ResourceStatsState>({ status: 'idle' })
+  const [hostDir, setHostDir] = useState('')
+  const [sandboxDir, setSandboxDir] = useState('')
+  useEffect(() => {
+    void api.prefsGet('copyDefaultHostDir').then((r) => { if (r.ok && r.data) setHostDir(r.data) })
+    void api.prefsGet('copyDefaultSandboxDir').then((r) => { if (r.ok && r.data) setSandboxDir(r.data) })
+  }, [])
+  const saveHostDir = useCallback((v: string) => { setHostDir(v); void api.prefsSet('copyDefaultHostDir', v) }, [])
+  const saveSandboxDir = useCallback((v: string) => { setSandboxDir(v); void api.prefsSet('copyDefaultSandboxDir', v) }, [])
   useEffect(() => { setStats({ status: 'idle' }) }, [instance.name])
   useEffect(() => {
     setTags((prev) => {
@@ -157,6 +167,7 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
           )}
         </button>
         <button role="tab" aria-selected={tab === 'metadata'} style={tabStyle(tab === 'metadata')} onClick={() => setTab('metadata')}>{t('detail.tabMetadata')}</button>
+        <button role="tab" aria-selected={tab === 'files'} style={tabStyle(tab === 'files')} onClick={() => setTab('files')}>{t('detail.tabFiles')}</button>
       </div>
 
       {tab === 'terminals' && (
@@ -207,6 +218,20 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
           tags={tags}
           onChange={(next) => { setTags(next); onSetTags(instance.name, next) }}
           createdAt={instance.createdAt}
+        />
+      )}
+      {tab === 'files' && (
+        <FilesTab
+          running={running}
+          hostDir={hostDir}
+          sandboxDir={sandboxDir}
+          onSetHostDir={saveHostDir}
+          onSetSandboxDir={saveSandboxDir}
+          listDir={async (path) => { const r = await api.instanceFsListDir(instance.name, path); return r.ok ? r.data : null }}
+          plan={async (direction, sources, dst) => { const r = await api.instanceFsPlan(instance.name, direction, sources, dst, { host: hostDir, sandbox: sandboxDir }); return r.ok ? r.data : null }}
+          copy={async (direction, sources, dst) => { const r = await api.instanceFsCopy(instance.name, direction, sources, dst); return r.ok ? r.data : null }}
+          pickPaths={(mode) => api.pickPaths(mode)}
+          pickFolder={() => api.pickFolder()}
         />
       )}
     </section>
