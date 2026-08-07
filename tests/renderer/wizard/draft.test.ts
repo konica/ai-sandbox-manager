@@ -242,3 +242,82 @@ describe('needsProviderDomainHint', () => {
     expect(needsProviderDomainHint({ ...initialDraft, agent: 'claude', tier: 'locked', domains: [] })).toBe(false)
   })
 })
+
+describe('cpus and memory fields', () => {
+  it('initializes cpus and memory as empty strings', () => {
+    expect(initialDraft.cpus).toBe('')
+    expect(initialDraft.memory).toBe('')
+  })
+
+  it('setField handles cpus input', () => {
+    let d = draftReducer(initialDraft, { type: 'setField', field: 'cpus', value: '4' })
+    expect(d.cpus).toBe('4')
+    d = draftReducer(d, { type: 'setField', field: 'cpus', value: '' })
+    expect(d.cpus).toBe('')
+  })
+
+  it('setField handles memory input', () => {
+    let d = draftReducer(initialDraft, { type: 'setField', field: 'memory', value: '8g' })
+    expect(d.memory).toBe('8g')
+    d = draftReducer(d, { type: 'setField', field: 'memory', value: '' })
+    expect(d.memory).toBe('')
+  })
+
+  it('canAdvance step 2 requires valid cpus and memory when set', () => {
+    // Valid cpus
+    expect(canAdvance({ ...initialDraft, step: 2, cpus: '4', memory: '' })).toBe(true)
+    // Valid memory
+    expect(canAdvance({ ...initialDraft, step: 2, cpus: '', memory: '8g' })).toBe(true)
+    // Both valid
+    expect(canAdvance({ ...initialDraft, step: 2, cpus: '4', memory: '8g' })).toBe(true)
+    // Both empty (valid)
+    expect(canAdvance({ ...initialDraft, step: 2, cpus: '', memory: '' })).toBe(true)
+    // Invalid cpus
+    expect(canAdvance({ ...initialDraft, step: 2, cpus: 'invalid', memory: '' })).toBe(false)
+    // Invalid cpus (zero)
+    expect(canAdvance({ ...initialDraft, step: 2, cpus: '0', memory: '' })).toBe(false)
+    // Invalid memory
+    expect(canAdvance({ ...initialDraft, step: 2, cpus: '', memory: 'invalid' })).toBe(false)
+  })
+
+  it('toSpec parses cpus to number and memory to normalized string', () => {
+    let spec = toSpec({ ...initialDraft, workspace: '/w', name: 'p', cpus: '4', memory: '' }, 'id', 't')
+    expect(spec.definition.cpus).toBe(4)
+    expect(spec.definition.memory).toBeUndefined()
+
+    spec = toSpec({ ...initialDraft, workspace: '/w', name: 'p', cpus: '', memory: '8g' }, 'id', 't')
+    expect(spec.definition.cpus).toBeUndefined()
+    expect(spec.definition.memory).toBe('8g')
+
+    spec = toSpec({ ...initialDraft, workspace: '/w', name: 'p', cpus: '2', memory: '4G' }, 'id', 't')
+    expect(spec.definition.cpus).toBe(2)
+    expect(spec.definition.memory).toBe('4g')
+
+    spec = toSpec({ ...initialDraft, workspace: '/w', name: 'p', cpus: '', memory: '' }, 'id', 't')
+    expect(spec.definition.cpus).toBeUndefined()
+    expect(spec.definition.memory).toBeUndefined()
+  })
+
+  it('draftFromSpec seeds cpus and memory as strings', () => {
+    const spec = { ...storedSpec, definition: { ...storedSpec.definition, cpus: 4, memory: '8g' } }
+    const d = draftFromSpec(spec)
+    expect(d.cpus).toBe('4')
+    expect(d.memory).toBe('8g')
+  })
+
+  it('draftFromSpec seeds cpus and memory as empty strings when undefined', () => {
+    const d = draftFromSpec(storedSpec)
+    expect(d.cpus).toBe('')
+    expect(d.memory).toBe('')
+  })
+
+  it('round-trips cpus and memory through toSpec/draftFromSpec', () => {
+    let d = { ...initialDraft, workspace: '/w', name: 'p', cpus: '4', memory: '8g' }
+    let spec = toSpec(d, 'id', 't')
+    expect(spec.definition.cpus).toBe(4)
+    expect(spec.definition.memory).toBe('8g')
+    let d2 = draftFromSpec(spec)
+    expect(d2.cpus).toBe('4')
+    expect(d2.memory).toBe('8g')
+  })
+})

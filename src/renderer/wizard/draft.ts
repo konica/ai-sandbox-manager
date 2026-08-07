@@ -3,6 +3,7 @@ import { DEFAULT_SSH } from '@shared/types'
 import type { AgentId, BuiltinVariant } from '@shared/agents'
 import { AGENT_PROFILES, VARIANT_AGENT, agentFromBaseImage, matchedAgentFromBaseImage } from '@shared/agents'
 import { needsProviderDomainWarning } from '@shared/provider-domain'
+import { isValidCpus, isValidMemory, parseCpus, parseMemory } from '@shared/resources'
 export type { BuiltinVariant } from '@shared/agents'
 
 // Draft credentials carry a transient plaintext `value` that is NEVER persisted to
@@ -71,6 +72,8 @@ export interface Draft {
   sshForwardAgent: boolean
   sshCommitSigning: boolean
   kitCommandsYaml: string
+  cpus: string
+  memory: string
 }
 
 export const initialDraft: Draft = {
@@ -90,14 +93,16 @@ export const initialDraft: Draft = {
   credentials: [],
   sshForwardAgent: true,
   sshCommitSigning: false,
-  kitCommandsYaml: ''
+  kitCommandsYaml: '',
+  cpus: '',
+  memory: ''
 }
 
 export type DraftAction =
   | { type: 'next' }
   | { type: 'back' }
   | { type: 'goToStep'; step: number }
-  | { type: 'setField'; field: 'name' | 'description' | 'customImageRef' | 'workspace' | 'kitCommandsYaml'; value: string }
+  | { type: 'setField'; field: 'name' | 'description' | 'customImageRef' | 'workspace' | 'kitCommandsYaml' | 'cpus' | 'memory'; value: string }
   | { type: 'setImageChoice'; value: BuiltinVariant | 'custom' }
   | { type: 'setAgent'; value: AgentId }
   | { type: 'setTier'; tier: Tier }
@@ -190,7 +195,7 @@ export function canAdvance(d: Draft): boolean {
   // Step 1 merges name/description/workspace; the working directory is required
   // (the name is derived from it when blank).
   if (d.step === 1) return d.workspace.trim().length > 0
-  if (d.step === 2) return resolveBaseImage(d).length > 0
+  if (d.step === 2) return resolveBaseImage(d).length > 0 && isValidCpus(d.cpus) && isValidMemory(d.memory)
   return true
 }
 
@@ -229,13 +234,15 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
     }),
     sshForwardAgent: (spec.ssh ?? DEFAULT_SSH).forwardAgent,
     sshCommitSigning: (spec.ssh ?? DEFAULT_SSH).commitSigning,
-    kitCommandsYaml: spec.kitCommandsYaml ?? ''
+    kitCommandsYaml: spec.kitCommandsYaml ?? '',
+    cpus: spec.definition.cpus ? String(spec.definition.cpus) : '',
+    memory: spec.definition.memory ?? ''
   }
 }
 
 export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec {
   return {
-    definition: { id, name: effectiveName(d), description: d.description.trim(), agent: d.agent, baseImage: resolveBaseImage(d), tier: d.tier, createdAt },
+    definition: { id, name: effectiveName(d), description: d.description.trim(), agent: d.agent, baseImage: resolveBaseImage(d), tier: d.tier, createdAt, cpus: parseCpus(d.cpus), memory: parseMemory(d.memory) },
     mounts: [
       { hostPath: d.workspace.trim(), mode: 'direct', isPrimary: true }, // primary workspace is always direct (read-write bind)
       ...d.extraFolders.map((f) => ({ hostPath: f.path, mode: f.mode, isPrimary: false }))
