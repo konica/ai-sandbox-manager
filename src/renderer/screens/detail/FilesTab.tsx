@@ -87,15 +87,21 @@ export function FilesTab(props: FilesTabProps): JSX.Element {
 
       {!running && <p className="section-desc" style={{ fontSize: 12 }}>{t('detail.filesRunningHint')}</p>}
 
-      {/* Default directories */}
+      {/* Default directories — host + sandbox share one row (and both directions); wraps when narrow */}
       <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-        <label className="field-label">{t('detail.filesHostDir')}</label>
-        <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-          <input className="input" style={{ flex: 1 }} value={hostDir} onChange={(e) => onSetHostDir(e.target.value)} />
-          <button className="btn btn-secondary btn-sm" onClick={async () => { const d = await props.pickFolder(); if (d) onSetHostDir(d) }}>{t('detail.filesBrowse')}</button>
+        <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <label className="field-label">{t('detail.filesHostDir')}</label>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <input className="input" style={{ flex: 1, minWidth: 0 }} value={hostDir} onChange={(e) => onSetHostDir(e.target.value)} />
+              <button className="btn btn-secondary btn-sm" onClick={async () => { const d = await props.pickFolder(); if (d) onSetHostDir(d) }}>{t('detail.filesBrowse')}</button>
+            </div>
+          </div>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <label className="field-label">{t('detail.filesSandboxDir')}</label>
+            <input className="input" style={{ width: '100%' }} value={sandboxDir} onChange={(e) => onSetSandboxDir(e.target.value)} />
+          </div>
         </div>
-        <label className="field-label">{t('detail.filesSandboxDir')}</label>
-        <input className="input" style={{ width: '100%' }} value={sandboxDir} onChange={(e) => onSetSandboxDir(e.target.value)} />
       </div>
 
       {/* Sources */}
