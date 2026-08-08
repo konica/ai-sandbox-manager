@@ -110,12 +110,20 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
     setOverride((prev) => ({ ...prev, [host]: state }))
   }
 
-  async function onFetchStats(): Promise<void> {
+  const onFetchStats = useCallback(async (): Promise<void> => {
     setStats({ status: 'loading' })
     const r = await api.instanceStats(instance.name)
     if (r.ok) setStats({ status: 'ready', data: r.data, at: new Date().toISOString() })
     else setStats({ status: 'error', message: r.error.message })
-  }
+  }, [instance.name])
+
+  // Auto-fetch resource usage once when the Monitoring tab opens for a running instance.
+  // Gated on 'idle' so it fires exactly once per instance (the status advances to loading →
+  // ready/error and stays there); switching instances resets stats to idle (effect above),
+  // re-arming this. Not polling — the Refresh button covers manual updates. See MonitoringTab.
+  useEffect(() => {
+    if (tab === 'monitoring' && running && stats.status === 'idle') void onFetchStats()
+  }, [tab, running, stats.status, onFetchStats])
 
   return (
     <section className="screen active">

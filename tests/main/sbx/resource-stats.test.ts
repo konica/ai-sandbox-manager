@@ -14,12 +14,12 @@ describe('execCapture', () => {
 
 describe('fetchResourceStats', () => {
   it('runs the probe script and parses the output', async () => {
-    const stdout = 'cpu_usec 0 1000000\ncpu_elapsed_ns 1000000000\nnproc 2\nmem_current 100\nmem_max max\ndisk 10 4\n'
+    const stdout = 'cpu_usec 0 1000000\ncpu_elapsed_ns 1000000000\nnproc 2\ncpu_max max 100000\nmem_current 100\nmem_max max\nmem_total 2000\ndisk 10 4\n'
     const adapter = { execCapture: vi.fn(async () => stdout) }
     const stats = await fetchResourceStats(adapter, 'proj-a1')
     expect(adapter.execCapture).toHaveBeenCalledWith('proj-a1', RESOURCE_PROBE_SCRIPT)
-    expect(stats.cpu).toEqual({ cores: 1, ofCpus: 2 })
-    expect(stats.memory).toEqual({ usedBytes: 100, limitBytes: null })
+    expect(stats.cpu).toEqual({ cores: 1, ofCpus: 2, limitCores: null })
+    expect(stats.memory).toEqual({ usedBytes: 100, limitBytes: null, machineBytes: 2000 })
     expect(stats.disk).toEqual({ totalBytes: 10, usedBytes: 4 })
   })
 })
