@@ -23,6 +23,8 @@ export const RESOURCE_PROBE_SCRIPT = [
   `[ -n "$c0" ] && [ -n "$c1" ] && echo "cpu_usec $c0 $c1"`,
   `echo "cpu_elapsed_ns $((t1 - t0))"`,
   `echo "nproc $(nproc 2>/dev/null || echo 1)"`,
+  `if [ -r "$CG/cpu.max" ]; then echo "cpu_max $(cat "$CG/cpu.max")"; elif [ -r /sys/fs/cgroup/cpu.max ]; then echo "cpu_max $(cat /sys/fs/cgroup/cpu.max)"; elif [ -r /sys/fs/cgroup/cpu/cpu.cfs_quota_us ]; then q=$(cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us); p=$(cat /sys/fs/cgroup/cpu/cpu.cfs_period_us 2>/dev/null); [ "$q" = "-1" ] && echo "cpu_max max $p" || echo "cpu_max $q $p"; fi`,
+  `[ -r /proc/meminfo ] && echo "mem_total $(awk '/^MemTotal:/{print $2*1024}' /proc/meminfo)"`,
   `if [ -r "$CG/memory.current" ]; then MB="$CG"; elif [ -r /sys/fs/cgroup/memory.current ]; then MB="/sys/fs/cgroup"; else MB=""; fi`,
   `if [ -n "$MB" ]; then echo "mem_current $(cat "$MB/memory.current")"; echo "mem_max $(cat "$MB/memory.max")"; [ -r "$MB/memory.stat" ] && echo "mem_inactive $(awk '/^inactive_file /{print $2}' "$MB/memory.stat")"; elif [ -r /sys/fs/cgroup/memory/memory.usage_in_bytes ]; then echo "mem_current $(cat /sys/fs/cgroup/memory/memory.usage_in_bytes)"; echo "mem_max $(cat /sys/fs/cgroup/memory/memory.limit_in_bytes)"; [ -r /sys/fs/cgroup/memory/memory.stat ] && echo "mem_inactive $(awk '/^total_inactive_file /{print $2}' /sys/fs/cgroup/memory/memory.stat)"; fi`,
   `df -PB1 / 2>/dev/null | awk 'NR==2{print "disk", $2, $3}'`

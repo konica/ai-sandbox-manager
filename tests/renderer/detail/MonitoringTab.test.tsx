@@ -77,18 +77,29 @@ describe('MonitoringTab resource usage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Fetch' }))
     expect(onFetchStats).toHaveBeenCalled()
   })
-  it('renders CPU/memory/disk tiles from ready stats, with "no limit" and "Unavailable"', () => {
+  it('renders CPU/memory/disk tiles from ready stats (no limit → machine total, null disk → Unavailable)', () => {
     render(<MonitoringTab {...baseStats} running={true} onFetchStats={() => {}}
       stats={{ status: 'ready', at: '2026-08-06T14:03:20.000Z', data: {
-        cpu: { cores: 0.5, ofCpus: 4 },
-        memory: { usedBytes: 314572800, limitBytes: null },
+        cpu: { cores: 0.5, ofCpus: 4, limitCores: null },
+        memory: { usedBytes: 314572800, limitBytes: null, machineBytes: 2037223424 },
         disk: null
       } }} />)
-    expect(screen.getByText('0.50 cores')).toBeTruthy()
-    expect(screen.getByText(/300\.0 MB/)).toBeTruthy()
-    expect(screen.getByText(/no limit/)).toBeTruthy()
+    // No cpu quota → denominator is nproc (4); "0.50 / 4 cores (13%)"
+    expect(screen.getByText(/0\.50 \/ 4 cores \(13%\)/)).toBeTruthy()
+    // No cgroup memory limit → shown against total machine memory (like sbx)
+    expect(screen.getByText(/300\.0 MB \/ 1\.9 GB \(15%\)/)).toBeTruthy()
     // disk was null → Unavailable appears at least once
     expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0)
+  })
+  it('uses the configured cpu quota and memory limit as denominators when set', () => {
+    render(<MonitoringTab {...baseStats} running={true} onFetchStats={() => {}}
+      stats={{ status: 'ready', at: '2026-08-06T14:03:20.000Z', data: {
+        cpu: { cores: 1, ofCpus: 8, limitCores: 2 },
+        memory: { usedBytes: 536870912, limitBytes: 2147483648, machineBytes: 8589934592 },
+        disk: { totalBytes: 10000000000, usedBytes: 2500000000 }
+      } }} />)
+    expect(screen.getByText(/1\.00 \/ 2 cores \(50%\)/)).toBeTruthy()      // quota, not nproc
+    expect(screen.getByText(/512\.0 MB \/ 2\.0 GB \(25%\)/)).toBeTruthy()  // container limit, not machine
   })
   it('shows the error message on a failed fetch', () => {
     render(<MonitoringTab {...baseStats} running={true} onFetchStats={() => {}} stats={{ status: 'error', message: 'not running' }} />)

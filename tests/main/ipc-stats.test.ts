@@ -17,8 +17,8 @@ describe('instance:stats', () => {
     const h = buildHandlers(deps(async () => probe))
     const res = await h['instance:stats']('proj-a1')
     expect(res.ok).toBe(true)
-    expect(res.ok && res.data.cpu).toEqual({ cores: 2, ofCpus: 2 })
-    expect(res.ok && res.data.memory).toEqual({ usedBytes: 100, limitBytes: 200 })
+    expect(res.ok && res.data.cpu).toEqual({ cores: 2, ofCpus: 2, limitCores: null })
+    expect(res.ok && res.data.memory).toEqual({ usedBytes: 100, limitBytes: 200, machineBytes: null })
   })
   it('returns Result error when the probe throws', async () => {
     const h = buildHandlers(deps(async () => { throw new Error('not running') }))

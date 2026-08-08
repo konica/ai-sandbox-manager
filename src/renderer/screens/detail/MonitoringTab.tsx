@@ -154,6 +154,36 @@ function pct(used: number, total: number): number {
   return total > 0 ? Math.round((used / total) * 100) : 0
 }
 
+/** A cores count for display: integers bare (2), fractional to one decimal (1.5). */
+function fmtCores(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1)
+}
+
+/**
+ * CPU tile content: cores used against the effective ceiling (the cfs quota when one is set,
+ * otherwise the number of visible CPUs), with a percentage — mirroring `sbx`'s "CPUs N (P%)".
+ */
+function cpuTile(cpu: NonNullable<ResourceStats['cpu']>, t: (k: string, vars?: Record<string, string | number>) => string): { value: string; title: string } {
+  const denom = cpu.limitCores ?? cpu.ofCpus
+  const percent = denom > 0 ? Math.min(100, Math.round((cpu.cores / denom) * 100)) : 0
+  return {
+    value: `${cpu.cores.toFixed(2)} / ${fmtCores(denom)} cores (${percent}%)`,
+    title: cpu.limitCores !== null ? t('detail.cpuQuotaHint', { cores: fmtCores(cpu.limitCores) }) : t('detail.cpuAvailHint', { n: cpu.ofCpus })
+  }
+}
+
+/**
+ * Memory tile content: used against the container limit when set, otherwise total machine
+ * memory (matching `sbx`), with a percentage. Falls back to bare "used" if no denominator known.
+ */
+function memoryTile(mem: NonNullable<ResourceStats['memory']>, t: (k: string) => string): { value: string; title: string } {
+  const denom = mem.limitBytes ?? mem.machineBytes
+  const value = denom !== null
+    ? `${formatBytes(mem.usedBytes)} / ${formatBytes(denom)} (${pct(mem.usedBytes, denom)}%)`
+    : formatBytes(mem.usedBytes)
+  return { value, title: mem.limitBytes !== null ? t('detail.memLimitHint') : t('detail.memMachineHint') }
+}
+
 function ResourceCard({ stats, running, onFetch, t }: {
   stats: ResourceStatsState
   running: boolean
@@ -173,13 +203,8 @@ function ResourceCard({ stats, running, onFetch, t }: {
       {stats.status === 'ready' && (
         <>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-5)', marginTop: 'var(--space-2)' }}>
-            <Tile label={t('detail.statCpu')} value={stats.data.cpu ? `${stats.data.cpu.cores.toFixed(2)} cores` : t('detail.statUnavailable')}
-              title={stats.data.cpu ? t('detail.cpuOfCpus', { pct: Math.min(100, Math.round((stats.data.cpu.cores / stats.data.cpu.ofCpus) * 100)), n: stats.data.cpu.ofCpus }) : undefined} />
-            <Tile label={t('detail.statMemory')} value={stats.data.memory
-              ? (stats.data.memory.limitBytes !== null
-                  ? `${formatBytes(stats.data.memory.usedBytes)} / ${formatBytes(stats.data.memory.limitBytes)} (${pct(stats.data.memory.usedBytes, stats.data.memory.limitBytes)}%)`
-                  : `${formatBytes(stats.data.memory.usedBytes)} · ${t('detail.memNoLimit')}`)
-              : t('detail.statUnavailable')} />
+            <Tile label={t('detail.statCpu')} {...(stats.data.cpu ? cpuTile(stats.data.cpu, t) : { value: t('detail.statUnavailable') })} />
+            <Tile label={t('detail.statMemory')} {...(stats.data.memory ? memoryTile(stats.data.memory, t) : { value: t('detail.statUnavailable') })} />
             <Tile label={t('detail.statDisk')} value={stats.data.disk
               ? `${formatBytes(stats.data.disk.usedBytes)} / ${formatBytes(stats.data.disk.totalBytes)} (${pct(stats.data.disk.usedBytes, stats.data.disk.totalBytes)}%)`
               : t('detail.statUnavailable')} title={t('detail.statDiskHint')} />
