@@ -144,12 +144,12 @@ export default function App(): JSX.Element {
     void loadInstances() // refresh existing sandbox names for the dialog
   }
 
-  async function submitLaunch(definition: Definition, sessionName: string, opener: 'terminal' | 'vscode', tags: string[]): Promise<void> {
+  async function submitLaunch(definition: Definition, sessionName: string, opener: 'terminal' | 'vscode', tags: string[], diskSize: string): Promise<void> {
     setLaunchFor(null)
     setNotice(null)
     setBusyId(definition.id)
     try {
-      const r = await api.instanceLaunch(definition.id, undefined, sessionName, opener, tags)
+      const r = await api.instanceLaunch(definition.id, undefined, sessionName, opener, tags, diskSize)
       if (r.ok) {
         setNotice({ kind: 'info', text: t('instances.launched', { name: r.data.name }) })
         setScreen('instances')
@@ -290,7 +290,7 @@ export default function App(): JSX.Element {
             cloneMode={launchCloneMode}
             willSkipFixedPorts={existingCount >= 1 && launchHasFixedPorts}
             instanceNumber={existingCount + 1}
-            onLaunch={(session, opener, tags) => void submitLaunch(launchFor, session, opener, tags)}
+            onLaunch={(session, opener, tags, diskSize) => void submitLaunch(launchFor, session, opener, tags, diskSize)}
             onCancel={() => setLaunchFor(null)}
           />
         )

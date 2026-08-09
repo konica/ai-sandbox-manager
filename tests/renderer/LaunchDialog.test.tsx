@@ -23,7 +23,7 @@ describe('LaunchDialog', () => {
     const { onLaunch } = setup()
     expect(screen.getByLabelText('VS Code')).toBeChecked()
     fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    expect(onLaunch).toHaveBeenCalledWith('', 'vscode', [])
+    expect(onLaunch).toHaveBeenCalledWith('', 'vscode', [], '')
   })
 
   it('passes the typed session name (trimmed) and chosen opener', () => {
@@ -31,7 +31,7 @@ describe('LaunchDialog', () => {
     fireEvent.change(screen.getByLabelText('Session name'), { target: { value: '  Refactor auth  ' } })
     fireEvent.click(screen.getByLabelText('Terminal'))
     fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    expect(onLaunch).toHaveBeenCalledWith('Refactor auth', 'terminal', [])
+    expect(onLaunch).toHaveBeenCalledWith('Refactor auth', 'terminal', [], '')
   })
 
   it('disables the VS Code option and defaults to Terminal when the code CLI is unavailable', () => {
@@ -39,7 +39,7 @@ describe('LaunchDialog', () => {
     expect(screen.getByLabelText('VS Code')).toBeDisabled()
     expect(screen.getByLabelText('Terminal')).toBeChecked()
     fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    expect(onLaunch).toHaveBeenCalledWith('', 'terminal', [])
+    expect(onLaunch).toHaveBeenCalledWith('', 'terminal', [], '')
   })
 
   it('shows the clone-mode note only when VS Code is selected in clone mode', () => {
@@ -65,7 +65,7 @@ describe('LaunchDialog tags + skip note', () => {
     fireEvent.change(tagInput, { target: { value: 'prod' } })
     fireEvent.keyDown(tagInput, { key: 'Enter' })
     fireEvent.click(screen.getByText('Launch'))
-    expect(onLaunch).toHaveBeenCalledWith('', 'terminal', ['prod'])
+    expect(onLaunch).toHaveBeenCalledWith('', 'terminal', ['prod'], '')
   })
   it('shows the port-skip note when willSkipFixedPorts is true', () => {
     render(<LaunchDialog definition={def} hasVSCode={false} cloneMode={false} willSkipFixedPorts={true} instanceNumber={2} onLaunch={() => {}} onCancel={() => {}} />)
@@ -74,5 +74,29 @@ describe('LaunchDialog tags + skip note', () => {
   it('hides the note on the first instance', () => {
     render(<LaunchDialog definition={def} hasVSCode={false} cloneMode={false} willSkipFixedPorts={false} instanceNumber={1} onLaunch={() => {}} onCancel={() => {}} />)
     expect(screen.queryByText(/fixed host-port forwards are skipped/i)).toBeNull()
+  })
+})
+
+describe('LaunchDialog disk size', () => {
+  it('pre-fills the disk field from the definition default and passes it through', () => {
+    const onLaunch = vi.fn()
+    const withDisk: Definition = { ...def, diskSize: '30g' }
+    render(<LaunchDialog definition={withDisk} hasVSCode={false} cloneMode={false} willSkipFixedPorts={false} instanceNumber={1} onLaunch={onLaunch} onCancel={() => {}} />)
+    expect(screen.getByLabelText('Disk size')).toHaveValue('30g')
+    fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
+    expect(onLaunch).toHaveBeenCalledWith('', 'terminal', [], '30g')
+  })
+  it('lets the user override the disk size for this run', () => {
+    const onLaunch = vi.fn()
+    const withDisk: Definition = { ...def, diskSize: '30g' }
+    render(<LaunchDialog definition={withDisk} hasVSCode={false} cloneMode={false} willSkipFixedPorts={false} instanceNumber={1} onLaunch={onLaunch} onCancel={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Disk size'), { target: { value: '8g' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
+    expect(onLaunch).toHaveBeenCalledWith('', 'terminal', [], '8g')
+  })
+  it('shows an inline error on an invalid disk size', () => {
+    render(<LaunchDialog definition={def} hasVSCode={false} cloneMode={false} willSkipFixedPorts={false} instanceNumber={1} onLaunch={() => {}} onCancel={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Disk size'), { target: { value: '8gb' } })
+    expect(screen.getByText(/binary size like/i)).toBeInTheDocument()
   })
 })
