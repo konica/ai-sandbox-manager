@@ -96,6 +96,7 @@ export function CreateDefinition({
   const [envHits, setEnvHits] = useState<EnvHit[]>([])
   const [sshDetected, setSshDetected] = useState(false)
   const [hostPlatform, setHostPlatform] = useState('')
+  const [hostCap, setHostCap] = useState({ cpuCores: 0, totalMemBytes: 0 })
   const [error, setError] = useState<string | null>(null)
   const [kitMsg, setKitMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
@@ -121,6 +122,13 @@ export function CreateDefinition({
     })
     return () => { alive = false }
   }, [isEdit])
+
+  // Load host capacity once so the resources step can hint the CPU/memory maximums.
+  useEffect(() => {
+    let alive = true
+    void api.hostCapacity().then((r) => { if (alive && r.ok) setHostCap(r.data) })
+    return () => { alive = false }
+  }, [])
 
   // Reset the "saved" indicator to idle shortly after it shows.
   useEffect(() => {
@@ -175,6 +183,11 @@ export function CreateDefinition({
     dispatch({ type: 'goToStep', step })
     setSaveState('saved')
   }
+
+  const cpuMax = hostCap.cpuCores > 0 ? hostCap.cpuCores : undefined
+  const cpuStructuralValid = isValidCpus(draft.cpus)
+  const cpuOverMax = cpuStructuralValid && cpuMax !== undefined && !isValidCpus(draft.cpus, cpuMax)
+  const memGb = hostCap.totalMemBytes > 0 ? Math.round(hostCap.totalMemBytes / 1024 ** 3) : 0
 
   const row = { display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' } as const
   const folderRowStyle = { display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '8px 12px', background: 'var(--surface-2, rgba(127,127,127,.08))', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' } as const
@@ -326,7 +339,9 @@ export function CreateDefinition({
                 value={draft.cpus}
                 onChange={(e) => dispatch({ type: 'setField', field: 'cpus', value: e.target.value })}
               />
-              {!isValidCpus(draft.cpus) && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12, marginTop: 'var(--space-1)', marginBottom: 0 }}>{t('wizard.cpusInvalid')}</p>}
+              {!cpuStructuralValid && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12, marginTop: 'var(--space-1)', marginBottom: 0 }}>{t('wizard.cpusInvalid')}</p>}
+              {cpuOverMax && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12, marginTop: 'var(--space-1)', marginBottom: 0 }}>{t('wizard.cpusExceedsMax', { cores: cpuMax! })}</p>}
+              {cpuMax !== undefined && cpuStructuralValid && !cpuOverMax && <p className="section-desc" style={{ fontSize: 11, marginTop: 'var(--space-1)', marginBottom: 0 }}>{t('wizard.cpusMaxHint', { cores: cpuMax })}</p>}
 
               <label htmlFor="def-memory" style={{ marginTop: 'var(--space-3)' }}>{t('wizard.memoryLabel')}</label>
               <input
@@ -338,6 +353,7 @@ export function CreateDefinition({
                 onChange={(e) => dispatch({ type: 'setField', field: 'memory', value: e.target.value })}
               />
               {!isValidMemory(draft.memory) && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12, marginTop: 'var(--space-1)', marginBottom: 0 }}>{t('wizard.memoryInvalid')}</p>}
+              {memGb > 0 && <p className="section-desc" style={{ fontSize: 11, marginTop: 'var(--space-1)', marginBottom: 0 }}>{t('wizard.memoryHostHint', { total: memGb })}</p>}
 
               <label htmlFor="def-disk-size" style={{ marginTop: 'var(--space-3)' }}>{t('wizard.diskSizeLabel')}</label>
               <input
@@ -488,7 +504,7 @@ export function CreateDefinition({
               </span>
             )}
             {draft.step < TOTAL_STEPS ? (
-              <button className="btn btn-primary" onClick={() => void go(draft.step + 1)} disabled={!canAdvance(draft)}>{t('common.next')}</button>
+              <button className="btn btn-primary" onClick={() => void go(draft.step + 1)} disabled={!canAdvance(draft) || (draft.step === 2 && cpuOverMax)}>{t('common.next')}</button>
             ) : (
               <button className="btn btn-primary" onClick={() => void submit()} disabled={!draft.workspace.trim()} title={!draft.workspace.trim() ? t('wizard.workspaceRequired') : undefined}>{isEdit ? t('common.save') : t('common.createSandbox')}</button>
             )}
