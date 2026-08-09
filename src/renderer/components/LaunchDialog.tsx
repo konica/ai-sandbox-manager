@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { Definition } from '@shared/types'
-import { isValidDiskSize } from '@shared/resources'
 import { useT } from '../i18n'
 import { TagInput } from './TagInput'
 
@@ -18,7 +17,7 @@ export function LaunchDialog({ definition, hasVSCode, cloneMode, willSkipFixedPo
   cloneMode: boolean
   willSkipFixedPorts: boolean
   instanceNumber: number
-  onLaunch: (sessionName: string, opener: 'terminal' | 'vscode', tags: string[], diskSize: string) => void
+  onLaunch: (sessionName: string, opener: 'terminal' | 'vscode', tags: string[]) => void
   onCancel: () => void
 }): JSX.Element {
   const t = useT()
@@ -27,10 +26,9 @@ export function LaunchDialog({ definition, hasVSCode, cloneMode, willSkipFixedPo
   // CLI wasn't detected (the VS Code radio is disabled in that case).
   const [opener, setOpener] = useState<'terminal' | 'vscode'>(hasVSCode ? 'vscode' : 'terminal')
   const [tags, setTags] = useState<string[]>([])
-  const [diskSize, setDiskSize] = useState(definition.diskSize ?? '')
 
   function submit(): void {
-    onLaunch(sessionName.trim(), opener, tags, diskSize.trim())
+    onLaunch(sessionName.trim(), opener, tags)
   }
 
   return (
@@ -55,18 +53,6 @@ export function LaunchDialog({ definition, hasVSCode, cloneMode, willSkipFixedPo
         <label style={labelStyle}>{t('launch.tagsLabel')}</label>
         <TagInput tags={tags} onChange={setTags} placeholder={t('launch.tagsPlaceholder')} ariaLabel="Instance tags" />
         <p className="section-desc" style={{ fontSize: 12, marginTop: 'var(--space-2)', marginBottom: 0 }}>{t('launch.tagsSub')}</p>
-
-        <label htmlFor="launch-disk-size" style={labelStyle}>{t('launch.diskSizeLabel')}</label>
-        <input
-          id="launch-disk-size"
-          aria-label="Disk size"
-          className="input"
-          value={diskSize}
-          placeholder={t('launch.diskSizePlaceholder')}
-          onChange={(e) => setDiskSize(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && isValidDiskSize(diskSize)) submit() }}
-        />
-        {!isValidDiskSize(diskSize) && <p role="alert" className="section-desc" style={{ fontSize: 12, marginTop: 'var(--space-2)', marginBottom: 0, color: 'var(--danger)' }}>{t('launch.diskSizeInvalid')}</p>}
         {willSkipFixedPorts && (
           <p role="note" className="section-desc" style={{ fontSize: 12, marginTop: 'var(--space-3)', color: 'var(--warning, #b8860b)' }}>
             {t('launch.portSkipNote', { number: instanceNumber })}
@@ -89,7 +75,7 @@ export function LaunchDialog({ definition, hasVSCode, cloneMode, willSkipFixedPo
 
         <div className="modal-actions" style={{ marginTop: 'var(--space-5)' }}>
           <button className="btn btn-secondary" onClick={onCancel}>{t('launch.cancel')}</button>
-          <button className="btn btn-primary" onClick={submit} disabled={!isValidDiskSize(diskSize)}>{t('launch.launch')}</button>
+          <button className="btn btn-primary" onClick={submit}>{t('launch.launch')}</button>
         </div>
       </div>
     </div>

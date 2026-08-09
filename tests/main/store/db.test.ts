@@ -105,21 +105,4 @@ describe('metadata-store', () => {
     expect(store.getDefinition('ds2')?.diskSize).toBeUndefined()
     store.close()
   })
-
-  it('round-trips diskSize on instance metadata', () => {
-    const store = openStore(':memory:')
-    store.upsertInstanceMeta({ sbxName: 'sbx-d', definitionId: null, createdByApp: true, createdAt: 't', diskSize: '20g' })
-    expect(store.listInstanceMeta().find((m) => m.sbxName === 'sbx-d')?.diskSize).toBe('20g')
-    // overwrite via ON CONFLICT
-    store.upsertInstanceMeta({ sbxName: 'sbx-d', definitionId: null, createdByApp: true, createdAt: 't2', diskSize: '40g' })
-    expect(store.listInstanceMeta().find((m) => m.sbxName === 'sbx-d')?.diskSize).toBe('40g')
-    store.close()
-  })
-
-  it('reads diskSize as undefined when never set', () => {
-    const store = openStore(':memory:')
-    store.upsertInstanceMeta({ sbxName: 'sbx-n', definitionId: null, createdByApp: true, createdAt: 't' })
-    expect(store.listInstanceMeta().find((m) => m.sbxName === 'sbx-n')?.diskSize).toBeUndefined()
-    store.close()
-  })
 })

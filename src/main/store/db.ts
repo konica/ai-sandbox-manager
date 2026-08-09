@@ -47,7 +47,6 @@ CREATE TABLE IF NOT EXISTS instance_meta (
   created_by_app INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   cred_fingerprint TEXT,
-  disk_size TEXT,
   FOREIGN KEY (definition_id) REFERENCES definition(id) ON DELETE SET NULL
 );
 CREATE TABLE IF NOT EXISTS app_prefs (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -116,7 +115,7 @@ CREATE TABLE IF NOT EXISTS instance_tag (
   tag      TEXT NOT NULL,
   PRIMARY KEY (sbx_name, tag)
 );
-PRAGMA user_version = 13;
+PRAGMA user_version = 12;
 `
 
 export function openStore(filename: string): Store {
@@ -176,12 +175,6 @@ export function openStore(filename: string): Store {
   // Non-destructive; NULL → env var omitted → sbx's 50 GB default.
   if (!defCols.includes('disk_size')) {
     db.exec(`ALTER TABLE definition ADD COLUMN disk_size TEXT;`)
-  }
-  // v12 → v13: instance_meta records the disk size each instance was created with, so a
-  // rebuild can pre-fill it. Non-destructive; existing rows stay NULL → unknown (rebuild
-  // falls back to the definition default).
-  if (!imCols.includes('disk_size')) {
-    db.exec(`ALTER TABLE instance_meta ADD COLUMN disk_size TEXT;`)
   }
 
   // v3 → v4: port_intent gains `protocol` + nullable host_port; add host_service. Recreate
@@ -314,19 +307,18 @@ export function openStore(filename: string): Store {
     },
     upsertInstanceMeta(m) {
       db.prepare(
-        `INSERT INTO instance_meta (sbx_name, definition_id, created_by_app, created_at, cred_fingerprint, disk_size)
-         VALUES (@sbxName, @definitionId, @createdByApp, @createdAt, @credFingerprint, @diskSize)
+        `INSERT INTO instance_meta (sbx_name, definition_id, created_by_app, created_at, cred_fingerprint)
+         VALUES (@sbxName, @definitionId, @createdByApp, @createdAt, @credFingerprint)
          ON CONFLICT(sbx_name) DO UPDATE SET
            definition_id = excluded.definition_id,
            created_by_app = excluded.created_by_app,
            created_at = excluded.created_at,
-           cred_fingerprint = excluded.cred_fingerprint,
-           disk_size = excluded.disk_size`
-      ).run({ ...m, createdByApp: m.createdByApp ? 1 : 0, credFingerprint: m.credFingerprint ?? null, diskSize: m.diskSize ?? null })
+           cred_fingerprint = excluded.cred_fingerprint`
+      ).run({ ...m, createdByApp: m.createdByApp ? 1 : 0, credFingerprint: m.credFingerprint ?? null })
     },
     listInstanceMeta() {
-      const rows = db.prepare(`SELECT sbx_name AS sbxName, definition_id AS definitionId, created_by_app AS createdByApp, created_at AS createdAt, cred_fingerprint AS credFingerprint, disk_size AS diskSize FROM instance_meta`).all() as Array<Record<string, unknown>>
-      return rows.map((r) => ({ sbxName: String(r.sbxName), definitionId: r.definitionId ? String(r.definitionId) : null, createdByApp: r.createdByApp === 1, createdAt: String(r.createdAt), credFingerprint: r.credFingerprint != null ? String(r.credFingerprint) : null, diskSize: r.diskSize != null ? String(r.diskSize) : undefined }))
+      const rows = db.prepare(`SELECT sbx_name AS sbxName, definition_id AS definitionId, created_by_app AS createdByApp, created_at AS createdAt, cred_fingerprint AS credFingerprint FROM instance_meta`).all() as Array<Record<string, unknown>>
+      return rows.map((r) => ({ sbxName: String(r.sbxName), definitionId: r.definitionId ? String(r.definitionId) : null, createdByApp: r.createdByApp === 1, createdAt: String(r.createdAt), credFingerprint: r.credFingerprint != null ? String(r.credFingerprint) : null }))
     },
     deleteInstanceMeta(sbxName) {
       db.prepare(`DELETE FROM instance_tag WHERE sbx_name = ?`).run(sbxName)
