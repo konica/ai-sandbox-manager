@@ -32,6 +32,8 @@ export interface InstanceMeta {
   createdAt: string
   /** Credential fingerprint captured at create time; used to flag credential drift (→ rebuild). Null for pre-v7 rows. */
   credFingerprint?: string | null
+  /** Block-volume size the sandbox was created with (e.g. '20g'); undefined = Docker's 50 GB default / unknown. */
+  diskSize?: string
 }
 
 export type MountMode = 'direct' | 'clone'
@@ -187,6 +189,8 @@ export interface InstanceView extends SbxInstance {
   /** ISO timestamp the app recorded (launch time; "first observed" for adopted/CLI instances;
    *  null when there is no metadata row). */
   createdAt: string | null
+  /** Disk size this instance was created with (from instance_meta); undefined when unknown. */
+  diskSize?: string
 }
 
 // Structured prerequisite result. The main process reports the id, pass/fail,
