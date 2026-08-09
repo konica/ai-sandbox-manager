@@ -8,10 +8,10 @@ import { join } from 'path'
  * `task.allowAutomaticTasks` setting removes the automatic-tasks prompt; VS Code
  * Workspace Trust still applies on a never-opened folder (one-time click).
  *
- * The sbx chain is POSIX-shell shaped (single-quoted args, `&&`/`;`, and inline env-var
- * prefixes like `DOCKER_SANDBOXES_DOCKER_SIZE=10g …`). A `type: shell` task runs in VS
- * Code's default integrated shell — PowerShell on Windows — which cannot parse the POSIX
- * env-var prefix (nor `unset`). So when a `bash` path is supplied (Windows, where
+ * The sbx chain is POSIX-shell shaped (single-quoted args, `&&`/`;`, and POSIX constructs
+ * like `unset SSH_AUTH_SOCK ;` on the SSH-forward opt-out path). A `type: shell` task runs
+ * in VS Code's default integrated shell — PowerShell on Windows — which cannot parse those
+ * POSIX constructs. So when a `bash` path is supplied (Windows, where
  * openVSCode resolves Git Bash/WSL, mirroring openHostTerminal) we run the chain through a
  * `type: process` task: process tasks spawn the executable with LITERAL args — no shell
  * re-parse — so the whole quoted chain reaches `bash -lc` intact. Without a bash path
