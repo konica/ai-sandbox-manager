@@ -89,7 +89,7 @@ export function LaunchDialog({ definition, hasVSCode, cloneMode, willSkipFixedPo
 
         <div className="modal-actions" style={{ marginTop: 'var(--space-5)' }}>
           <button className="btn btn-secondary" onClick={onCancel}>{t('launch.cancel')}</button>
-          <button className="btn btn-primary" onClick={submit}>{t('launch.launch')}</button>
+          <button className="btn btn-primary" onClick={submit} disabled={!isValidDiskSize(diskSize)}>{t('launch.launch')}</button>
         </div>
       </div>
     </div>

@@ -99,4 +99,13 @@ describe('LaunchDialog disk size', () => {
     fireEvent.change(screen.getByLabelText('Disk size'), { target: { value: '8gb' } })
     expect(screen.getByText(/binary size like/i)).toBeInTheDocument()
   })
+  it('disables the Launch button on an invalid disk size and re-enables it once fixed', () => {
+    render(<LaunchDialog definition={def} hasVSCode={false} cloneMode={false} willSkipFixedPorts={false} instanceNumber={1} onLaunch={() => {}} onCancel={() => {}} />)
+    const launchButton = screen.getByRole('button', { name: 'Launch' })
+    expect(launchButton).toBeEnabled() // empty disk size is valid
+    fireEvent.change(screen.getByLabelText('Disk size'), { target: { value: '40gb' } })
+    expect(launchButton).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Disk size'), { target: { value: '40g' } })
+    expect(launchButton).toBeEnabled()
+  })
 })
