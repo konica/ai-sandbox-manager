@@ -34,3 +34,19 @@ export function parseMemory(s: string): string | undefined {
   if (!MEMORY_RE.test(t)) return undefined
   return t.replace(/\s+/g, '').toLowerCase()
 }
+
+const DISK_RE = /^\d+(\.\d+)?\s*[mMgG]$/
+
+/** Empty (= Docker's 50 GB default) or a binary-unit size like `50g` / `512m`. */
+export function isValidDiskSize(s: string): boolean {
+  const t = s.trim()
+  if (t === '') return true
+  return DISK_RE.test(t)
+}
+
+/** Validated disk-size input → normalized (lowercase unit, no spaces), or undefined when blank/invalid. */
+export function parseDiskSize(s: string): string | undefined {
+  const t = s.trim()
+  if (!DISK_RE.test(t)) return undefined
+  return t.replace(/\s+/g, '').toLowerCase()
+}
