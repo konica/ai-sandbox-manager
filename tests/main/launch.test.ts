@@ -266,3 +266,25 @@ describe('launchDefinition — tags + port skip', () => {
     expect(opened[1]).toContain('9229/tcp')
   })
 })
+
+describe('launchDefinition disk size', () => {
+  it('injects the definition default disk size into the create step', async () => {
+    const d = deps(() => ({ ...spec, definition: { ...spec.definition, diskSize: '30g' } }))
+    await launchDefinition(d as never, 'd1')
+    const cmd = d.openTerminal.mock.calls[0][0] as string
+    expect(cmd).toContain("DOCKER_SANDBOXES_DOCKER_SIZE='30g' sbx create")
+  })
+  it('an explicit override replaces the definition default for that run', async () => {
+    const d = deps(() => ({ ...spec, definition: { ...spec.definition, diskSize: '30g' } }))
+    await launchDefinition(d as never, 'd1', undefined, undefined, 'terminal', [], '8g')
+    const cmd = d.openTerminal.mock.calls[0][0] as string
+    expect(cmd).toContain("DOCKER_SANDBOXES_DOCKER_SIZE='8g' sbx create")
+    expect(cmd).not.toContain("'30g'")
+  })
+  it('an empty override means Docker default (no env var)', async () => {
+    const d = deps(() => ({ ...spec, definition: { ...spec.definition, diskSize: '30g' } }))
+    await launchDefinition(d as never, 'd1', undefined, undefined, 'terminal', [], '')
+    const cmd = d.openTerminal.mock.calls[0][0] as string
+    expect(cmd).not.toContain('DOCKER_SANDBOXES_DOCKER_SIZE')
+  })
+})

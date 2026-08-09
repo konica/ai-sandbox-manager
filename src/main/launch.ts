@@ -5,6 +5,7 @@ import type { Logger } from './log'
 import type { DefinitionSpec } from '@shared/types'
 import { randomBytes } from 'crypto'
 import { hashedSandboxName, launchCommand, portsForLaunch } from './sbx/translate'
+import { parseDiskSize } from '@shared/resources'
 import { registerCredentials, credFingerprint } from './creds/register'
 import { toSbxName, composeInstanceBaseName } from '@shared/names'
 import { normalizeTags } from '@shared/tags'
@@ -43,7 +44,8 @@ export async function launchDefinition(
   requestedName?: string,
   sessionName?: string,
   opener: 'terminal' | 'vscode' = 'terminal',
-  rawTags: string[] = []
+  rawTags: string[] = [],
+  diskSizeOverride?: string
 ): Promise<{ name: string }> {
   const spec = deps.store.getDefinitionSpec(definitionId)
   if (!spec) throw new SbxError('not-found', `Definition ${definitionId} not found`)
@@ -84,7 +86,8 @@ export async function launchDefinition(
   await registerCredentials({ adapter: deps.adapter, creds: deps.creds, log: deps.log }, definitionId, spec.credentials, name)
 
   const kitDir = deps.materializeKit(spec, name)
-  const command = launchCommand(spec, name, sessionName, kitDir, ports)
+  const disk = diskSizeOverride !== undefined ? parseDiskSize(diskSizeOverride) : spec.definition.diskSize
+  const command = launchCommand(spec, name, sessionName, kitDir, ports, disk)
   deps.log?.info(`Launching sandbox "${name}"${sessionName ? ` (session "${sessionName}")` : ''} from definition ${definitionId} (tier: ${spec.definition.tier}, creds: ${spec.credentials.length}, ports: ${spec.ports.length})`)
   deps.log?.info(`Opening terminal to provision and run: ${command}`)
 
