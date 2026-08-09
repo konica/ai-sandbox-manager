@@ -11,6 +11,7 @@ import { AppShell, type NavScreen } from './components/AppShell'
 import { ConfirmModal } from './components/ConfirmModal'
 import { LaunchDialog } from './components/LaunchDialog'
 import { OpenWithDialog } from './components/OpenWithDialog'
+import { RebuildDialog, rebuildInitialDiskSize } from './components/RebuildDialog'
 import { useT } from './i18n'
 
 /**
@@ -34,7 +35,7 @@ export default function App(): JSX.Element {
   const [wizard, setWizard] = useState<{ spec?: DefinitionSpec } | null>(null)
   const [defs, setDefs] = useState<Definition[]>([])
   const [instances, setInstances] = useState<InstanceView[]>([])
-  const [pending, setPending] = useState<{ kind: 'stop' | 'remove' | 'rebuild'; name: string } | null>(null)
+  const [pending, setPending] = useState<{ kind: 'stop' | 'remove' | 'rebuild'; name: string; initialDiskSize?: string } | null>(null)
   const [launchFor, setLaunchFor] = useState<Definition | null>(null)
   const [attachFor, setAttachFor] = useState<string | null>(null)
   const [detailName, setDetailName] = useState<string | null>(null)
@@ -144,6 +145,17 @@ export default function App(): JSX.Element {
     void loadInstances() // refresh existing sandbox names for the dialog
   }
 
+  async function openRebuildDialog(name: string): Promise<void> {
+    const inst = instances.find((i) => i.name === name)
+    // Pre-fill with the instance's created-with size, else the definition's current default.
+    let definitionDefault: string | undefined
+    if (inst?.definitionId) {
+      const specR = await api.defGetSpec(inst.definitionId)
+      if (specR.ok && specR.data) definitionDefault = specR.data.definition.diskSize
+    }
+    setPending({ kind: 'rebuild', name, initialDiskSize: rebuildInitialDiskSize(inst?.diskSize, definitionDefault) })
+  }
+
   async function submitLaunch(definition: Definition, sessionName: string, opener: 'terminal' | 'vscode', tags: string[], diskSize: string): Promise<void> {
     setLaunchFor(null)
     setNotice(null)
@@ -188,15 +200,6 @@ export default function App(): JSX.Element {
     const p = pending
     setPending(null)
     if (!p) return
-    if (p.kind === 'rebuild') {
-      // Rebuild removes the old sandbox and launches a fresh one (new name), so leave the
-      // now-stale detail view for the instances list.
-      setDetailName(null)
-      // Reopen in VS Code by default (fall back to Terminal when the code CLI isn't present),
-      // matching launch/attach behaviour.
-      void runAction(api.instanceRebuild(p.name, hasVSCode ? 'vscode' : 'terminal'))
-      return
-    }
     void runAction(p.kind === 'stop' ? api.instanceStop(p.name) : api.instanceRemove(p.name))
   }
 
@@ -239,7 +242,7 @@ export default function App(): JSX.Element {
             onShell={onShell}
             onStop={(name) => setPending({ kind: 'stop', name })}
             onRemove={(name) => setPending({ kind: 'remove', name })}
-            onRebuild={(name) => setPending({ kind: 'rebuild', name })}
+            onRebuild={(name) => void openRebuildDialog(name)}
             onApplyCredentials={(name) => void onApplyCredentials(name)}
             onSetTags={(name, tags) => void onSetTags(name, tags)}
           />
@@ -256,22 +259,33 @@ export default function App(): JSX.Element {
       })()}
       {screen === 'settings' && <Settings />}
       <ConfirmModal
-        open={pending !== null}
-        title={pending?.kind === 'stop' ? t('instances.stopTitle') : pending?.kind === 'rebuild' ? t('instances.rebuildTitle') : t('instances.removeTitle')}
+        open={pending !== null && pending.kind !== 'rebuild'}
+        title={pending?.kind === 'stop' ? t('instances.stopTitle') : t('instances.removeTitle')}
         body={
           pending?.kind === 'stop'
             ? t('instances.stopBody', { name: pending.name })
-            : pending?.kind === 'rebuild'
-              ? t('instances.rebuildBody', { name: pending.name })
-              : t('instances.removeBody', { name: pending?.name ?? '' }) +
-                (pending?.kind === 'remove' && hasSiblingInstances(instances, pending.name) ? ` ${t('instances.removeSharedWarning')}` : '')
+            : t('instances.removeBody', { name: pending?.name ?? '' }) +
+              (pending?.kind === 'remove' && hasSiblingInstances(instances, pending.name) ? ` ${t('instances.removeSharedWarning')}` : '')
         }
-        confirmLabel={pending?.kind === 'stop' ? t('instances.confirmStop') : pending?.kind === 'rebuild' ? t('instances.confirmRebuild') : t('instances.confirmRemove')}
+        confirmLabel={pending?.kind === 'stop' ? t('instances.confirmStop') : t('instances.confirmRemove')}
         cancelLabel={t('instances.cancel')}
         destructive={pending?.kind !== 'stop'}
         onConfirm={onConfirmPending}
         onCancel={() => setPending(null)}
       />
+      {pending?.kind === 'rebuild' && (
+        <RebuildDialog
+          name={pending.name}
+          initialDiskSize={pending.initialDiskSize ?? ''}
+          onRebuild={(diskSize) => {
+            const name = pending.name
+            setPending(null)
+            setDetailName(null) // rebuild makes the detail view stale (new instance name)
+            void runAction(api.instanceRebuild(name, hasVSCode ? 'vscode' : 'terminal', diskSize))
+          }}
+          onCancel={() => setPending(null)}
+        />
+      )}
       <ConfirmModal
         open={pendingDefRemove !== null}
         title={t('definitions.removeDefTitle')}
