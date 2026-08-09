@@ -36,11 +36,11 @@ describe('buildCodeWorkspace', () => {
 })
 
 describe('buildCodeWorkspace on Windows (bash provided)', () => {
-  // The sbx chain is POSIX-shell shaped (single-quoted args, `&&`, inline env-var prefixes
-  // like DOCKER_SANDBOXES_DOCKER_SIZE=…). A `type: shell` task runs in VS Code's default
-  // shell — PowerShell on Windows — which can't parse the env-var prefix. So on Windows we
-  // run it in bash via a `type: process` task (literal args → no shell re-parse).
-  const cmd = "DOCKER_SANDBOXES_DOCKER_SIZE='10g' sbx create claude 'C:\\proj' --name x && sbx run --name x"
+  // The sbx chain is POSIX-shell shaped (single-quoted args, `&&`, POSIX constructs like
+  // `unset SSH_AUTH_SOCK ;`). A `type: shell` task runs in VS Code's default shell —
+  // PowerShell on Windows — which can't parse those. So on Windows we run it in bash via a
+  // `type: process` task (literal args → no shell re-parse).
+  const cmd = "unset SSH_AUTH_SOCK ; sbx create claude 'C:\\proj' --name x && sbx run --name x"
   const BASH = 'C:/Program Files/Git/bin/bash.exe'
   const task = JSON.parse(buildCodeWorkspace('C:/proj', 'x', cmd, BASH)).tasks.tasks[0]
   it('emits a process task that runs the whole chain through bash -lc', () => {

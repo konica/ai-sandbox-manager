@@ -74,7 +74,7 @@ function openVSCode(command: string, workspaceDir: string, sandboxName: string):
   nodeFs.mkdirSync(dir, { recursive: true })
   const file = `${dir}/${sandboxName}.code-workspace`
   // The sbx chain is POSIX-shell shaped; on Windows VS Code would run a shell task in
-  // PowerShell (which can't parse the inline DOCKER_SANDBOXES_DOCKER_SIZE=… prefix), so
+  // PowerShell (which can't parse POSIX constructs like `unset SSH_AUTH_SOCK ;`), so
   // run it through Git Bash/WSL instead — same shell the Terminal opener uses. null on
   // macOS/Linux (default shell is already POSIX) and on Windows without a bash installed.
   const bash = process.platform === 'win32' ? findWindowsBash() : null
