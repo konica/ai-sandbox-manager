@@ -327,3 +327,25 @@ describe('cpus and memory fields', () => {
     expect(d2.memory).toBe('8g')
   })
 })
+
+describe('draft diskSize', () => {
+  it('setField updates diskSize', () => {
+    const d = draftReducer(initialDraft, { type: 'setField', field: 'diskSize', value: '40g' })
+    expect(d.diskSize).toBe('40g')
+  })
+  it('toSpec parses diskSize (normalized) onto the definition', () => {
+    const d = { ...initialDraft, workspace: '/w', diskSize: '40G' }
+    expect(toSpec(d, 'id1', 't').definition.diskSize).toBe('40g')
+  })
+  it('draftFromSpec seeds diskSize from the definition (empty when absent)', () => {
+    const base = { mounts: [{ hostPath: '/w', mode: 'direct' as const, isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] }
+    const withDisk = { ...base, definition: { id: 'i', name: 'n', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't', diskSize: '30g' } }
+    const without = { ...base, definition: { ...withDisk.definition, diskSize: undefined } }
+    expect(draftFromSpec(withDisk).diskSize).toBe('30g')
+    expect(draftFromSpec(without).diskSize).toBe('')
+  })
+  it('canAdvance blocks step 2 on an invalid diskSize', () => {
+    const d = { ...initialDraft, step: 2, workspace: '/w', diskSize: '40gb' }
+    expect(canAdvance(d)).toBe(false)
+  })
+})
