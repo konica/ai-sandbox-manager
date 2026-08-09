@@ -78,3 +78,18 @@ describe('instance:rebuild carries tags', () => {
     expect(store.listInstanceTags().get(newName)).toEqual(['prod', 'eu'])
   })
 })
+
+describe('instance:launch disk size', () => {
+  it('forwards the disk-size override into the create step', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec({
+      definition: { id: 'd1', name: 'proj', description: '', baseImage: '', agent: 'claude', tier: 'open', createdAt: new Date().toISOString(), diskSize: '30g' },
+      mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+    })
+    const cmds: string[] = []
+    const deps = { ...baseDeps(store), openTerminal: (c: string) => cmds.push(c) }
+    const h = buildHandlers(deps)
+    await h['instance:launch']('d1', undefined, undefined, 'terminal', [], '8g')
+    expect(cmds[0]).toContain("DOCKER_SANDBOXES_DOCKER_SIZE='8g' sbx create")
+  })
+})
