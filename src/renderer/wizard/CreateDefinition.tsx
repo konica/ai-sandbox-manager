@@ -6,7 +6,7 @@ import { api } from '../ipc/client'
 import { draftReducer, initialDraft, draftFromSpec, canAdvance, toSpec, resolveBaseImage, effectiveName, basename, TOTAL_STEPS, BUILTIN_VARIANTS, needsProviderDomainHint, type BuiltinVariant, type DraftCred } from './draft'
 import type { AgentId } from '@shared/agents'
 import { AGENT_PROFILES } from '@shared/agents'
-import { isValidCpus, isValidMemory } from '@shared/resources'
+import { isValidCpus, isValidMemory, isValidDiskSize } from '@shared/resources'
 import { CredentialsStep } from './CredentialsStep'
 import { PortsStep } from './PortsStep'
 import { TierBadge } from '../components/badges'
@@ -134,7 +134,7 @@ export function CreateDefinition({
   // inline error) on a gate/IPC failure; performs no navigation and never closes the wizard.
   async function persist(): Promise<boolean> {
     if (!draft.workspace.trim()) { dispatch({ type: 'goToStep', step: 1 }); setError(t('wizard.workspaceRequired')); return false }
-    if (!isValidCpus(draft.cpus) || !isValidMemory(draft.memory)) { dispatch({ type: 'goToStep', step: 2 }); setError(t('wizard.cpusInvalid')); return false }
+    if (!isValidCpus(draft.cpus) || !isValidMemory(draft.memory) || !isValidDiskSize(draft.diskSize)) { dispatch({ type: 'goToStep', step: 2 }); setError(t('wizard.cpusInvalid')); return false }
     const kitCheck = normalizeCommandsYaml(draft.kitCommandsYaml)
     if (!kitCheck.ok) { dispatch({ type: 'goToStep', step: 6 }); setKitMsg({ kind: 'error', text: t('wizard.kitYamlInvalid', { message: kitCheck.error }) }); return false }
     const spec = initial
@@ -338,6 +338,17 @@ export function CreateDefinition({
                 onChange={(e) => dispatch({ type: 'setField', field: 'memory', value: e.target.value })}
               />
               {!isValidMemory(draft.memory) && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12, marginTop: 'var(--space-1)', marginBottom: 0 }}>{t('wizard.memoryInvalid')}</p>}
+
+              <label htmlFor="def-disk-size" style={{ marginTop: 'var(--space-3)' }}>{t('wizard.diskSizeLabel')}</label>
+              <input
+                id="def-disk-size"
+                aria-label="Disk size"
+                className="input input-mono"
+                placeholder={t('wizard.diskSizePlaceholder')}
+                value={draft.diskSize}
+                onChange={(e) => dispatch({ type: 'setField', field: 'diskSize', value: e.target.value })}
+              />
+              {!isValidDiskSize(draft.diskSize) && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12, marginTop: 'var(--space-1)', marginBottom: 0 }}>{t('wizard.diskSizeInvalid')}</p>}
 
               <p className="section-desc" style={{ marginTop: 'var(--space-3)', marginBottom: 0 }}>{t('wizard.resourcesNote')}</p>
             </>
