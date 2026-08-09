@@ -16,7 +16,7 @@ interface Api {
   pickFile(): Promise<string | null>
   instanceLaunch(definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', tags?: string[], diskSize?: string): Promise<Result<{ name: string }>>
   instanceAttach(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<null>>
-  instanceRebuild(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<{ name: string }>>
+  instanceRebuild(name: string, opener?: 'terminal' | 'vscode', diskSize?: string): Promise<Result<{ name: string }>>
   instanceApplyCredentials(name: string): Promise<Result<{ applied: number; removed: number; skipped: number }>>
   instanceCommands(name: string): Promise<Result<{ agent: string; shell: string }>>
   instanceShell(name: string): Promise<Result<null>>

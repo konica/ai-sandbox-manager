@@ -93,3 +93,29 @@ describe('instance:launch disk size', () => {
     expect(cmds[0]).toContain("DOCKER_SANDBOXES_DOCKER_SIZE='8g' sbx create")
   })
 })
+
+describe('instance:rebuild disk size', () => {
+  it('forwards the disk-size override into the rebuilt create step', async () => {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec({
+      definition: { id: 'd1', name: 'proj', description: '', baseImage: '', agent: 'claude', tier: 'open', createdAt: new Date().toISOString() },
+      mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
+    })
+    const cmds: string[] = []
+    const deps = {
+      ...baseDeps(store),
+      adapter: {
+        listSandboxes: async () => [],
+        setSecret: async () => {}, setCustomSecret: async () => {}, setRegistrySecret: async () => {},
+        checkDockerAuth: async () => 'ok',
+        removeSandbox: async () => {}, removeSecret: async () => {}, removeCustomSecret: async () => {}, removeRegistrySecret: async () => {}
+      } as never,
+      openTerminal: (c: string) => cmds.push(c)
+    }
+    const h = buildHandlers(deps)
+    const launched = await h['instance:launch']('d1', undefined, undefined, 'terminal', [])
+    const name = launched.ok ? launched.data.name : ''
+    await h['instance:rebuild'](name, 'terminal', '12g')
+    expect(cmds[cmds.length - 1]).toContain("DOCKER_SANDBOXES_DOCKER_SIZE='12g' sbx create")
+  })
+})
