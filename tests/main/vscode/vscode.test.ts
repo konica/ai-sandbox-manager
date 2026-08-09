@@ -28,6 +28,31 @@ describe('buildCodeWorkspace', () => {
     expect(task.command).toContain('sbx run --name my-project')
     expect(task.label).toBe('AI Sandbox: my-project')
   })
+  it('with no bash, uses a shell task carrying the raw command (macOS/Linux default shell is POSIX)', () => {
+    const task = obj.tasks.tasks[0]
+    expect(task.type).toBe('shell')
+    expect(task.args).toBeUndefined()
+  })
+})
+
+describe('buildCodeWorkspace on Windows (bash provided)', () => {
+  // The sbx chain is POSIX-shell shaped (single-quoted args, `&&`, inline env-var prefixes
+  // like DOCKER_SANDBOXES_DOCKER_SIZE=…). A `type: shell` task runs in VS Code's default
+  // shell — PowerShell on Windows — which can't parse the env-var prefix. So on Windows we
+  // run it in bash via a `type: process` task (literal args → no shell re-parse).
+  const cmd = "DOCKER_SANDBOXES_DOCKER_SIZE='10g' sbx create claude 'C:\\proj' --name x && sbx run --name x"
+  const BASH = 'C:/Program Files/Git/bin/bash.exe'
+  const task = JSON.parse(buildCodeWorkspace('C:/proj', 'x', cmd, BASH)).tasks.tasks[0]
+  it('emits a process task that runs the whole chain through bash -lc', () => {
+    expect(task.type).toBe('process')
+    expect(task.command).toBe(BASH)
+    expect(task.args).toEqual(['-lc', cmd])
+  })
+  it('keeps the folderOpen/label/presentation wiring', () => {
+    expect(task.runOptions.runOn).toBe('folderOpen')
+    expect(task.label).toBe('AI Sandbox: x')
+    expect(task.presentation.panel).toBe('dedicated')
+  })
 })
 
 describe('codeCliPresent', () => {
