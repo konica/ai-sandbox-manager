@@ -160,13 +160,8 @@ export function shellCommand(argv: string[]): string {
  *   create (provision) → apply network tier → publish ports → run (attach agent).
  * Chained with `&&` so a failed step stops the sequence and stays visible.
  */
-export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string, ports: PortIntent[] = spec.ports, diskSize?: string): string {
-  const createCmd = shellCommand(['sbx', ...specToCreateArgs(spec, name, kitDir)])
-  // Disk/volume size has no sbx CLI flag — it is read from DOCKER_SANDBOXES_DOCKER_SIZE on
-  // the create process. Inline env-var prefix scopes it to just `sbx create` (the only step
-  // that provisions the volume), consistent with the `unset SSH_AUTH_SOCK` handling below.
-  const create = diskSize && diskSize.trim() ? `DOCKER_SANDBOXES_DOCKER_SIZE=${shellQuote(diskSize.trim())} ${createCmd}` : createCmd
-  const steps: string[] = [create]
+export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string, ports: PortIntent[] = spec.ports): string {
+  const steps: string[] = [shellCommand(['sbx', ...specToCreateArgs(spec, name, kitDir)])]
   if (!kitDir) {
     // A generated kit owns `allowedDomains`; only apply standalone policy without one.
     const resources = tierToAllowlist(spec.definition.tier, spec.domains)

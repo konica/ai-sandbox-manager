@@ -5,7 +5,6 @@ import type { Logger } from './log'
 import type { DefinitionSpec } from '@shared/types'
 import { randomBytes } from 'crypto'
 import { hashedSandboxName, launchCommand, portsForLaunch } from './sbx/translate'
-import { parseDiskSize } from '@shared/resources'
 import { registerCredentials, credFingerprint } from './creds/register'
 import { toSbxName, composeInstanceBaseName } from '@shared/names'
 import { normalizeTags } from '@shared/tags'
@@ -44,8 +43,7 @@ export async function launchDefinition(
   requestedName?: string,
   sessionName?: string,
   opener: 'terminal' | 'vscode' = 'terminal',
-  rawTags: string[] = [],
-  diskSizeOverride?: string
+  rawTags: string[] = []
 ): Promise<{ name: string }> {
   const spec = deps.store.getDefinitionSpec(definitionId)
   if (!spec) throw new SbxError('not-found', `Definition ${definitionId} not found`)
@@ -86,8 +84,7 @@ export async function launchDefinition(
   await registerCredentials({ adapter: deps.adapter, creds: deps.creds, log: deps.log }, definitionId, spec.credentials, name)
 
   const kitDir = deps.materializeKit(spec, name)
-  const disk = diskSizeOverride !== undefined ? parseDiskSize(diskSizeOverride) : spec.definition.diskSize
-  const command = launchCommand(spec, name, sessionName, kitDir, ports, disk)
+  const command = launchCommand(spec, name, sessionName, kitDir, ports)
   deps.log?.info(`Launching sandbox "${name}"${sessionName ? ` (session "${sessionName}")` : ''} from definition ${definitionId} (tier: ${spec.definition.tier}, creds: ${spec.credentials.length}, ports: ${spec.ports.length})`)
   deps.log?.info(`Opening terminal to provision and run: ${command}`)
 
@@ -98,9 +95,7 @@ export async function launchDefinition(
     createdAt: new Date().toISOString(),
     // Record the credential set baked into this sandbox so later credential changes to the
     // definition can be flagged as drift (→ needs rebuild). See reconcile().
-    credFingerprint: credFingerprint(spec.credentials),
-    // Record the disk size this sandbox was created with so a later rebuild can pre-fill it.
-    diskSize: disk
+    credFingerprint: credFingerprint(spec.credentials)
   })
   deps.store.setInstanceTags(name, tags)
   const primary = spec.mounts.find((m) => m.isPrimary) ?? spec.mounts[0]

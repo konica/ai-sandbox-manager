@@ -185,11 +185,4 @@ describe('reconcile', () => {
     await reconcile(fakeAdapter([]), store, () => nowMs)
     expect(store.listInstanceMeta()).toHaveLength(0)
   })
-
-  it('carries the instance disk size onto the view', async () => {
-    const store = openStore(':memory:')
-    store.upsertInstanceMeta({ sbxName: 'box', definitionId: null, createdByApp: true, createdAt: 't', diskSize: '25g' })
-    const views = await reconcile(fakeAdapter(['box']), store)
-    expect(views.find((v) => v.name === 'box')?.diskSize).toBe('25g')
-  })
 })

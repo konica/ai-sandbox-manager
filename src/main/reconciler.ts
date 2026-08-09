@@ -108,8 +108,7 @@ export async function reconcile(
           definitionId: def.id,
           createdByApp: meta?.createdByApp ?? false,
           createdAt: adoptedCreatedAt,
-          credFingerprint: credFingerprint(adoptSpec.credentials),
-          diskSize: meta?.diskSize
+          credFingerprint: credFingerprint(adoptSpec.credentials)
         })
       }
     }
@@ -129,8 +128,7 @@ export async function reconcile(
       tier: def?.tier ?? 'custom',
       credsDrift,
       tags: tagsByName.get(inst.name) ?? [],
-      createdAt,
-      diskSize: meta?.diskSize
+      createdAt
     }
   })
 }
