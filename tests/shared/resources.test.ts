@@ -8,6 +8,17 @@ describe('isValidCpus', () => {
   it('rejects zero, negatives, decimals, and non-numbers', () => {
     for (const s of ['0', '-1', '2.5', 'abc', '4 cpus']) expect(isValidCpus(s)).toBe(false)
   })
+  it('honors an optional host maximum', () => {
+    expect(isValidCpus('4', 8)).toBe(true)   // below max
+    expect(isValidCpus('8', 8)).toBe(true)   // at max
+    expect(isValidCpus('9', 8)).toBe(false)  // above max
+    expect(isValidCpus('', 8)).toBe(true)    // empty = default, still valid
+  })
+  it('ignores a non-positive or missing max (structural only)', () => {
+    expect(isValidCpus('999')).toBe(true)    // no max
+    expect(isValidCpus('999', 0)).toBe(true) // 0 = unknown → no bound
+    expect(isValidCpus('999', -1)).toBe(true)
+  })
 })
 
 describe('isValidMemory', () => {
