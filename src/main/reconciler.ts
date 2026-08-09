@@ -108,7 +108,8 @@ export async function reconcile(
           definitionId: def.id,
           createdByApp: meta?.createdByApp ?? false,
           createdAt: adoptedCreatedAt,
-          credFingerprint: credFingerprint(adoptSpec.credentials)
+          credFingerprint: credFingerprint(adoptSpec.credentials),
+          diskSize: meta?.diskSize
         })
       }
     }
