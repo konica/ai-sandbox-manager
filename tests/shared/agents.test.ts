@@ -24,6 +24,17 @@ describe('AGENT_PROFILES', () => {
   it('opencode ships with no hardcoded domains (multi-provider — user adds their own)', () => {
     expect(AGENT_PROFILES.opencode.domains).toEqual([])
   })
+  it('has a boolean mcpSupported on every profile', () => {
+    for (const id of AGENT_IDS) {
+      expect(typeof AGENT_PROFILES[id].mcpSupported).toBe('boolean')
+    }
+  })
+  it('locks the MCP-support matrix verified by the Phase 0 spike (#16)', () => {
+    expect(AGENT_PROFILES.claude.mcpSupported).toBe(true)
+    expect(AGENT_PROFILES.opencode.mcpSupported).toBe(true)
+    expect(AGENT_PROFILES.codex.mcpSupported).toBe(true)
+    expect(AGENT_PROFILES.copilot.mcpSupported).toBe(false)
+  })
 })
 
 describe('VARIANT_AGENT', () => {
