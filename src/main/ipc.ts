@@ -128,7 +128,7 @@ export function buildHandlers(deps: Deps): {
   'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', tags?: string[], diskSize?: string) => Promise<Result<{ name: string }>>
   'instance:setTags': (name: string, tags: string[]) => Promise<Result<null>>
   'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
-  'instance:rebuild': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
+  'instance:rebuild': (name: string, opener?: 'terminal' | 'vscode', diskSize?: string) => Promise<Result<{ name: string }>>
   'instance:applyCredentials': (name: string) => Promise<Result<{ applied: number; removed: number; skipped: number }>>
   'instance:commands': (name: string) => Promise<Result<{ agent: string; shell: string }>>
   'instance:shell': (name: string) => Promise<Result<null>>
@@ -267,7 +267,7 @@ export function buildHandlers(deps: Deps): {
       }
       return null
     }),
-    'instance:rebuild': (name, opener) => wrap(async () => {
+    'instance:rebuild': (name, opener, diskSize) => wrap(async () => {
       // Recreate the sandbox from its definition so config/credential changes (e.g. new
       // custom-secret env vars, only injected at create time) take effect. Removes the old
       // sandbox + its scoped secrets/.sandbox, then launches a fresh instance.
@@ -276,7 +276,7 @@ export function buildHandlers(deps: Deps): {
       const tags = deps.store.listInstanceTags().get(name) ?? []
       deps.log?.info(`Rebuilding instance "${name}" (recreate from definition ${definitionId} to apply current config/credentials).`)
       await cleanupInstance(deps, name)
-      return launchDefinition(launchDeps(), definitionId, undefined, undefined, opener ?? 'terminal', tags)
+      return launchDefinition(launchDeps(), definitionId, undefined, undefined, opener ?? 'terminal', tags, diskSize)
     }),
     'instance:applyCredentials': (name) => wrap(async () => {
       // Live-apply service/custom credential changes to a running sandbox (no recreate):
@@ -508,7 +508,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', tags?: string[], diskSize?: string) => handlers['instance:launch'](id, name, sessionName, opener, tags, diskSize))
   ipcMain.handle('instance:setTags', (_e, name: string, tags: string[]) => handlers['instance:setTags'](name, tags))
   ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:attach'](name, opener))
-  ipcMain.handle('instance:rebuild', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:rebuild'](name, opener))
+  ipcMain.handle('instance:rebuild', (_e, name: string, opener?: 'terminal' | 'vscode', diskSize?: string) => handlers['instance:rebuild'](name, opener, diskSize))
   ipcMain.handle('instance:applyCredentials', (_e, name: string) => handlers['instance:applyCredentials'](name))
   ipcMain.handle('instance:commands', (_e, name: string) => handlers['instance:commands'](name))
   ipcMain.handle('instance:shell', (_e, name: string) => handlers['instance:shell'](name))
