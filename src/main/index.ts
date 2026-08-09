@@ -6,7 +6,7 @@ import { openStore } from './store/db'
 import { createSbxAdapter, defaultSpawn } from './sbx/adapter'
 import { systemProbes } from './probes'
 import { registerIpc } from './ipc'
-import { openHostTerminal } from './terminal'
+import { openHostTerminal, findWindowsBash } from './terminal'
 import { createLogger } from './log'
 import { createSafeStorageVault, storageStatus } from './creds/vault'
 import { createCredentialManager } from './creds/manager'
@@ -73,7 +73,12 @@ function openVSCode(command: string, workspaceDir: string, sandboxName: string):
   const dir = `${workspaceDir}/.sandbox`
   nodeFs.mkdirSync(dir, { recursive: true })
   const file = `${dir}/${sandboxName}.code-workspace`
-  nodeFs.writeFileSync(file, buildCodeWorkspace(workspaceDir, sandboxName, command), { mode: 0o644 })
+  // The sbx chain is POSIX-shell shaped; on Windows VS Code would run a shell task in
+  // PowerShell (which can't parse the inline DOCKER_SANDBOXES_DOCKER_SIZE=… prefix), so
+  // run it through Git Bash/WSL instead — same shell the Terminal opener uses. null on
+  // macOS/Linux (default shell is already POSIX) and on Windows without a bash installed.
+  const bash = process.platform === 'win32' ? findWindowsBash() : null
+  nodeFs.writeFileSync(file, buildCodeWorkspace(workspaceDir, sandboxName, command, bash), { mode: 0o644 })
   openInVSCode(file)
 }
 

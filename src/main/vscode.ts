@@ -7,8 +7,20 @@ import { join } from 'path'
  * `command` (the sbx chain) in an integrated terminal via a folderOpen task. The
  * `task.allowAutomaticTasks` setting removes the automatic-tasks prompt; VS Code
  * Workspace Trust still applies on a never-opened folder (one-time click).
+ *
+ * The sbx chain is POSIX-shell shaped (single-quoted args, `&&`/`;`, and inline env-var
+ * prefixes like `DOCKER_SANDBOXES_DOCKER_SIZE=10g …`). A `type: shell` task runs in VS
+ * Code's default integrated shell — PowerShell on Windows — which cannot parse the POSIX
+ * env-var prefix (nor `unset`). So when a `bash` path is supplied (Windows, where
+ * openVSCode resolves Git Bash/WSL, mirroring openHostTerminal) we run the chain through a
+ * `type: process` task: process tasks spawn the executable with LITERAL args — no shell
+ * re-parse — so the whole quoted chain reaches `bash -lc` intact. Without a bash path
+ * (macOS/Linux, whose default shell is already POSIX) the shell task behaves as before.
  */
-export function buildCodeWorkspace(workspaceDir: string, sandboxName: string, command: string): string {
+export function buildCodeWorkspace(workspaceDir: string, sandboxName: string, command: string, bash?: string | null): string {
+  const runner = bash
+    ? { type: 'process', command: bash, args: ['-lc', command] }
+    : { type: 'shell', command }
   return JSON.stringify({
     folders: [{ path: workspaceDir }],
     settings: { 'task.allowAutomaticTasks': 'on' },
@@ -16,8 +28,7 @@ export function buildCodeWorkspace(workspaceDir: string, sandboxName: string, co
       version: '2.0.0',
       tasks: [{
         label: `AI Sandbox: ${sandboxName}`,
-        type: 'shell',
-        command,
+        ...runner,
         runOptions: { runOn: 'folderOpen' },
         presentation: { panel: 'dedicated', focus: true },
         problemMatcher: []
