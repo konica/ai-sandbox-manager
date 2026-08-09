@@ -46,6 +46,7 @@ const api = {
   authSignOut: () => ipcRenderer.invoke('auth:signOut'),
   authStartLogin: () => ipcRenderer.invoke('auth:startLogin'),
   sshDetect: () => ipcRenderer.invoke('ssh:detect'),
+  hostCapacity: () => ipcRenderer.invoke('host:capacity'),
   envHasVSCode: () => ipcRenderer.invoke('env:hasVSCode'),
   kitValidate: (yaml: string) => ipcRenderer.invoke('kit:validate', yaml),
   prefsGet: (key: string) => ipcRenderer.invoke('prefs:get', key),

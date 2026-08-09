@@ -17,6 +17,7 @@ import { agentAttachCommand, hostShellCommand, loginCommand, expandSandboxPath, 
 import { fetchResourceStats } from './sbx/resource-stats'
 import { claudeAuthStatus, claudeSignOut } from './auth/manager'
 import { sshAgentPresent } from './ssh/detect'
+import { readHostCapacity } from './host/capacity'
 import { codeCliPresent } from './vscode'
 import { buildExportBundle, parseImportBundle, dedupeName } from './defio/bundle'
 import { randomUUID } from 'crypto'
@@ -157,6 +158,7 @@ export function buildHandlers(deps: Deps): {
   'auth:signOut': () => Promise<Result<null>>
   'auth:startLogin': () => Promise<Result<{ name: string }>>
   'ssh:detect': () => Promise<Result<{ present: boolean; platform: string }>>
+  'host:capacity': () => Promise<Result<{ cpuCores: number; totalMemBytes: number }>>
   'env:hasVSCode': () => Promise<Result<{ present: boolean }>>
   'kit:validate': (yaml: string) => Promise<Result<KitValidation>>
   'prefs:get': (key: string) => Promise<Result<string | null>>
@@ -429,6 +431,7 @@ export function buildHandlers(deps: Deps): {
       const present = sshAgentPresent({ platform, env: deps.readLoginEnv?.() ?? {}, runSshAdd: deps.sshProbe })
       return { present, platform }
     }),
+    'host:capacity': () => wrap(async () => readHostCapacity()),
     'env:hasVSCode': () => wrap(async () => ({ present: codeCliPresent() })),
     'kit:validate': (yaml) => wrap(async () => {
       const norm = normalizeCommandsYaml(yaml)
@@ -537,6 +540,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('auth:signOut', () => handlers['auth:signOut']())
   ipcMain.handle('auth:startLogin', () => handlers['auth:startLogin']())
   ipcMain.handle('ssh:detect', () => handlers['ssh:detect']())
+  ipcMain.handle('host:capacity', () => handlers['host:capacity']())
   ipcMain.handle('env:hasVSCode', () => handlers['env:hasVSCode']())
   ipcMain.handle('kit:validate', (_e, yaml: string) => handlers['kit:validate'](yaml))
   ipcMain.handle('prefs:get', (_e, key: string) => handlers['prefs:get'](key))
