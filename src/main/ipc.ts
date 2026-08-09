@@ -125,7 +125,7 @@ export function buildHandlers(deps: Deps): {
   'def:export': (ids: string[]) => Promise<Result<{ canceled?: boolean; path?: string; count?: number }>>
   'def:import': () => Promise<Result<{ canceled?: boolean; imported?: string[]; skipped?: number; domainWarnings?: string[] }>>
   'def:remove': (id: string) => Promise<Result<{ removedInstances: number }>>
-  'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', tags?: string[]) => Promise<Result<{ name: string }>>
+  'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', tags?: string[], diskSize?: string) => Promise<Result<{ name: string }>>
   'instance:setTags': (name: string, tags: string[]) => Promise<Result<null>>
   'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
   'instance:rebuild': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
@@ -234,9 +234,9 @@ export function buildHandlers(deps: Deps): {
       deps.log?.info(`Deleted definition ${id} and ${instances.length} instance(s).`)
       return { removedInstances: instances.length }
     }),
-    'instance:launch': (definitionId, name, sessionName, opener, tags) => wrap(() => launchDefinition(
+    'instance:launch': (definitionId, name, sessionName, opener, tags, diskSize) => wrap(() => launchDefinition(
       launchDeps(),
-      definitionId, name, sessionName, opener ?? 'terminal', tags ?? []
+      definitionId, name, sessionName, opener ?? 'terminal', tags ?? [], diskSize
     )),
     'instance:setTags': (name, tags) => wrap(async () => { deps.store.setInstanceTags(name, normalizeTags(tags)); return null }),
     'instance:attach': (name, opener) => wrap(async () => {
@@ -505,7 +505,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('def:export', (_e, ids: string[]) => handlers['def:export'](ids))
   ipcMain.handle('def:import', () => handlers['def:import']())
   ipcMain.handle('def:remove', (_e, id: string) => handlers['def:remove'](id))
-  ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', tags?: string[]) => handlers['instance:launch'](id, name, sessionName, opener, tags))
+  ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', tags?: string[], diskSize?: string) => handlers['instance:launch'](id, name, sessionName, opener, tags, diskSize))
   ipcMain.handle('instance:setTags', (_e, name: string, tags: string[]) => handlers['instance:setTags'](name, tags))
   ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:attach'](name, opener))
   ipcMain.handle('instance:rebuild', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:rebuild'](name, opener))
