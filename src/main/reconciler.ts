@@ -128,7 +128,8 @@ export async function reconcile(
       tier: def?.tier ?? 'custom',
       credsDrift,
       tags: tagsByName.get(inst.name) ?? [],
-      createdAt
+      createdAt,
+      diskSize: meta?.diskSize
     }
   })
 }
