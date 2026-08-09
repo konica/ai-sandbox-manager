@@ -1,4 +1,5 @@
 import type { AgentId } from './agents'
+import type { McpBinding } from './mcp'
 
 export type SbxStatus = 'running' | 'stopped' | 'error' | 'unknown'
 
@@ -173,6 +174,8 @@ export interface DefinitionSpec {
   kitCommandsYaml?: string
   /** Host files/dirs to copy into the sandbox at launch (sbx cp). */
   copyFiles?: CopyFileIntent[]
+  /** MCP Gateway binding; absent means mode 'off' (MCP disabled for this definition). */
+  mcp?: McpBinding
 }
 
 export interface InstanceView extends SbxInstance {

@@ -13,6 +13,9 @@ export interface AgentProfile {
   resumeArgs: string[]
   /** Args appended after `sbx run`'s `--` separator to name a brand-new session. */
   sessionNameArgs: (name: string) => string[]
+  /** Whether this agent supports MCP (Docker Sandboxes gateway). Verified via the Phase 0
+   *  spike (#16): claude/codex/opencode = true, copilot = false. */
+  mcpSupported: boolean
 }
 
 // Verified via the Phase 0 spike. `buildLoginKit`'s OAUTH_LOGIN_DOMAINS in
@@ -29,7 +32,8 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     label: 'Claude Code',
     domains: CLAUDE_DOMAINS,
     resumeArgs: ['--continue'],
-    sessionNameArgs: (name) => ['--name', name]
+    sessionNameArgs: (name) => ['--name', name],
+    mcpSupported: true
   },
   opencode: {
     id: 'opencode',
@@ -40,7 +44,8 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     // add their configured provider's domain via the wizard's custom-domains field instead.
     domains: [],
     resumeArgs: ['--continue'],
-    sessionNameArgs: (name) => ['--session', name]
+    sessionNameArgs: (name) => ['--session', name],
+    mcpSupported: true
   },
   codex: {
     id: 'codex',
@@ -49,7 +54,8 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     // TODO: verify against the Codex CLI.
     domains: ['api.openai.com', 'chatgpt.com'],
     resumeArgs: ['--continue'],
-    sessionNameArgs: () => []
+    sessionNameArgs: () => [],
+    mcpSupported: true
   },
   copilot: {
     id: 'copilot',
@@ -58,7 +64,8 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     // TODO: verify against the Copilot CLI.
     domains: ['github.com', '*.githubusercontent.com', 'copilot-proxy.githubusercontent.com'],
     resumeArgs: ['--continue'],
-    sessionNameArgs: () => []
+    sessionNameArgs: () => [],
+    mcpSupported: false
   }
 }
 
