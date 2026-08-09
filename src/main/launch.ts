@@ -98,7 +98,9 @@ export async function launchDefinition(
     createdAt: new Date().toISOString(),
     // Record the credential set baked into this sandbox so later credential changes to the
     // definition can be flagged as drift (→ needs rebuild). See reconcile().
-    credFingerprint: credFingerprint(spec.credentials)
+    credFingerprint: credFingerprint(spec.credentials),
+    // Record the disk size this sandbox was created with so a later rebuild can pre-fill it.
+    diskSize: disk
   })
   deps.store.setInstanceTags(name, tags)
   const primary = spec.mounts.find((m) => m.isPrimary) ?? spec.mounts[0]

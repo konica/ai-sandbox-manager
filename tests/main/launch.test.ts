@@ -288,3 +288,21 @@ describe('launchDefinition disk size', () => {
     expect(cmd).not.toContain('DOCKER_SANDBOXES_DOCKER_SIZE')
   })
 })
+
+describe('launchDefinition records instance disk size', () => {
+  it('persists the definition default disk size onto the instance meta', async () => {
+    const d = deps(() => ({ ...spec, definition: { ...spec.definition, diskSize: '30g' } }))
+    await launchDefinition(d as never, 'd1')
+    expect(d.metas[0].diskSize).toBe('30g')
+  })
+  it('persists the override when one is passed', async () => {
+    const d = deps(() => ({ ...spec, definition: { ...spec.definition, diskSize: '30g' } }))
+    await launchDefinition(d as never, 'd1', undefined, undefined, 'terminal', [], '8g')
+    expect(d.metas[0].diskSize).toBe('8g')
+  })
+  it('leaves diskSize undefined when neither is set', async () => {
+    const d = deps(() => spec)
+    await launchDefinition(d as never, 'd1')
+    expect(d.metas[0].diskSize).toBeUndefined()
+  })
+})
