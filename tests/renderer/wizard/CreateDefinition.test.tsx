@@ -5,7 +5,7 @@ const defCreate = vi.fn()
 const defUpdate = vi.fn()
 const credStageValue = vi.fn()
 const prefsGet = vi.fn(async (_key: string) => ({ ok: true, data: 'balanced' }))
-vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), defUpdate: (s: unknown) => defUpdate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v), kitValidate: async () => ({ ok: true, data: { status: 'valid', message: 'ok' } }), prefsGet: (k: string) => prefsGet(k) } }))
+vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), defUpdate: (s: unknown) => defUpdate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v), kitValidate: async () => ({ ok: true, data: { status: 'valid', message: 'ok' } }), prefsGet: (k: string) => prefsGet(k), hostCapacity: async () => ({ ok: true, data: { cpuCores: 4, totalMemBytes: 8 * 1024 ** 3 } }) } }))
 
 import { CreateDefinition, sshSummary, stageErrorMessage } from '../../../src/renderer/wizard/CreateDefinition'
 
@@ -211,5 +211,24 @@ describe('CreateDefinition wizard', () => {
     expect(screen.getByText(/binary size like/i)).toBeInTheDocument()
     fireEvent.change(disk, { target: { value: '40g' } })
     expect(screen.queryByText(/binary size like/i)).toBeNull()
+  })
+})
+
+describe('CreateDefinition resources step — host capacity', () => {
+  it('shows CPU max + memory host hints and blocks a CPU count over the host max', async () => {
+    render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
+    // advance from step 1 (workspace) to step 2 (resources)
+    fireEvent.change(screen.getByLabelText('Workspace'), { target: { value: '/tmp/proj' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    // hints render from the mocked 4-core / 8 GB host
+    expect(await screen.findByText(/Max 4 cores/i)).toBeInTheDocument()
+    expect(screen.getByText(/Host memory: 8 GB/i)).toBeInTheDocument()
+    // over-max CPU shows the error and disables Next
+    fireEvent.change(screen.getByLabelText('CPUs'), { target: { value: '9' } })
+    expect(await screen.findByText(/This host has 4 CPU cores/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
+    // a valid value clears it and re-enables Next
+    fireEvent.change(screen.getByLabelText('CPUs'), { target: { value: '4' } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled())
   })
 })

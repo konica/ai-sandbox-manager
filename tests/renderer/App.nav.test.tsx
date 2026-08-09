@@ -11,7 +11,8 @@ vi.mock('../../src/renderer/ipc/client', () => ({
     defList: () => defList(),
     defCreate: async () => ({ ok: true, data: { id: 'id1' } }),
     envHasVSCode: async () => ({ ok: true, data: { present: false } }),
-    prefsGet: async () => ({ ok: true, data: null })
+    prefsGet: async () => ({ ok: true, data: null }),
+    hostCapacity: async () => ({ ok: true, data: { cpuCores: 0, totalMemBytes: 0 } })
   }
 }))
 
