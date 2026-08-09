@@ -201,4 +201,15 @@ describe('CreateDefinition wizard', () => {
     expect(screen.getByText(/binary size like 8g/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()
   })
+
+  it('shows a disk-size input in step 2 and an inline error on an invalid value', () => {
+    render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Workspace'), { target: { value: '/tmp/proj' } })
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 1 -> 2
+    const disk = screen.getByLabelText('Disk size')
+    fireEvent.change(disk, { target: { value: '40gb' } })
+    expect(screen.getByText(/binary size like/i)).toBeInTheDocument()
+    fireEvent.change(disk, { target: { value: '40g' } })
+    expect(screen.queryByText(/binary size like/i)).toBeNull()
+  })
 })
