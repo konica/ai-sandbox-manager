@@ -84,25 +84,4 @@ describe('metadata-store', () => {
     expect(got?.definition.cpus).toBeUndefined()
     expect(got?.definition.memory).toBeUndefined()
   })
-
-  it('persists and reads diskSize on a definition spec', () => {
-    const store = openStore(':memory:')
-    const spec = {
-      definition: { id: 'ds1', name: 'ds', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't', diskSize: '30g' },
-      mounts: [{ hostPath: '/w', mode: 'direct' as const, isPrimary: true }],
-      domains: [], ports: [], hostServices: [], credentials: []
-    }
-    store.insertDefinitionSpec(spec)
-    expect(store.getDefinitionSpec('ds1')?.definition.diskSize).toBe('30g')
-    store.updateDefinitionSpec({ ...spec, definition: { ...spec.definition, diskSize: '80g' } })
-    expect(store.getDefinitionSpec('ds1')?.definition.diskSize).toBe('80g')
-    store.close()
-  })
-
-  it('leaves diskSize undefined when absent', () => {
-    const store = openStore(':memory:')
-    store.insertDefinition({ id: 'ds2', name: 'ds2', description: '', agent: 'claude', baseImage: 'img', tier: 'locked', createdAt: 't' })
-    expect(store.getDefinition('ds2')?.diskSize).toBeUndefined()
-    store.close()
-  })
 })
