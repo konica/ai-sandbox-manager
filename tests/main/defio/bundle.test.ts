@@ -165,3 +165,26 @@ describe('dedupeName', () => {
     expect(dedupeName('Alpha', new Set(['Alpha', 'Alpha (imported)']))).toBe('Alpha (imported 2)')
   })
 })
+
+describe('bundle diskSize', () => {
+  const entry = (diskSize: unknown) => JSON.stringify({
+    formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 't',
+    definitions: [{ definition: { name: 'n', baseImage: 'img', tier: 'locked', diskSize }, mounts: [], domains: [], ports: [], hostServices: [], credentials: [] }]
+  })
+  it('keeps a valid diskSize (normalized) on import', () => {
+    const { definitions } = parseImportBundle(entry('40G'))
+    expect(definitions[0].definition.diskSize).toBe('40g')
+  })
+  it('drops an invalid diskSize to undefined', () => {
+    const { definitions } = parseImportBundle(entry('40gb'))
+    expect(definitions[0].definition.diskSize).toBeUndefined()
+  })
+  it('export carries diskSize through', () => {
+    const spec = {
+      definition: { id: 'x', name: 'n', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'locked' as const, createdAt: 't', diskSize: '30g' },
+      mounts: [], domains: [], ports: [], hostServices: [], credentials: []
+    }
+    const bundle = buildExportBundle([spec], 't')
+    expect(bundle.definitions[0].definition.diskSize).toBe('30g')
+  })
+})
