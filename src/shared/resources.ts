@@ -6,11 +6,16 @@
 const CPUS_RE = /^\d+$/
 const MEMORY_RE = /^\d+(\.\d+)?\s*[mMgG]$/
 
-/** Empty (= use sbx default) or a positive integer CPU count. */
-export function isValidCpus(s: string): boolean {
+/** Empty (= use sbx default) or a positive integer CPU count. When `maxCpus` is a positive
+ *  number, values above it are rejected (host-core bound); a missing/≤0 max applies no bound. */
+export function isValidCpus(s: string, maxCpus?: number): boolean {
   const t = s.trim()
   if (t === '') return true
-  return CPUS_RE.test(t) && Number(t) >= 1
+  if (!CPUS_RE.test(t)) return false
+  const n = Number(t)
+  if (n < 1) return false
+  if (typeof maxCpus === 'number' && maxCpus > 0 && n > maxCpus) return false
+  return true
 }
 
 /** Empty (= use sbx default) or a binary-unit size like `1024m` / `8g`. */
