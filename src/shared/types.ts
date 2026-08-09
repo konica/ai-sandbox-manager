@@ -22,6 +22,7 @@ export interface Definition {
   createdAt: string
   cpus?: number // optional CPU count; absent → sbx default (all host CPUs)
   memory?: string // optional binary-unit memory limit (e.g. '8g'); absent → sbx default
+  diskSize?: string // optional block-volume size (e.g. '50g'); absent → Docker's 50 GB default (via DOCKER_SANDBOXES_DOCKER_SIZE)
 }
 
 export interface InstanceMeta {

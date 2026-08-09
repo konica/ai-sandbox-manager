@@ -36,7 +36,10 @@ CREATE TABLE IF NOT EXISTS definition (
   created_at TEXT NOT NULL,
   ssh_forward_agent INTEGER NOT NULL DEFAULT 1,
   ssh_commit_signing INTEGER NOT NULL DEFAULT 0,
-  kit_commands_yaml TEXT
+  kit_commands_yaml TEXT,
+  cpus INTEGER,
+  memory TEXT,
+  disk_size TEXT
 );
 CREATE TABLE IF NOT EXISTS instance_meta (
   sbx_name TEXT PRIMARY KEY,
@@ -112,7 +115,7 @@ CREATE TABLE IF NOT EXISTS instance_tag (
   tag      TEXT NOT NULL,
   PRIMARY KEY (sbx_name, tag)
 );
-PRAGMA user_version = 11;
+PRAGMA user_version = 12;
 `
 
 export function openStore(filename: string): Store {
@@ -167,6 +170,12 @@ export function openStore(filename: string): Store {
     db.exec(`ALTER TABLE definition ADD COLUMN cpus INTEGER;`)
     db.exec(`ALTER TABLE definition ADD COLUMN memory TEXT;`)
   }
+  // v11 → v12: definitions gain an optional block-volume size (create-time only, applied
+  // via the DOCKER_SANDBOXES_DOCKER_SIZE env var — sbx has no CLI flag for it).
+  // Non-destructive; NULL → env var omitted → sbx's 50 GB default.
+  if (!defCols.includes('disk_size')) {
+    db.exec(`ALTER TABLE definition ADD COLUMN disk_size TEXT;`)
+  }
 
   // v3 → v4: port_intent gains `protocol` + nullable host_port; add host_service. Recreate
   // port_intent (old rows are dev throwaway — SQLite can't relax NOT NULL in place).
@@ -183,7 +192,8 @@ export function openStore(filename: string): Store {
       baseImage: String(row.baseImage), agent: row.agent as Definition['agent'], tier: row.tier as Definition['tier'],
       createdAt: String(row.createdAt),
       cpus: row.cpus == null ? undefined : Number(row.cpus),
-      memory: row.memory == null ? undefined : String(row.memory)
+      memory: row.memory == null ? undefined : String(row.memory),
+      diskSize: row.disk_size == null ? undefined : String(row.disk_size)
     }
   }
 
@@ -222,26 +232,26 @@ export function openStore(filename: string): Store {
   return {
     insertDefinition(d) {
       db.prepare(
-        `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at, cpus, memory)
-         VALUES (@id, @name, @description, @baseImage, @agent, @tier, @createdAt, @cpus, @memory)`
-      ).run({ ...d, cpus: d.cpus ?? null, memory: d.memory ?? null })
+        `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at, cpus, memory, disk_size)
+         VALUES (@id, @name, @description, @baseImage, @agent, @tier, @createdAt, @cpus, @memory, @diskSize)`
+      ).run({ ...d, cpus: d.cpus ?? null, memory: d.memory ?? null, diskSize: d.diskSize ?? null })
     },
     listDefinitions() {
-      const rows = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt, cpus, memory FROM definition ORDER BY created_at DESC`).all() as Array<Record<string, unknown>>
+      const rows = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt, cpus, memory, disk_size FROM definition ORDER BY created_at DESC`).all() as Array<Record<string, unknown>>
       return rows.map(defWithLimits)
     },
     getDefinition(id) {
-      const row = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt, cpus, memory FROM definition WHERE id = ?`).get(id) as Record<string, unknown> | undefined
+      const row = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt, cpus, memory, disk_size FROM definition WHERE id = ?`).get(id) as Record<string, unknown> | undefined
       return row ? defWithLimits(row) : null
     },
     insertDefinitionSpec(spec) {
       const insertAll = db.transaction((s: DefinitionSpec) => {
         const ssh = s.ssh ?? DEFAULT_SSH
         db.prepare(
-          `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at, ssh_forward_agent, ssh_commit_signing, kit_commands_yaml, cpus, memory)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at, ssh_forward_agent, ssh_commit_signing, kit_commands_yaml, cpus, memory, disk_size)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).run(s.definition.id, s.definition.name, s.definition.description, s.definition.baseImage, s.definition.agent, s.definition.tier, s.definition.createdAt,
-          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.cpus ?? null, s.definition.memory ?? null)
+          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.cpus ?? null, s.definition.memory ?? null, s.definition.diskSize ?? null)
         insertChildren(s)
       })
       insertAll(spec)
@@ -250,9 +260,9 @@ export function openStore(filename: string): Store {
       const updateAll = db.transaction((s: DefinitionSpec) => {
         const ssh = s.ssh ?? DEFAULT_SSH
         const res = db.prepare(
-          `UPDATE definition SET name = ?, description = ?, base_image = ?, agent = ?, tier = ?, ssh_forward_agent = ?, ssh_commit_signing = ?, kit_commands_yaml = ?, cpus = ?, memory = ? WHERE id = ?`
+          `UPDATE definition SET name = ?, description = ?, base_image = ?, agent = ?, tier = ?, ssh_forward_agent = ?, ssh_commit_signing = ?, kit_commands_yaml = ?, cpus = ?, memory = ?, disk_size = ? WHERE id = ?`
         ).run(s.definition.name, s.definition.description, s.definition.baseImage, s.definition.agent, s.definition.tier,
-          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.cpus ?? null, s.definition.memory ?? null, s.definition.id)
+          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.cpus ?? null, s.definition.memory ?? null, s.definition.diskSize ?? null, s.definition.id)
         if (res.changes === 0) throw new Error(`Definition ${s.definition.id} not found`)
         deleteChildren(s.definition.id)
         insertChildren(s)
@@ -260,7 +270,7 @@ export function openStore(filename: string): Store {
       updateAll(spec)
     },
     getDefinitionSpec(id) {
-      const row = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt, cpus, memory FROM definition WHERE id = ?`).get(id) as Record<string, unknown> | undefined
+      const row = db.prepare(`SELECT id, name, description, base_image AS baseImage, agent, tier, created_at AS createdAt, cpus, memory, disk_size FROM definition WHERE id = ?`).get(id) as Record<string, unknown> | undefined
       if (!row) return null
       const def = defWithLimits(row)
       const mounts = (db.prepare(`SELECT host_path AS hostPath, mode, is_primary AS isPrimary FROM mount_intent WHERE definition_id = ? ORDER BY id`).all(id) as Array<Record<string, unknown>>)
