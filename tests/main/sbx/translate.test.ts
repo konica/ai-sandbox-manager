@@ -204,3 +204,20 @@ describe('launchCommand', () => {
     expect(cmd).not.toMatch(/\s--(\s|$)/)
   })
 })
+
+describe('launchCommand disk size', () => {
+  it('prefixes DOCKER_SANDBOXES_DOCKER_SIZE on the create step when a size is given', () => {
+    const cmd = launchCommand(spec(), 'box', undefined, undefined, [], '20g')
+    expect(cmd).toContain("DOCKER_SANDBOXES_DOCKER_SIZE='20g' sbx create")
+  })
+  it('omits the env var entirely when no size is given', () => {
+    const cmd = launchCommand(spec(), 'box')
+    expect(cmd).not.toContain('DOCKER_SANDBOXES_DOCKER_SIZE')
+  })
+  it('puts the prefix on create only, not on later steps', () => {
+    const cmd = launchCommand(spec({ ports: [{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }] }), 'box', undefined, undefined, [{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }], '20g')
+    // exactly one occurrence, immediately before `sbx create`
+    expect(cmd.match(/DOCKER_SANDBOXES_DOCKER_SIZE/g)?.length).toBe(1)
+    expect(cmd).toContain("DOCKER_SANDBOXES_DOCKER_SIZE='20g' sbx create")
+  })
+})
