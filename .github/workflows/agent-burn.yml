@@ -86,7 +86,7 @@ jobs:
         run: |
           echo "### agent-burn frontier" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          echo '${{ steps.frontier.outputs.frontier || "[]" }}' >> "$GITHUB_STEP_SUMMARY"
+          echo '${{ steps.frontier.outputs.frontier || '[]' }}' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   burn:
@@ -170,7 +170,7 @@ jobs:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
         run: |
           COUNT=$(gh pr list --head "${{ matrix.ticket.branch }}" --state open --json number --jq 'length')
-          if [ "$COUNT" = "0" ]; then
+          if [ -n "$WIP_LABEL" ] && [ "$COUNT" = "0" ]; then
             echo "No pull request on ${{ matrix.ticket.branch }}; unclaiming #${{ matrix.ticket.number }}."
             gh issue edit "${{ matrix.ticket.number }}" --remove-label "$WIP_LABEL"
           fi
