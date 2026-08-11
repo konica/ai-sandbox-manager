@@ -38,10 +38,23 @@ jobs:
     # external pull request close teaches people to ignore this workflow being
     # red, which is worse than the missed replan: a fork merge still replans on
     # the next scheduled run.
+    #
+    # The label clause guards against self-triggering: `burn` claims a ticket
+    # with `AGENT_PAT` rather than `GITHUB_TOKEN` (see the note on that job),
+    # so adding agent-wip itself fires an `issues: labeled` event, and
+    # agent-fix-ci.yml adding needs-human does the same. Without this, every
+    # dispatch spawned a spurious redundant run that queued on the
+    # `concurrency: agent-burn` group and cancelled the run(s) ahead of it.
+    # Job `if:` is evaluated before any step runs — before checkout, before
+    # config can be read — so 'ready-for-agent' is a literal here, same
+    # constraint as the two literals in agent-fix-ci.yml. `setup.mjs` flags
+    # drift against `config.readyLabel`.
     if: >-
       vars.AGENT_BURN_ENABLED != 'false' &&
       (github.event_name != 'pull_request' ||
-       github.event.pull_request.head.repo.full_name == github.repository)
+       github.event.pull_request.head.repo.full_name == github.repository) &&
+      (github.event_name != 'issues' ||
+       github.event.label.name == 'ready-for-agent')
     runs-on: ubuntu-latest
     outputs:
       frontier: ${{ steps.frontier.outputs.frontier }}
@@ -74,28 +87,8 @@ jobs:
             exit 1
           fi
 
-      # The label name lives in config, never in this YAML, so the workflow
-      # ports to another repository unchanged.
-      - name: Skip labelling events for other labels
-        id: guard
-        if: github.event_name == 'issues'
-        env:
-          ADDED_LABEL: ${{ github.event.label.name }}
-        run: |
-          READY=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
-            const fs = await import('node:fs/promises')
-            let raw = {}
-            try { raw = JSON.parse(await fs.readFile('.github/agent-burn.json', 'utf8')) } catch {}
-            process.stdout.write(m.loadConfig(raw).readyLabel)
-          })")
-          if [ "$ADDED_LABEL" != "$READY" ]; then
-            echo "Label '$ADDED_LABEL' is not '$READY'; nothing to do."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Compute the ready frontier
         id: frontier
-        if: steps.guard.outputs.skip != 'true'
         env:
           AGENT_PAT: ${{ secrets.AGENT_PAT }}
           GITHUB_REPOSITORY: ${{ github.repository }}

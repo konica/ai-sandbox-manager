@@ -15,11 +15,12 @@ import { pathToFileURL } from 'node:url'
 import { loadConfig } from './config.mjs'
 
 const FIX_CI_WORKFLOW = '.github/workflows/agent-fix-ci.yml'
+const BURN_WORKFLOW = '.github/workflows/agent-burn.yml'
 
-// Workflow `on:` triggers and `if:` conditions cannot read a config file, so two
-// values are literal in agent-fix-ci.yml. These two checks are the entire
-// portability safety net for that, which is why they are exported and tested
-// rather than buried in main().
+// Workflow `on:` triggers and `if:` conditions cannot read a config file, so
+// three values are literal across the two workflow files. These three checks
+// are the entire portability safety net for that, which is why they are
+// exported and tested rather than buried in main().
 
 /** Does agent-fix-ci.yml's `workflow_run.workflows` still name `config.ciWorkflow`? */
 export function checkCiWorkflowName(yml, config) {
@@ -64,6 +65,34 @@ export function checkBranchPrefixGuard(yml, config) {
     message:
       `${FIX_CI_WORKFLOW} guards on [${[...prefixes].join(', ')}] but branchPrefix is ` +
       `"${config.branchPrefix}". Job \`if:\` conditions cannot take config, so update those by hand.`
+  }
+}
+
+// Only a label-name comparison whose *first argument* is the labeled event's
+// label reads as the ready-label guard on agent-burn.yml's `plan` job. The
+// guard exists to stop `burn` claiming a ticket with AGENT_PAT (rather than
+// GITHUB_TOKEN) from re-triggering the dispatcher on its own `issues: labeled`
+// event — see the comment on that job's `if:`.
+const LABEL_NAME = /github\.event\.label\.name\s*$/
+
+/** Does agent-burn.yml's `plan` job `if:` still guard on `config.readyLabel`? */
+export function checkReadyLabelGuard(yml, config) {
+  const labels = new Set(
+    [...yml.matchAll(/([\w.]+)\s*==\s*["']([^"']+)["']/g)]
+      .filter((m) => LABEL_NAME.test(m[1]))
+      .map((m) => m[2])
+  )
+  if (labels.size === 0) {
+    return { ok: false, message: `could not find a label guard in ${BURN_WORKFLOW}` }
+  }
+  if (labels.size === 1 && labels.has(config.readyLabel)) {
+    return { ok: true, message: `guards label "${config.readyLabel}"` }
+  }
+  return {
+    ok: false,
+    message:
+      `${BURN_WORKFLOW} guards on [${[...labels].join(', ')}] but readyLabel is ` +
+      `"${config.readyLabel}". Job \`if:\` conditions cannot take config, so update that by hand.`
   }
 }
 
@@ -126,8 +155,9 @@ async function main() {
   if (protection) ok(`${branch} is protected`)
   else warn(`${branch} has no branch protection — recommended: require ${config.ciWorkflow} to pass before merge`)
 
-  // Catch drift in the two hard-coded literals rather than letting a ported
-  // repository fail silently. See checkCiWorkflowName / checkBranchPrefixGuard.
+  // Catch drift in the three hard-coded literals rather than letting a ported
+  // repository fail silently. See checkCiWorkflowName / checkBranchPrefixGuard /
+  // checkReadyLabelGuard.
   console.log('\nworkflow wiring')
   try {
     const yml = await readFile(FIX_CI_WORKFLOW, 'utf8')
@@ -136,6 +166,14 @@ async function main() {
     }
   } catch (err) {
     if (err.code === 'ENOENT') warn(`${FIX_CI_WORKFLOW} not found`)
+    else throw err
+  }
+  try {
+    const yml = await readFile(BURN_WORKFLOW, 'utf8')
+    const check = checkReadyLabelGuard(yml, config)
+    ;(check.ok ? ok : warn)(check.message)
+  } catch (err) {
+    if (err.code === 'ENOENT') warn(`${BURN_WORKFLOW} not found`)
     else throw err
   }
 

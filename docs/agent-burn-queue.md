@@ -129,10 +129,11 @@ label.
 1. Copy `scripts/burn/`, `.github/workflows/agent-burn.yml`,
    `.github/workflows/agent-fix-ci.yml`, and `.github/agent-burn-prompt.md`.
 2. Add `.github/agent-burn.json` with at least `verifyCommands` and `ciWorkflow`.
-3. Edit the two literals in `agent-fix-ci.yml`: the workflow name in
-   `workflow_run.workflows`, and the branch prefix in each job's `if:` guard.
+3. Edit the three literals: in `agent-fix-ci.yml`, the workflow name in
+   `workflow_run.workflows` and the branch prefix in each job's `if:` guard; in
+   `agent-burn.yml`, the ready label in the `plan` job's `if:` guard.
    Workflow triggers and `if:` conditions are evaluated before any step runs, so
-   neither can read config. `setup.mjs` flags both if they drift.
+   none of them can read config. `setup.mjs` flags all three if they drift.
 4. Create an `AGENT_PAT` secret and a `CLAUDE_CODE_OAUTH_TOKEN` secret.
 5. Run `node scripts/burn/setup.mjs` and clear anything it lists.
 6. Confirm with a `dry_run` dispatch.
