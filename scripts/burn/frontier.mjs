@@ -68,3 +68,80 @@ export function issueNumbersFromBranches(branches, branchPrefix) {
   }
   return out
 }
+
+function labelSet(issue) {
+  return new Set((issue.labels ?? []).map((l) => (typeof l === 'string' ? l : l?.name)))
+}
+
+function orderKey(issue, config) {
+  if (config.order === 'issue-number') return issue.number
+  const seq = ticketSequence(issue.title)
+  return seq === null ? Number.MAX_SAFE_INTEGER : seq
+}
+
+/**
+ * Decide which tickets to dispatch.
+ *
+ * Fails safe throughout: a blocker whose state is unknown counts as open, so a
+ * bug here stalls the queue rather than dispatching work with unmet prerequisites.
+ */
+export function computeFrontier({
+  candidates = [],
+  issueStates = new Map(),
+  openAgentBranches = [],
+  config
+}) {
+  const claimedByBranch = issueNumbersFromBranches(openAgentBranches, config.branchPrefix)
+
+  // Union rather than sum: a stale label or a deleted branch must not
+  // double-count one ticket and starve the queue.
+  const inFlight = new Set(claimedByBranch)
+  for (const i of candidates) {
+    if (labelSet(i).has(config.wipLabel)) inFlight.add(i.number)
+  }
+
+  const skipped = []
+  const eligible = []
+
+  for (const issue of candidates) {
+    const labels = labelSet(issue)
+
+    if (issue.state && String(issue.state).toUpperCase() !== 'OPEN') {
+      skipped.push({ number: issue.number, reason: 'closed' }); continue
+    }
+    if (!labels.has(config.readyLabel)) {
+      skipped.push({ number: issue.number, reason: 'missing-ready-label' }); continue
+    }
+    if (labels.has(config.needsHumanLabel)) {
+      skipped.push({ number: issue.number, reason: 'needs-human' }); continue
+    }
+    if (labels.has(config.wipLabel)) {
+      skipped.push({ number: issue.number, reason: 'claimed' }); continue
+    }
+    if (claimedByBranch.has(issue.number)) {
+      skipped.push({ number: issue.number, reason: 'open-agent-pr' }); continue
+    }
+
+    const open = []
+    for (const b of parseBlockers(issue.body, config.blockedByHeading)) {
+      const state = issueStates.get(b)
+      if (state === undefined || String(state).toUpperCase() !== 'CLOSED') open.push(b)
+    }
+    if (open.length > 0) {
+      skipped.push({ number: issue.number, reason: `blocked-by:${open.join(',')}` }); continue
+    }
+
+    eligible.push(issue)
+  }
+
+  eligible.sort((a, b) => orderKey(a, config) - orderKey(b, config) || a.number - b.number)
+
+  const slots = Math.max(0, config.maxConcurrent - inFlight.size)
+  const ready = eligible.slice(0, slots).map((i) => ({
+    number: i.number,
+    title: i.title,
+    branch: branchFor(i, config)
+  }))
+
+  return { ready, skipped, inFlight: [...inFlight].sort((a, b) => a - b), slots }
+}
