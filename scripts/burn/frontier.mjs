@@ -143,5 +143,25 @@ export function computeFrontier({
     branch: branchFor(i, config)
   }))
 
-  return { ready, skipped, inFlight: [...inFlight].sort((a, b) => a - b), slots }
+  // A given-up ticket keeps its wip label by design and its pull request stays
+  // open, so it holds a slot until a human acts. Once every slot is held that
+  // way the queue is frozen — and an empty `ready` list is indistinguishable
+  // from an empty backlog. Surface the difference so callers can say so out loud.
+  const byNumber = new Map(candidates.map((i) => [i.number, i]))
+  const handedOver = [...inFlight]
+    .filter((n) => {
+      const issue = byNumber.get(n)
+      return issue ? labelSet(issue).has(config.needsHumanLabel) : false
+    })
+    .sort((a, b) => a - b)
+  const stalled = slots === 0 && inFlight.size > 0 && handedOver.length === inFlight.size
+
+  return {
+    ready,
+    skipped,
+    inFlight: [...inFlight].sort((a, b) => a - b),
+    slots,
+    handedOver,
+    stalled
+  }
 }

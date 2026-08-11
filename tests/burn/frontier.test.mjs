@@ -178,10 +178,65 @@ describe('computeFrontier ordering', () => {
   })
 })
 
+// A given-up ticket keeps its wip label and its pull request stays open, so it
+// holds a slot until a human acts. Two of those freeze the queue — and `ready:
+// []` looks exactly like an empty backlog, so the frozen state has to be
+// reported separately or nobody finds out.
+describe('computeFrontier stall detection', () => {
+  const gaveUp = (n) => issue(n, { labels: [cfg.readyLabel, cfg.wipLabel, cfg.needsHumanLabel] })
+
+  it('reports stalled when every slot is held by a handed-over ticket', () => {
+    const { ready, slots, stalled, handedOver } = computeFrontier({
+      candidates: [gaveUp(10), gaveUp(11), issue(12)],
+      issueStates: new Map(), openAgentBranches: [], config: cfg
+    })
+    expect(ready).toEqual([])
+    expect(slots).toBe(0)
+    expect(handedOver).toEqual([10, 11])
+    expect(stalled).toBe(true)
+  })
+
+  it('is not stalled while one slot-holder is still being worked', () => {
+    const { stalled, handedOver } = computeFrontier({
+      candidates: [gaveUp(10), issue(11, { labels: [cfg.readyLabel, cfg.wipLabel] }), issue(12)],
+      issueStates: new Map(), openAgentBranches: [], config: cfg
+    })
+    expect(handedOver).toEqual([10])
+    expect(stalled).toBe(false)
+  })
+
+  it('is not stalled when slots remain, however many tickets were given up', () => {
+    const { slots, stalled } = computeFrontier({
+      candidates: [gaveUp(10), issue(11)], issueStates: new Map(),
+      openAgentBranches: [], config: cfg
+    })
+    expect(slots).toBe(1)
+    expect(stalled).toBe(false)
+  })
+
+  it('is not stalled when a slot is held by a branch with no matching candidate', () => {
+    // Unknowable rather than known-stuck: fail safe and stay quiet.
+    const { slots, stalled, handedOver } = computeFrontier({
+      candidates: [gaveUp(10)], issueStates: new Map(),
+      openAgentBranches: ['agent/99-mystery'], config: cfg
+    })
+    expect(slots).toBe(0)
+    expect(handedOver).toEqual([10])
+    expect(stalled).toBe(false)
+  })
+
+  it('is never stalled with nothing in flight', () => {
+    const { stalled } = computeFrontier({
+      candidates: [], issueStates: new Map(), openAgentBranches: [], config: cfg
+    })
+    expect(stalled).toBe(false)
+  })
+})
+
 describe('computeFrontier edge cases', () => {
   it('returns a valid empty result for no candidates', () => {
     const r = computeFrontier({ candidates: [], issueStates: new Map(), openAgentBranches: [], config: cfg })
-    expect(r).toEqual({ ready: [], skipped: [], inFlight: [], slots: 2 })
+    expect(r).toEqual({ ready: [], skipped: [], inFlight: [], slots: 2, handedOver: [], stalled: false })
   })
 
   it('defaults every input so a bare config call does not throw', () => {
