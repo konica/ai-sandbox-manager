@@ -140,9 +140,14 @@ export function CreateDefinition({
   // Persist the current draft (edit → defUpdate, create → defCreate) + stage entered
   // credential values. Runs the same gates as the final Save. Returns false (and shows an
   // inline error) on a gate/IPC failure; performs no navigation and never closes the wizard.
+  const cpuMax = hostCap.cpuCores > 0 ? hostCap.cpuCores : undefined
   async function persist(): Promise<boolean> {
     if (!draft.workspace.trim()) { dispatch({ type: 'goToStep', step: 1 }); setError(t('wizard.workspaceRequired')); return false }
     if (!isValidCpus(draft.cpus) || !isValidMemory(draft.memory)) { dispatch({ type: 'goToStep', step: 2 }); setError(t('wizard.cpusInvalid')); return false }
+    // Gate the host-max CPU check on Save/step-jump too, not just the Next button — otherwise an
+    // over-max value can be written via edit-mode header navigation. Skipped when host capacity is
+    // unknown (cpuMax undefined): falls back to the structural check above, never blocking.
+    if (cpuMax !== undefined && !isValidCpus(draft.cpus, cpuMax)) { dispatch({ type: 'goToStep', step: 2 }); setError(t('wizard.cpusExceedsMax', { cores: cpuMax })); return false }
     const kitCheck = normalizeCommandsYaml(draft.kitCommandsYaml)
     if (!kitCheck.ok) { dispatch({ type: 'goToStep', step: 6 }); setKitMsg({ kind: 'error', text: t('wizard.kitYamlInvalid', { message: kitCheck.error }) }); return false }
     const spec = initial
@@ -184,7 +189,6 @@ export function CreateDefinition({
     setSaveState('saved')
   }
 
-  const cpuMax = hostCap.cpuCores > 0 ? hostCap.cpuCores : undefined
   const cpuStructuralValid = isValidCpus(draft.cpus)
   const cpuOverMax = cpuStructuralValid && cpuMax !== undefined && !isValidCpus(draft.cpus, cpuMax)
   const memGb = hostCap.totalMemBytes > 0 ? Math.round(hostCap.totalMemBytes / 1024 ** 3) : 0
