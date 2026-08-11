@@ -1,0 +1,4 @@
+{
+  "verifyCommands": ["npm run typecheck", "npm test"],
+  "ciWorkflow": "build-check.yml"
+}
