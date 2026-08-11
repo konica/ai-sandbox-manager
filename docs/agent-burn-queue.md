@@ -40,8 +40,15 @@ for a blocker. Omit the section entirely when a ticket has no blockers.
 - **Dry run** — Actions → agent-burn → Run workflow → `dry_run: true`. Prints the
   computed frontier in the job summary without dispatching. Do this after any
   change to `scripts/burn/`.
-- **Pause everything** — set repository variable `AGENT_BURN_ENABLED` to `false`.
-  Unset or any other value means enabled.
+- **Pause the queue** — set repository variable `AGENT_BURN_ENABLED` to `false`.
+  Unset or any other value means enabled. This stops two things: the dispatcher
+  claims no new tickets, and the CI-retry job stops running agent fix attempts
+  on pull requests that are already open. It deliberately does **not** stop
+  everything: an in-flight pull request whose CI just went green is still
+  promoted to ready-for-review, and closing a pull request still releases its
+  claim and deletes its branch. Both of those are cheap bookkeeping, not agent
+  runs, and leaving them enabled means a pause doesn't strand claims or leave
+  reviewable work stuck in draft.
 - **Give up** — after `maxCiRetries` failed automated fix attempts, the queue
   stops working the pull request, adds `needs-human` to both the issue and the
   pull request, and comments on the pull request with a link to the failing run.

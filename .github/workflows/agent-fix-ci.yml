@@ -55,12 +55,22 @@ jobs:
   #
   # SECURITY: same origin gate as `promote`, above — required here as well
   # since this job also runs on workflow_run with full secrets access.
+  #
+  # KILL SWITCH: this is the job that spends money and mutates code — it runs a
+  # full claude-code-action pass and pushes commits — so it is the one
+  # AGENT_BURN_ENABLED must stop. `promote` and `unclaim`, below, are
+  # deliberately left ungated: promote only flips a draft PR to ready-for-review
+  # and unclaim only removes a label and deletes a branch after a human closes a
+  # PR, so neither spends anything or runs an agent, and gating `unclaim` would
+  # strand claims on tickets for the duration of a pause instead of cleaning up
+  # after them.
   retry:
     if: >-
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'failure' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
-      startsWith(github.event.workflow_run.head_branch, 'agent/')
+      startsWith(github.event.workflow_run.head_branch, 'agent/') &&
+      vars.AGENT_BURN_ENABLED != 'false'
     runs-on: ubuntu-latest
     permissions:
       contents: write
