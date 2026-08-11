@@ -43,14 +43,15 @@ jobs:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
           BRANCH: ${{ github.event.workflow_run.head_branch }}
           REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
           # `--head` matches on branch NAME alone, so it also returns pull
           # requests opened from forks — a branch name is not an identity. The
           # job `if:` gate above only proves the CI *run* came from this repo;
           # this filter is what keeps the lookup itself on our own head refs.
           NUM=$(gh pr list --head "$BRANCH" --state open \
-            --json number,isDraft,headRepositoryOwner \
-            --jq '.[] | select(.isDraft and .headRepositoryOwner.login == env.REPO_OWNER) | .number' \
+            --json number,isDraft,headRepositoryOwner,headRepository \
+            --jq '.[] | select(.isDraft and .headRepositoryOwner.login == env.REPO_OWNER and .headRepository.name == env.REPO_NAME) | .number' \
             | head -1)
           if [ -z "$NUM" ]; then
             echo "No draft pull request on $BRANCH; nothing to promote."
@@ -103,6 +104,7 @@ jobs:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
           BRANCH: ${{ github.event.workflow_run.head_branch }}
           REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
           NEEDS_HUMAN=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
             const fs = await import('node:fs/promises')
@@ -118,8 +120,8 @@ jobs:
           # would otherwise win this lookup and drive the handover below onto
           # whatever issue their pull request body names.
           PR=$(gh pr list --head "$BRANCH" --state open \
-            --json number,headRepositoryOwner \
-            --jq '[.[] | select(.headRepositoryOwner.login == env.REPO_OWNER)][0].number')
+            --json number,headRepositoryOwner,headRepository \
+            --jq '[.[] | select(.headRepositoryOwner.login == env.REPO_OWNER and .headRepository.name == env.REPO_NAME)][0].number')
           # On every bail-out path, blank `pr` is what disables the three steps
           # below. `attempts` is set alongside it purely so the fromJSON() in
           # their `if:` never sees an empty string, whatever the expression
