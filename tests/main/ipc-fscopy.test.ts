@@ -20,15 +20,23 @@ describe('instance:fs:listDir', () => {
 
 describe('instance:fs:plan (host → sandbox)', () => {
   it('resolves paths and flags overwrites when the target exists', async () => {
+    // resolveHostPath treats an already-absolute source as absolute using node:path's
+    // *platform-native* isAbsolute/resolve — which is correct, since the host paths a real
+    // user passes in are always native to whatever OS this app is running on (this app ships
+    // separate Windows/macOS/Linux builds; a Windows host never hands it a POSIX path or vice
+    // versa). So the fixture path must be absolute on whichever platform the test itself runs
+    // on, or a Linux CI runner sees 'C:\a\report.csv' as relative and prepends its cwd.
+    const hostAbsPath = process.platform === 'win32' ? 'C:\\a\\report.csv' : '/a/report.csv'
+    const hostDefaultDir = process.platform === 'win32' ? 'C:\\a' : '/a'
     const probeSandboxPath = vi.fn(async () => 'dir')
     const sandboxTargetsExist = vi.fn(async () => [true])
     const h = buildHandlers(deps({ probeSandboxPath, sandboxTargetsExist }))
-    const res = await h['instance:fs:plan']('proj', 'toSandbox', ['C:\\a\\report.csv'], '/workspace', { host: 'C:\\a', sandbox: '/home' })
+    const res = await h['instance:fs:plan']('proj', 'toSandbox', [hostAbsPath], '/workspace', { host: hostDefaultDir, sandbox: '/home' })
     expect(res.ok).toBe(true)
     if (!res.ok) return
     expect(res.data.resolvedDest).toBe('/workspace')
     expect(res.data.items[0]).toEqual({
-      source: 'C:\\a\\report.csv', resolvedSource: 'C:\\a\\report.csv',
+      source: hostAbsPath, resolvedSource: hostAbsPath,
       target: '/workspace/report.csv', willOverwrite: true
     })
     expect(sandboxTargetsExist).toHaveBeenCalledWith('proj', ['/workspace/report.csv'])
