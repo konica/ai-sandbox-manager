@@ -32,8 +32,39 @@ for a blocker. Omit the section entirely when a ticket has no blockers.
 | --- | --- |
 | `ready-for-agent` | You applied this. The queue may pick the ticket up. |
 | `agent-wip` | Claimed. Applied when the queue starts work; removed if it opens no pull request, or when its pull request is closed without merging. **Not** removed when the queue gives up on CI — see below. |
-| `needs-human` | CI stayed red after every retry. Applied to both the issue and the pull request; the queue will not touch the issue again while this label is present. |
+| `needs-human` | The queue stopped and wants you. Applied when CI stayed red after every retry (to both the issue and the pull request), and when a run ends without opening a pull request at all. The queue will not touch the issue again while this label is present. |
 | `agent-retry-N` | Nth automated CI fix attempt on a pull request. |
+
+`needs-human` is what bounds *dispatch* attempts, the way `agent-retry-N` bounds CI
+fix attempts. The agent is told to open no pull request when a ticket cannot be
+implemented as written; without a terminal label the six-hourly catch-up run would
+burn a fresh agent run on that same impossible ticket forever.
+
+## Trust model
+
+**Applying `ready-for-agent` is the trust decision.** There is no second gate.
+Everything downstream — an agent with `AGENT_PAT` (Contents, Pull requests and
+Issues read+write) running unattended on this repository — follows from that one
+label.
+
+- **The issue body is an instruction to the agent, not data.** The agent reads the
+  ticket with `gh issue view` and treats its acceptance criteria as the definition
+  of done. Whatever the body says, it says to something holding write credentials.
+- **Read the body at the moment you label.** Not the version you remember, and not
+  the version you reviewed last week.
+- **A body edited after labelling is never re-checked.** Nothing in the queue
+  re-reads or re-approves it. An issue author can rewrite the body the moment the
+  label lands, and the next dispatcher run — event-driven or the six-hourly
+  catch-up — will hand the agent the new text. If a ticket's body changes after
+  you labelled it, remove `ready-for-agent`, re-read, and re-apply.
+- **This repository is public.** Anyone can open an issue. Labelling a ticket
+  written by someone you do not trust hands that person influence over an agent
+  with write access to this repository. Label your own tickets, or rewrite an
+  outside contributor's into a ticket you author, rather than labelling theirs.
+- Branch names are not identities, and the queue does not treat them as such.
+  Anyone with a fork can push `agent/12-anything`; both workflows filter pull
+  requests by head repository, never by branch name alone. Do not add a lookup
+  that matches on branch name only.
 
 ## Operating it
 
@@ -61,6 +92,19 @@ for a blocker. Omit the section entirely when a ticket has no blockers.
   but not required.)
 - **Throw away an attempt** — close the pull request without merging. The claim
   is released and the branch deleted automatically.
+- **Queue frozen** — a given-up ticket keeps `agent-wip` and keeps its pull
+  request open, so it holds one of the `maxConcurrent` slots until you act. Once
+  every slot is held that way the queue stops dispatching entirely, and the
+  computed frontier is empty — which looks exactly like an empty backlog. The
+  frontier step says so explicitly when it happens: a `STALLED:` line in the step
+  log naming the tickets, and a **Blocked on you** note at the top of the job
+  summary. Free a slot by merging, fixing, or closing one of those pull requests.
+- **A merged pull request from a fork** does not replan immediately. The
+  dispatcher skips `pull_request` events that came from a fork, because such a
+  run gets no secrets and would fail on the missing `AGENT_PAT` — a red
+  `agent-burn` on every external pull request trains everyone to ignore this
+  workflow being red. The next scheduled run (every 6 hours) picks up whatever
+  that merge unblocked; a `workflow_dispatch` run replans immediately.
 
 ## Configuration
 
