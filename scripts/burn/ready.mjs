@@ -1,5 +1,10 @@
-#!/usr/bin/env node
 // Computes the ready frontier and emits it as JSON.
+//
+// No shebang: this module is imported by tests, and vitest's module runner does
+// not strip shebangs the way node does — a leading `#!` makes the whole import
+// fail with a SyntaxError misreported against the importing test file. The
+// script is always invoked as `node scripts/burn/ready.mjs`, so it never needed
+// one.
 //
 //   GITHUB_REPOSITORY=owner/name GITHUB_TOKEN=... node scripts/burn/ready.mjs
 //

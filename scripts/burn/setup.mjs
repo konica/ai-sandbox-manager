@@ -1,5 +1,10 @@
-#!/usr/bin/env node
 // Idempotent per-repository setup for the agent burn queue.
+//
+// No shebang: this module is imported by tests, and vitest's module runner does
+// not strip shebangs the way node does — a leading `#!` makes the whole import
+// fail with a SyntaxError misreported against the importing test file. The
+// script is always invoked as `node scripts/burn/setup.mjs`, so it never needed
+// one.
 //
 //   node scripts/burn/setup.mjs
 //
