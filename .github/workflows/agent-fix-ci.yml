@@ -1,0 +1,177 @@
+name: agent-fix-ci
+
+on:
+  workflow_run:
+    # PORTABILITY: workflow_run cannot take an expression, so this name is
+    # literal. Keep it in sync with `ciWorkflow` in .github/agent-burn.json —
+    # scripts/burn/setup.mjs checks this and reports drift.
+    workflows: ["build-check"]
+    types: [completed]
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: agent-fix-ci-${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Green CI: promote the draft so it enters the human review queue, at which
+  # point the existing code-review workflow fires on `ready_for_review`.
+  promote:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'agent/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mark the pull request ready for review
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          NUM=$(gh pr list --head "$BRANCH" --state open --json number,isDraft --jq '.[] | select(.isDraft) | .number' | head -1)
+          if [ -z "$NUM" ]; then
+            echo "No draft pull request on $BRANCH; nothing to promote."
+            exit 0
+          fi
+          gh pr ready "$NUM"
+          echo "Promoted #$NUM to ready for review."
+
+  # Red CI: retry up to maxCiRetries, then hand over.
+  retry:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'failure' &&
+      startsWith(github.event.workflow_run.head_branch, 'agent/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AGENT_PAT }}
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Read config and current retry count
+        id: state
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          node -e "import('./scripts/burn/config.mjs').then(async (m) => {
+            const fs = await import('node:fs/promises')
+            let raw = {}
+            try { raw = JSON.parse(await fs.readFile('.github/agent-burn.json', 'utf8')) } catch {}
+            const c = m.loadConfig(raw)
+            const out = ['maxCiRetries=' + c.maxCiRetries, 'needsHumanLabel=' + c.needsHumanLabel]
+            await fs.appendFile(process.env.GITHUB_OUTPUT, out.join('\n') + '\n')
+          })"
+          PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -z "$PR" ] || [ "$PR" = "null" ]; then
+            echo "No open pull request on $BRANCH; nothing to retry."
+            echo "pr=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          # The retry counter lives in labels: visible, resettable by hand, and
+          # durable across workflow re-runs.
+          N=$(gh pr view "$PR" --json labels --jq '[.labels[].name | capture("^agent-retry-(?<n>[0-9]+)$") | .n | tonumber] | max // 0')
+          echo "attempts=$N" >> "$GITHUB_OUTPUT"
+          echo "issue=$(gh pr view "$PR" --json body --jq '.body | capture("[Cc]loses #(?<n>[0-9]+)") | .n')" >> "$GITHUB_OUTPUT"
+
+      - name: Hand over to a human
+        if: steps.state.outputs.pr != '' && steps.state.outputs.attempts >= steps.state.outputs.maxCiRetries
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+        run: |
+          RUN_URL="${{ github.event.workflow_run.html_url }}"
+          gh pr edit "${{ steps.state.outputs.pr }}" --add-label "${{ steps.state.outputs.needsHumanLabel }}"
+          gh pr comment "${{ steps.state.outputs.pr }}" --body \
+            "CI is still failing after ${{ steps.state.outputs.attempts }} automated fix attempt(s). Handing over. Failing run: $RUN_URL"
+          if [ -n "${{ steps.state.outputs.issue }}" ]; then
+            # Keep the wip label: releasing it here would let the dispatcher
+            # start a second agent on work that already has an open PR.
+            gh issue edit "${{ steps.state.outputs.issue }}" --add-label "${{ steps.state.outputs.needsHumanLabel }}"
+          fi
+
+      - name: Record the attempt
+        if: steps.state.outputs.pr != '' && steps.state.outputs.attempts < steps.state.outputs.maxCiRetries
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+        run: |
+          NEXT=$(( ${{ steps.state.outputs.attempts }} + 1 ))
+          gh pr edit "${{ steps.state.outputs.pr }}" --add-label "agent-retry-$NEXT"
+          echo "NEXT=$NEXT" >> "$GITHUB_ENV"
+
+      - name: Fix the failure
+        if: steps.state.outputs.pr != '' && steps.state.outputs.attempts < steps.state.outputs.maxCiRetries
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.AGENT_PAT }}
+          prompt: |
+            CI failed on pull request #${{ steps.state.outputs.pr }}, branch
+            `${{ github.event.workflow_run.head_branch }}`. This is automated fix
+            attempt ${{ env.NEXT }} of ${{ steps.state.outputs.maxCiRetries }}.
+
+            Read the failing job logs for run
+            ${{ github.event.workflow_run.html_url }} using
+            `gh run view ${{ github.event.workflow_run.id }} --log-failed`.
+
+            Diagnose the actual root cause and fix it. Do not delete, skip, or
+            weaken tests to make CI pass — if a test is genuinely wrong, say so
+            in a pull request comment and explain why before changing it.
+
+            Commit and push to the same branch. Do not open a new pull request
+            and do not merge.
+
+  # Pull request closed without merging: release the claim so the ticket returns
+  # to the frontier, and delete the branch.
+  unclaim:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == false &&
+      startsWith(github.event.pull_request.head.ref, 'agent/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Release the claim
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          BODY: ${{ github.event.pull_request.body }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          WIP=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
+            const fs = await import('node:fs/promises')
+            let raw = {}
+            try { raw = JSON.parse(await fs.readFile('.github/agent-burn.json', 'utf8')) } catch {}
+            process.stdout.write(m.loadConfig(raw).wipLabel)
+          })")
+          ISSUE=$(printf '%s' "$BODY" | grep -oiE 'closes #[0-9]+' | head -1 | grep -oE '[0-9]+' || true)
+          if [ -n "$ISSUE" ]; then
+            gh issue edit "$ISSUE" --remove-label "$WIP" || true
+            echo "Released $WIP on #$ISSUE."
+          fi
+          git push origin --delete "$BRANCH" || true
