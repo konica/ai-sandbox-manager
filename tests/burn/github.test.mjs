@@ -92,12 +92,43 @@ describe('getIssueState', () => {
 })
 
 describe('listOpenAgentBranches', () => {
+  const pr = (ref, fullName = 'owner/name') => ({ head: { ref, repo: { full_name: fullName } } })
+
   it('returns head branches of open PRs matching the prefix', async () => {
-    const f = vi.fn().mockResolvedValue(jsonResponse([
-      { head: { ref: 'agent/10-a' } }, { head: { ref: 'feature/x' } }
-    ]))
+    const f = vi.fn().mockResolvedValue(jsonResponse([pr('agent/10-a'), pr('feature/x')]))
     expect(await clientWith(f).listOpenAgentBranches('agent/')).toEqual(['agent/10-a'])
     expect(f.mock.calls[0][0]).toContain('state=open')
+  })
+
+  // A branch name is not an identity. GET /pulls returns fork pull requests
+  // too, and head.ref is only the branch name inside the fork — any stranger
+  // can create `agent/10-whatever` there. Counting those lets an outsider fill
+  // every concurrency slot or pin one ticket as permanently claimed.
+  it('excludes a fork pull request whose head ref matches the prefix', async () => {
+    const f = vi.fn().mockResolvedValue(jsonResponse([
+      pr('agent/10-a', 'attacker/name'),
+      pr('agent/11-b', 'owner/name')
+    ]))
+    expect(await clientWith(f).listOpenAgentBranches('agent/')).toEqual(['agent/11-b'])
+  })
+
+  it('excludes a pull request whose head repository is gone or unreported', async () => {
+    const f = vi.fn().mockResolvedValue(jsonResponse([
+      { head: { ref: 'agent/10-a' } },
+      { head: { ref: 'agent/11-b', repo: null } },
+      pr('agent/12-c')
+    ]))
+    expect(await clientWith(f).listOpenAgentBranches('agent/')).toEqual(['agent/12-c'])
+  })
+
+  it('matches the repository case-insensitively, as GitHub does', async () => {
+    const f = vi.fn().mockResolvedValue(jsonResponse([pr('agent/10-a', 'Owner/Name')]))
+    expect(await clientWith(f).listOpenAgentBranches('agent/')).toEqual(['agent/10-a'])
+  })
+
+  it('does not treat a same-named repository under another owner as ours', async () => {
+    const f = vi.fn().mockResolvedValue(jsonResponse([pr('agent/10-a', 'other-owner/name')]))
+    expect(await clientWith(f).listOpenAgentBranches('agent/')).toEqual([])
   })
 })
 

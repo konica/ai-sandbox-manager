@@ -42,8 +42,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
           BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REPO_OWNER: ${{ github.repository_owner }}
         run: |
-          NUM=$(gh pr list --head "$BRANCH" --state open --json number,isDraft --jq '.[] | select(.isDraft) | .number' | head -1)
+          # `--head` matches on branch NAME alone, so it also returns pull
+          # requests opened from forks — a branch name is not an identity. The
+          # job `if:` gate above only proves the CI *run* came from this repo;
+          # this filter is what keeps the lookup itself on our own head refs.
+          NUM=$(gh pr list --head "$BRANCH" --state open \
+            --json number,isDraft,headRepositoryOwner \
+            --jq '.[] | select(.isDraft and .headRepositoryOwner.login == env.REPO_OWNER) | .number' \
+            | head -1)
           if [ -z "$NUM" ]; then
             echo "No draft pull request on $BRANCH; nothing to promote."
             exit 0
@@ -94,19 +102,38 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
           BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REPO_OWNER: ${{ github.repository_owner }}
         run: |
-          node -e "import('./scripts/burn/config.mjs').then(async (m) => {
+          NEEDS_HUMAN=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
             const fs = await import('node:fs/promises')
             let raw = {}
             try { raw = JSON.parse(await fs.readFile('.github/agent-burn.json', 'utf8')) } catch {}
             const c = m.loadConfig(raw)
             const out = ['maxCiRetries=' + c.maxCiRetries, 'needsHumanLabel=' + c.needsHumanLabel]
             await fs.appendFile(process.env.GITHUB_OUTPUT, out.join('\n') + '\n')
-          })"
-          PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+            process.stdout.write(c.needsHumanLabel)
+          })")
+          # `--head` matches on branch NAME alone, so it also returns fork pull
+          # requests, and gh returns newest first — a stranger's fork branch
+          # would otherwise win this lookup and drive the handover below onto
+          # whatever issue their pull request body names.
+          PR=$(gh pr list --head "$BRANCH" --state open \
+            --json number,headRepositoryOwner \
+            --jq '[.[] | select(.headRepositoryOwner.login == env.REPO_OWNER)][0].number')
+          # On every bail-out path, blank `pr` is what disables the three steps
+          # below. `attempts` is set alongside it purely so the fromJSON() in
+          # their `if:` never sees an empty string, whatever the expression
+          # evaluator decides to do about short-circuiting.
           if [ -z "$PR" ] || [ "$PR" = "null" ]; then
             echo "No open pull request on $BRANCH; nothing to retry."
-            echo "pr=" >> "$GITHUB_OUTPUT"
+            printf 'pr=\nattempts=0\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Already handed over: every later red build would otherwise re-enter
+          # this job, re-add the label, and post another duplicate comment.
+          if gh pr view "$PR" --json labels --jq '.labels[].name' | grep -qxF "$NEEDS_HUMAN"; then
+            echo "Pull request #$PR already carries \"$NEEDS_HUMAN\"; a human owns it now."
+            printf 'pr=\nattempts=0\n' >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "pr=$PR" >> "$GITHUB_OUTPUT"
@@ -125,15 +152,19 @@ jobs:
         if: steps.state.outputs.pr != '' && fromJSON(steps.state.outputs.attempts) >= fromJSON(steps.state.outputs.maxCiRetries)
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          PR: ${{ steps.state.outputs.pr }}
+          ISSUE: ${{ steps.state.outputs.issue }}
+          ATTEMPTS: ${{ steps.state.outputs.attempts }}
+          NEEDS_HUMAN: ${{ steps.state.outputs.needsHumanLabel }}
         run: |
-          RUN_URL="${{ github.event.workflow_run.html_url }}"
-          gh pr edit "${{ steps.state.outputs.pr }}" --add-label "${{ steps.state.outputs.needsHumanLabel }}"
-          gh pr comment "${{ steps.state.outputs.pr }}" --body \
-            "CI is still failing after ${{ steps.state.outputs.attempts }} automated fix attempt(s). Handing over. Failing run: $RUN_URL"
-          if [ -n "${{ steps.state.outputs.issue }}" ]; then
+          gh pr edit "$PR" --add-label "$NEEDS_HUMAN"
+          gh pr comment "$PR" --body \
+            "CI is still failing after $ATTEMPTS automated fix attempt(s). Handing over. Failing run: $RUN_URL"
+          if [ -n "$ISSUE" ]; then
             # Keep the wip label: releasing it here would let the dispatcher
             # start a second agent on work that already has an open PR.
-            gh issue edit "${{ steps.state.outputs.issue }}" --add-label "${{ steps.state.outputs.needsHumanLabel }}"
+            gh issue edit "$ISSUE" --add-label "$NEEDS_HUMAN"
           fi
 
       - name: Record the attempt
@@ -141,9 +172,11 @@ jobs:
         if: steps.state.outputs.pr != '' && fromJSON(steps.state.outputs.attempts) < fromJSON(steps.state.outputs.maxCiRetries)
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          PR: ${{ steps.state.outputs.pr }}
+          ATTEMPTS: ${{ steps.state.outputs.attempts }}
         run: |
-          NEXT=$(( ${{ steps.state.outputs.attempts }} + 1 ))
-          gh pr edit "${{ steps.state.outputs.pr }}" --add-label "agent-retry-$NEXT"
+          NEXT=$(( ATTEMPTS + 1 ))
+          gh pr edit "$PR" --add-label "agent-retry-$NEXT"
           echo "NEXT=$NEXT" >> "$GITHUB_ENV"
 
       - name: Fix the failure
@@ -191,6 +224,16 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Without an explicit ref, checkout resolves github.sha — for a
+          # `pull_request` event that is the MERGE commit, which GitHub does not
+          # compute for a pull request that conflicts with its base. With two
+          # agents branching from main at once, conflicting agent pull requests
+          # are routine; closing one would then die here, before releasing
+          # anything, and nothing else in the system ever removes the wip label.
+          # This job only needs scripts/burn/config.mjs from the base repo, and
+          # the base commit always exists.
+          ref: ${{ github.event.pull_request.base.sha }}
       - uses: actions/setup-node@v5
         with:
           node-version: 22

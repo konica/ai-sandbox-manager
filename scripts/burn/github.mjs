@@ -37,6 +37,12 @@ export function createClient({ token, repo, fetchImpl = fetch }) {
 
   const stateCache = new Map()
 
+  // GitHub treats owner/name case-insensitively and echoes canonical casing, so
+  // compare folded rather than trusting the caller to spell GITHUB_REPOSITORY
+  // exactly as GitHub stores it.
+  const sameRepo = (fullName) =>
+    typeof fullName === 'string' && fullName.toLowerCase() === repo.toLowerCase()
+
   return {
     async listOpenIssuesWithLabel(label) {
       const items = await paginate(
@@ -57,7 +63,16 @@ export function createClient({ token, repo, fetchImpl = fetch }) {
 
     async listOpenAgentBranches(branchPrefix) {
       const prs = await paginate(`/repos/${repo}/pulls?state=open`)
-      return prs.map((p) => p.head?.ref).filter((ref) => ref && ref.startsWith(branchPrefix))
+      // SECURITY: this endpoint returns pull requests opened from forks too, and
+      // `head.ref` is only the branch name *inside* the head repository — anyone
+      // with a fork can name a branch `agent/12-whatever`. A branch name is not
+      // an identity; the head repository is. Without this filter a stranger can
+      // fill every concurrency slot (the frontier then looks like an empty
+      // backlog) or pin one chosen ticket as permanently claimed.
+      return prs
+        .filter((p) => sameRepo(p.head?.repo?.full_name))
+        .map((p) => p.head?.ref)
+        .filter((ref) => ref && ref.startsWith(branchPrefix))
     }
   }
 }
