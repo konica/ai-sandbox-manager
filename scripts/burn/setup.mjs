@@ -85,7 +85,12 @@ async function main() {
       'workflow_run cannot take an expression, so update that line by hand.'
     )
 
-    const prefixes = new Set([...yml.matchAll(/startsWith\([^,]+,\s*'([^']+)'\)/g)].map((m) => m[1]))
+    const BRANCH_REF = /github\.event\.(?:workflow_run\.head_branch|pull_request\.head\.ref)/
+    const prefixes = new Set(
+      [...yml.matchAll(/startsWith\(([^,]+),\s*'([^']+)'\)/g)]
+        .filter((m) => BRANCH_REF.test(m[1]))
+        .map((m) => m[2])
+    )
     if (prefixes.size === 0) warn(`could not find a branch-prefix guard in ${FIX_CI_WORKFLOW}`)
     else if (prefixes.size === 1 && prefixes.has(config.branchPrefix)) ok(`guards branch prefix "${config.branchPrefix}"`)
     else warn(
