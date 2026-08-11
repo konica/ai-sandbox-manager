@@ -1,0 +1,176 @@
+name: agent-burn
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Compute the frontier without dispatching any agent
+        type: boolean
+        default: false
+  issues:
+    types: [labeled]
+  pull_request:
+    types: [closed]
+  schedule:
+    # Catch-up net for missed or failed events.
+    - cron: '17 */6 * * *'
+
+# One dispatcher run at a time. This is what makes claiming race-free without a
+# distributed lock; queued runs recompute the frontier from fresh state.
+concurrency:
+  group: agent-burn
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  plan:
+    # Kill switch: unset means enabled, so a fresh copy of these files works
+    # without any repository variable being configured.
+    if: vars.AGENT_BURN_ENABLED != 'false'
+    runs-on: ubuntu-latest
+    outputs:
+      frontier: ${{ steps.frontier.outputs.frontier }}
+      count: ${{ steps.frontier.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # PRs opened with GITHUB_TOKEN do not trigger other workflows, so CI and
+      # review would never run and the queue would stall silently. Fail loudly
+      # at minute zero instead.
+      - name: Require AGENT_PAT
+        env:
+          AGENT_PAT: ${{ secrets.AGENT_PAT }}
+        run: |
+          if [ -z "$AGENT_PAT" ]; then
+            echo "::error::AGENT_PAT secret is missing. Pull requests opened with GITHUB_TOKEN do not trigger CI or review workflows, so the queue would stall silently. Create a fine-grained PAT with Contents, Pull requests, and Issues read+write and store it as AGENT_PAT."
+            exit 1
+          fi
+
+      # The label name lives in config, never in this YAML, so the workflow
+      # ports to another repository unchanged.
+      - name: Skip labelling events for other labels
+        id: guard
+        if: github.event_name == 'issues'
+        env:
+          ADDED_LABEL: ${{ github.event.label.name }}
+        run: |
+          READY=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
+            const fs = await import('node:fs/promises')
+            let raw = {}
+            try { raw = JSON.parse(await fs.readFile('.github/agent-burn.json', 'utf8')) } catch {}
+            process.stdout.write(m.loadConfig(raw).readyLabel)
+          })")
+          if [ "$ADDED_LABEL" != "$READY" ]; then
+            echo "Label '$ADDED_LABEL' is not '$READY'; nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute the ready frontier
+        id: frontier
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          AGENT_PAT: ${{ secrets.AGENT_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/burn/ready.mjs > /dev/null
+
+      - name: Summarise
+        if: always()
+        run: |
+          echo "### agent-burn frontier" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          echo '${{ steps.frontier.outputs.frontier || "[]" }}' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  burn:
+    needs: plan
+    if: >-
+      needs.plan.outputs.count != '' &&
+      needs.plan.outputs.count != '0' &&
+      inputs.dry_run != true
+    runs-on: ubuntu-latest
+    # max-parallel is deliberately unset: ready.mjs already caps the frontier at
+    # the available slots, so the bound is enforced upstream where it is tested.
+    strategy:
+      fail-fast: false
+      matrix:
+        ticket: ${{ fromJSON(needs.plan.outputs.frontier) }}
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AGENT_PAT }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Claim the ticket
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+        run: |
+          WIP=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
+            const fs = await import('node:fs/promises')
+            let raw = {}
+            try { raw = JSON.parse(await fs.readFile('.github/agent-burn.json', 'utf8')) } catch {}
+            process.stdout.write(m.loadConfig(raw).wipLabel)
+          })")
+          echo "WIP_LABEL=$WIP" >> "$GITHUB_ENV"
+          gh issue edit "${{ matrix.ticket.number }}" --add-label "$WIP"
+
+      - name: Create the working branch
+        run: |
+          git config user.name  "agent-burn[bot]"
+          git config user.email "agent-burn@users.noreply.github.com"
+          git checkout -b "${{ matrix.ticket.branch }}"
+
+      - name: Render the prompt
+        id: prompt
+        run: |
+          VERIFY=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
+            const fs = await import('node:fs/promises')
+            let raw = {}
+            try { raw = JSON.parse(await fs.readFile('.github/agent-burn.json', 'utf8')) } catch {}
+            process.stdout.write(m.loadConfig(raw).verifyCommands.map((c) => '   - \`' + c + '\`').join('\n'))
+          })")
+          {
+            echo 'prompt<<PROMPT_EOF'
+            sed -e "s|{{ISSUE_NUMBER}}|${{ matrix.ticket.number }}|g" \
+                -e "s|{{BRANCH}}|${{ matrix.ticket.branch }}|g" \
+                .github/agent-burn-prompt.md \
+              | awk -v v="$VERIFY" '{ if ($0 == "{{VERIFY_COMMANDS}}") print v; else print }'
+            echo 'PROMPT_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run the agent
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.AGENT_PAT }}
+          prompt: ${{ steps.prompt.outputs.prompt }}
+
+      # A run that dies before opening a PR must release its claim, or the
+      # ticket is stranded until a human notices.
+      - name: Release the claim if no pull request was opened
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+        run: |
+          COUNT=$(gh pr list --head "${{ matrix.ticket.branch }}" --state open --json number --jq 'length')
+          if [ "$COUNT" = "0" ]; then
+            echo "No pull request on ${{ matrix.ticket.branch }}; unclaiming #${{ matrix.ticket.number }}."
+            gh issue edit "${{ matrix.ticket.number }}" --remove-label "$WIP_LABEL"
+          fi
