@@ -20,10 +20,17 @@ permissions:
 jobs:
   # Green CI: promote the draft so it enters the human review queue, at which
   # point the existing code-review workflow fires on `ready_for_review`.
+  #
+  # SECURITY: workflow_run always runs in the base repo's context with full
+  # secrets access, even when the run that triggered it came from a fork PR.
+  # startsWith(head_branch, 'agent/') alone is not an origin check — a fork PR
+  # author picks their own branch name. head_repository.full_name == repository
+  # is the actual gate that keeps this off fork-authored branches.
   promote:
     if: >-
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
       startsWith(github.event.workflow_run.head_branch, 'agent/')
     runs-on: ubuntu-latest
     permissions:
@@ -45,10 +52,14 @@ jobs:
           echo "Promoted #$NUM to ready for review."
 
   # Red CI: retry up to maxCiRetries, then hand over.
+  #
+  # SECURITY: same origin gate as `promote`, above — required here as well
+  # since this job also runs on workflow_run with full secrets access.
   retry:
     if: >-
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
       startsWith(github.event.workflow_run.head_branch, 'agent/')
     runs-on: ubuntu-latest
     permissions:
@@ -96,7 +107,12 @@ jobs:
           echo "issue=$(gh pr view "$PR" --json body --jq '.body | capture("[Cc]loses #(?<n>[0-9]+)") | .n')" >> "$GITHUB_OUTPUT"
 
       - name: Hand over to a human
-        if: steps.state.outputs.pr != '' && steps.state.outputs.attempts >= steps.state.outputs.maxCiRetries
+        # Step outputs are always strings, and GitHub Actions only coerces to
+        # number when the compared types differ — with two strings it falls
+        # back to a lexicographic compare ('9' >= '10' is true). fromJSON()
+        # forces both sides to numbers so the threshold compares correctly
+        # once maxCiRetries is multi-digit.
+        if: steps.state.outputs.pr != '' && fromJSON(steps.state.outputs.attempts) >= fromJSON(steps.state.outputs.maxCiRetries)
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
         run: |
@@ -111,7 +127,8 @@ jobs:
           fi
 
       - name: Record the attempt
-        if: steps.state.outputs.pr != '' && steps.state.outputs.attempts < steps.state.outputs.maxCiRetries
+        # See the numeric-comparison note on "Hand over to a human", above.
+        if: steps.state.outputs.pr != '' && fromJSON(steps.state.outputs.attempts) < fromJSON(steps.state.outputs.maxCiRetries)
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
         run: |
@@ -120,7 +137,8 @@ jobs:
           echo "NEXT=$NEXT" >> "$GITHUB_ENV"
 
       - name: Fix the failure
-        if: steps.state.outputs.pr != '' && steps.state.outputs.attempts < steps.state.outputs.maxCiRetries
+        # See the numeric-comparison note on "Hand over to a human", above.
+        if: steps.state.outputs.pr != '' && fromJSON(steps.state.outputs.attempts) < fromJSON(steps.state.outputs.maxCiRetries)
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -143,6 +161,15 @@ jobs:
 
   # Pull request closed without merging: release the claim so the ticket returns
   # to the frontier, and delete the branch.
+  #
+  # SECURITY: unlike promote/retry above, this job does not need an equivalent
+  # head_repository origin check. It triggers on `pull_request` (not
+  # `pull_request_target`), and for `pull_request` runs from a forked
+  # repository GitHub withholds all secrets except the default GITHUB_TOKEN,
+  # and downgrades that token to read-only. secrets.AGENT_PAT below therefore
+  # resolves empty on a fork PR, so every mutating `gh`/`git push` call in this
+  # job fails closed (already guarded by `|| true`) rather than succeeding
+  # with attacker-influenced input.
   unclaim:
     if: >-
       github.event_name == 'pull_request' &&
