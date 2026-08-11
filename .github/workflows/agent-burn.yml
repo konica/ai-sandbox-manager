@@ -107,10 +107,16 @@ jobs:
           FRONTIER: ${{ steps.frontier.outputs.frontier }}
           STALLED: ${{ steps.frontier.outputs.stalled }}
         run: |
+          NEEDS_HUMAN=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
+            const fs = await import('node:fs/promises')
+            let raw = {}
+            try { raw = JSON.parse(await fs.readFile('.github/agent-burn.json', 'utf8')) } catch {}
+            process.stdout.write(m.loadConfig(raw).needsHumanLabel)
+          })")
           {
             echo "### agent-burn frontier"
             if [ "$STALLED" = "true" ]; then
-              echo "> **Blocked on you.** Every concurrency slot is held by a ticket labelled needs-human. An empty frontier below means frozen, not finished — see the step log."
+              echo "> **Blocked on you.** Every concurrency slot is held by a ticket labelled $NEEDS_HUMAN. An empty frontier below means frozen, not finished — see the step log."
             fi
             echo '```json'
             echo "${FRONTIER:-[]}"
