@@ -5,7 +5,8 @@ const defCreate = vi.fn()
 const defUpdate = vi.fn()
 const credStageValue = vi.fn()
 const prefsGet = vi.fn(async (_key: string) => ({ ok: true, data: 'balanced' }))
-vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), defUpdate: (s: unknown) => defUpdate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v), kitValidate: async () => ({ ok: true, data: { status: 'valid', message: 'ok' } }), prefsGet: (k: string) => prefsGet(k), hostCapacity: async () => ({ ok: true, data: { cpuCores: 4, totalMemBytes: 8 * 1024 ** 3 } }) } }))
+const hostCapacity = vi.fn()
+vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), defUpdate: (s: unknown) => defUpdate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v), kitValidate: async () => ({ ok: true, data: { status: 'valid', message: 'ok' } }), prefsGet: (k: string) => prefsGet(k), hostCapacity: () => hostCapacity() } }))
 
 import { CreateDefinition, sshSummary, stageErrorMessage } from '../../../src/renderer/wizard/CreateDefinition'
 
@@ -34,6 +35,7 @@ beforeEach(() => {
   defUpdate.mockReset(); defUpdate.mockResolvedValue({ ok: true, data: { id: 'd1' } })
   credStageValue.mockReset(); credStageValue.mockResolvedValue({ ok: true, data: null })
   prefsGet.mockReset(); prefsGet.mockResolvedValue({ ok: true, data: 'balanced' })
+  hostCapacity.mockReset(); hostCapacity.mockResolvedValue({ ok: true, data: { cpuCores: 4, totalMemBytes: 8 * 1024 ** 3 } })
 })
 
 describe('CreateDefinition wizard', () => {
@@ -219,5 +221,30 @@ describe('CreateDefinition resources step — host capacity', () => {
     // a valid value clears it and re-enables Next
     fireEvent.change(screen.getByLabelText('CPUs'), { target: { value: '4' } })
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled())
+  })
+
+  it('blocks Save/step-jump and does not persist a CPU count over the host max (edit mode)', async () => {
+    const editSpec = { definition: { id: 'd1', name: 'proj', description: '', agent: 'claude' as const, baseImage: 'img:tag', tier: 'locked' as const, createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct' as const, isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] }
+    render(<CreateDefinition initial={editSpec} onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /base image/i })) // step 1 -> 2 (auto-saves step 1)
+    const cpus = await screen.findByLabelText('CPUs')
+    defUpdate.mockClear() // ignore the navigation auto-save; we only care about the over-max attempt
+    fireEvent.change(cpus, { target: { value: '9' } }) // over the mocked 4-core host max
+    fireEvent.click(screen.getByRole('button', { name: /review/i })) // attempt to jump away (persist)
+    expect(await screen.findByText(/This host has 4 CPU cores/i)).toBeInTheDocument()
+    expect(defUpdate).not.toHaveBeenCalled() // over-max value never written
+    expect(screen.getByLabelText('CPUs')).toBeInTheDocument() // stayed on step 2
+  })
+
+  it('does not block an over-max CPU value when host capacity is unavailable (fallback)', async () => {
+    hostCapacity.mockResolvedValue({ ok: true, data: { cpuCores: 0, totalMemBytes: 0 } })
+    render(<CreateDefinition onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Workspace'), { target: { value: '/tmp/proj' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })) // step 1 -> 2
+    const cpus = await screen.findByLabelText('CPUs')
+    fireEvent.change(cpus, { target: { value: '9' } }) // "over max", but max is unknown
+    expect(screen.queryByText(/This host has/i)).toBeNull() // no over-max error
+    expect(screen.queryByText(/Max .* cores/i)).toBeNull() // hint hidden
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled() // falls back to structural check; never blocked
   })
 })
