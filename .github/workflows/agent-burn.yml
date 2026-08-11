@@ -30,13 +30,33 @@ jobs:
   plan:
     # Kill switch: unset means enabled, so a fresh copy of these files works
     # without any repository variable being configured.
-    if: vars.AGENT_BURN_ENABLED != 'false'
+    #
+    # The fork clause is not a security gate — `plan` reads nothing from the
+    # event payload. A `pull_request` run from a fork gets no secrets, so
+    # AGENT_PAT is empty and "Require AGENT_PAT" would fail with a message that
+    # is actively misleading in that context. A red agent-burn run on every
+    # external pull request close teaches people to ignore this workflow being
+    # red, which is worse than the missed replan: a fork merge still replans on
+    # the next scheduled run.
+    if: >-
+      vars.AGENT_BURN_ENABLED != 'false' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     outputs:
       frontier: ${{ steps.frontier.outputs.frontier }}
       count: ${{ steps.frontier.outputs.count }}
+      stalled: ${{ steps.frontier.outputs.stalled }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # On a `pull_request` event with no explicit ref, checkout resolves
+          # github.sha — the merge commit, which GitHub never computes for a
+          # pull request that conflicts with its base. Closing a conflicted
+          # agent pull request would then red the dispatcher before it replans.
+          # The base commit always exists. Empty on every other event means
+          # "the default ref", which is what checkout does without this input.
+          ref: ${{ github.event.pull_request.base.sha || '' }}
 
       - uses: actions/setup-node@v5
         with:
@@ -85,11 +105,17 @@ jobs:
         if: always()
         env:
           FRONTIER: ${{ steps.frontier.outputs.frontier }}
+          STALLED: ${{ steps.frontier.outputs.stalled }}
         run: |
-          echo "### agent-burn frontier" >> "$GITHUB_STEP_SUMMARY"
-          echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          echo "${FRONTIER:-[]}" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### agent-burn frontier"
+            if [ "$STALLED" = "true" ]; then
+              echo "> **Blocked on you.** Every concurrency slot is held by a ticket labelled needs-human. An empty frontier below means frozen, not finished — see the step log."
+            fi
+            echo '```json'
+            echo "${FRONTIER:-[]}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   burn:
     needs: plan
@@ -104,10 +130,15 @@ jobs:
       fail-fast: false
       matrix:
         ticket: ${{ fromJSON(needs.plan.outputs.frontier) }}
+    # Every privileged call in this job authorizes with secrets.AGENT_PAT, not
+    # GITHUB_TOKEN: checkout takes it explicitly, the agent action takes it as
+    # github_token, and so the git remote it pushes through carries it. So
+    # GITHUB_TOKEN needs no write scope at all — granting it any would only
+    # blur the one rule this workflow rests on, that AGENT_PAT authorizes and
+    # GITHUB_TOKEN does not. id-token and actions are for the agent action
+    # itself (OIDC, and reading workflow run logs).
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+      contents: read
       id-token: write
       actions: read
     steps:
@@ -123,24 +154,35 @@ jobs:
       - name: Claim the ticket
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          ISSUE: ${{ matrix.ticket.number }}
         run: |
+          # Exports WIP_LABEL and NEEDS_HUMAN_LABEL for the later steps, and
+          # echoes the wip label for this one — GITHUB_ENV only lands on the
+          # steps that follow.
           WIP=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
             const fs = await import('node:fs/promises')
             let raw = {}
             try { raw = JSON.parse(await fs.readFile('.github/agent-burn.json', 'utf8')) } catch {}
-            process.stdout.write(m.loadConfig(raw).wipLabel)
+            const c = m.loadConfig(raw)
+            await fs.appendFile(process.env.GITHUB_ENV,
+              'WIP_LABEL=' + c.wipLabel + '\nNEEDS_HUMAN_LABEL=' + c.needsHumanLabel + '\n')
+            process.stdout.write(c.wipLabel)
           })")
-          echo "WIP_LABEL=$WIP" >> "$GITHUB_ENV"
-          gh issue edit "${{ matrix.ticket.number }}" --add-label "$WIP"
+          gh issue edit "$ISSUE" --add-label "$WIP"
 
       - name: Create the working branch
+        env:
+          BRANCH: ${{ matrix.ticket.branch }}
         run: |
           git config user.name  "agent-burn[bot]"
           git config user.email "agent-burn@users.noreply.github.com"
-          git checkout -b "${{ matrix.ticket.branch }}"
+          git checkout -b "$BRANCH"
 
       - name: Render the prompt
         id: prompt
+        env:
+          ISSUE: ${{ matrix.ticket.number }}
+          BRANCH: ${{ matrix.ticket.branch }}
         run: |
           VERIFY=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
             const fs = await import('node:fs/promises')
@@ -150,8 +192,8 @@ jobs:
           })")
           {
             echo 'prompt<<PROMPT_EOF'
-            sed -e "s|{{ISSUE_NUMBER}}|${{ matrix.ticket.number }}|g" \
-                -e "s|{{BRANCH}}|${{ matrix.ticket.branch }}|g" \
+            sed -e "s|{{ISSUE_NUMBER}}|$ISSUE|g" \
+                -e "s|{{BRANCH}}|$BRANCH|g" \
                 .github/agent-burn-prompt.md \
               | awk -v v="$VERIFY" '{ if ($0 == "{{VERIFY_COMMANDS}}") print v; else print }'
             echo 'PROMPT_EOF'
@@ -164,15 +206,58 @@ jobs:
           github_token: ${{ secrets.AGENT_PAT }}
           prompt: ${{ steps.prompt.outputs.prompt }}
 
+      # `Closes #N` is mandated only by a prompt rule, yet three later paths read
+      # it: promotion, the CI-retry handover, and the unclaim on a closed pull
+      # request. Without it a merge does not close the issue, the wip label
+      # outlives the work, and the ticket is skipped as claimed forever. Fail
+      # here so a human sees it now — do not try to repair the body.
+      - name: Verify the pull request closes the ticket
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          BRANCH: ${{ matrix.ticket.branch }}
+          ISSUE: ${{ matrix.ticket.number }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          # Same-repo only: `--head` matches on branch name, which a fork shares.
+          PR=$(gh pr list --head "$BRANCH" --state open \
+            --json number,headRepositoryOwner \
+            --jq '[.[] | select(.headRepositoryOwner.login == env.REPO_OWNER)][0].number // empty')
+          if [ -z "$PR" ]; then
+            echo "No pull request on $BRANCH; the release step handles the claim."
+            exit 0
+          fi
+          BODY=$(gh pr view "$PR" --json body --jq '.body // ""')
+          if ! printf '%s\n' "$BODY" | grep -qiE "closes #${ISSUE}([^0-9]|\$)"; then
+            echo "::error::Pull request #${PR} on $BRANCH does not contain 'Closes #${ISSUE}'. Merging it would not close the ticket, so the claim label would never be released and the ticket would be skipped as claimed forever. Fix the pull request body by hand."
+            exit 1
+          fi
+          echo "Pull request #${PR} closes #${ISSUE}."
+
       # A run that dies before opening a PR must release its claim, or the
       # ticket is stranded until a human notices.
       - name: Release the claim if no pull request was opened
         if: always()
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          BRANCH: ${{ matrix.ticket.branch }}
+          ISSUE: ${{ matrix.ticket.number }}
+          REPO_OWNER: ${{ github.repository_owner }}
         run: |
-          COUNT=$(gh pr list --head "${{ matrix.ticket.branch }}" --state open --json number --jq 'length')
+          # `gh pr list --head` filters on branch NAME, which also matches pull
+          # requests opened from forks — anyone can create `agent/12-x` in their
+          # own fork. Restrict to this repository's own head refs.
+          COUNT=$(gh pr list --head "$BRANCH" --state open \
+            --json number,headRepositoryOwner \
+            --jq '[.[] | select(.headRepositoryOwner.login == env.REPO_OWNER)] | length')
           if [ -n "$WIP_LABEL" ] && [ "$COUNT" = "0" ]; then
-            echo "No pull request on ${{ matrix.ticket.branch }}; unclaiming #${{ matrix.ticket.number }}."
-            gh issue edit "${{ matrix.ticket.number }}" --remove-label "$WIP_LABEL"
+            echo "No pull request on $BRANCH; unclaiming #$ISSUE."
+            # Removing the claim alone would put the ticket straight back on the
+            # frontier, and the cron would burn a full agent run on it every six
+            # hours forever. The prompt tells the agent to open no pull request
+            # when a ticket cannot be implemented as written, so reaching here
+            # usually means a human has to look. CI retries are bounded; this is
+            # what bounds dispatch attempts.
+            gh issue edit "$ISSUE" \
+              --remove-label "$WIP_LABEL" \
+              --add-label "$NEEDS_HUMAN_LABEL"
           fi
