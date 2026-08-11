@@ -1,0 +1,99 @@
+# Agent burn queue
+
+Label a ticket `ready-for-agent` and CI implements it, opens a draft pull request,
+keeps it green, and marks it ready for your review. Merging that pull request
+closes the issue, which unblocks its dependents and starts the next round.
+
+## Your part
+
+1. Write a ticket with acceptance criteria and a `## Blocked by` list.
+2. Label it `ready-for-agent`.
+3. Review and merge the pull requests that appear.
+
+Everything else is automatic. The agent never merges.
+
+## Ticket convention
+
+Declare blockers as a list under a `## Blocked by` heading:
+
+```markdown
+## Blocked by
+- #123
+- #456
+```
+
+**Only list items count.** Prose after the list is ignored, which is what lets a
+footer such as `_Part of epic #999._` sit below the list without being mistaken
+for a blocker. Omit the section entirely when a ticket has no blockers.
+
+## Labels
+
+| Label | Meaning |
+| --- | --- |
+| `ready-for-agent` | You applied this. The queue may pick the ticket up. |
+| `agent-wip` | Claimed. Applied when the queue starts work; removed if it opens no pull request, or when its pull request is closed without merging. **Not** removed when the queue gives up on CI — see below. |
+| `needs-human` | CI stayed red after every retry. Applied to both the issue and the pull request; the queue will not touch the issue again while this label is present. |
+| `agent-retry-N` | Nth automated CI fix attempt on a pull request. |
+
+## Operating it
+
+- **Dry run** — Actions → agent-burn → Run workflow → `dry_run: true`. Prints the
+  computed frontier in the job summary without dispatching. Do this after any
+  change to `scripts/burn/`.
+- **Pause everything** — set repository variable `AGENT_BURN_ENABLED` to `false`.
+  Unset or any other value means enabled.
+- **Give up** — after `maxCiRetries` failed automated fix attempts, the queue
+  stops working the pull request, adds `needs-human` to both the issue and the
+  pull request, and comments on the pull request with a link to the failing run.
+  It deliberately leaves `agent-wip` on the issue so a second agent can't start a
+  competing attempt on work that already has an open pull request.
+- **Retry a given-up ticket** — remove `needs-human` from the issue, then close
+  its pull request. Closing the pull request automatically releases the
+  `agent-wip` claim and deletes the branch; the queue then picks the issue up on
+  its next run. (Removing `agent-wip` from the issue by hand first is harmless
+  but not required.)
+- **Throw away an attempt** — close the pull request without merging. The claim
+  is released and the branch deleted automatically.
+
+## Configuration
+
+`.github/agent-burn.json`. Every key is optional; defaults live in
+`scripts/burn/config.mjs`.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `readyLabel` | `ready-for-agent` | Label that makes a ticket eligible. |
+| `wipLabel` | `agent-wip` | Claim label. |
+| `needsHumanLabel` | `needs-human` | Given-up label. |
+| `blockedByHeading` | `## Blocked by` | Heading the blocker list sits under. |
+| `maxConcurrent` | `2` | Cap on simultaneous agent pull requests. |
+| `maxCiRetries` | `2` | Automated fix attempts before handing over. |
+| `branchPrefix` | `agent/` | Branch namespace for agent work. |
+| `order` | `title-sequence` | `title-sequence` or `issue-number`. |
+| `verifyCommands` | `["npm run typecheck", "npm test"]` | Must pass before a PR opens. |
+| `ciWorkflow` | `build-check.yml` | CI workflow the retry loop watches. |
+
+## Porting to another repository
+
+1. Copy `scripts/burn/`, `.github/workflows/agent-burn.yml`,
+   `.github/workflows/agent-fix-ci.yml`, and `.github/agent-burn-prompt.md`.
+2. Add `.github/agent-burn.json` with at least `verifyCommands` and `ciWorkflow`.
+3. Edit the two literals in `agent-fix-ci.yml`: the workflow name in
+   `workflow_run.workflows`, and the branch prefix in each job's `if:` guard.
+   Workflow triggers and `if:` conditions are evaluated before any step runs, so
+   neither can read config. `setup.mjs` flags both if they drift.
+4. Create an `AGENT_PAT` secret and a `CLAUDE_CODE_OAUTH_TOKEN` secret.
+5. Run `node scripts/burn/setup.mjs` and clear anything it lists.
+6. Confirm with a `dry_run` dispatch.
+
+## Why AGENT_PAT rather than GITHUB_TOKEN
+
+GitHub does not fire workflow-triggering events for actions taken with the default
+`GITHUB_TOKEN`. A pull request opened with it would trigger neither CI nor the
+review workflow: the draft would sit with no checks, promotion would never fire
+because no CI run ever completes, and the queue would stall while looking healthy.
+The dispatcher therefore uses a fine-grained PAT and fails immediately if it is
+absent.
+
+Required permissions: **Contents** read/write, **Pull requests** read/write,
+**Issues** read/write.
