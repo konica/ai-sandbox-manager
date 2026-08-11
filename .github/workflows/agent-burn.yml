@@ -223,11 +223,12 @@ jobs:
           BRANCH: ${{ matrix.ticket.branch }}
           ISSUE: ${{ matrix.ticket.number }}
           REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
           # Same-repo only: `--head` matches on branch name, which a fork shares.
           PR=$(gh pr list --head "$BRANCH" --state open \
-            --json number,headRepositoryOwner \
-            --jq '[.[] | select(.headRepositoryOwner.login == env.REPO_OWNER)][0].number // empty')
+            --json number,headRepositoryOwner,headRepository \
+            --jq '[.[] | select(.headRepositoryOwner.login == env.REPO_OWNER and .headRepository.name == env.REPO_NAME)][0].number // empty')
           if [ -z "$PR" ]; then
             echo "No pull request on $BRANCH; the release step handles the claim."
             exit 0
@@ -248,13 +249,14 @@ jobs:
           BRANCH: ${{ matrix.ticket.branch }}
           ISSUE: ${{ matrix.ticket.number }}
           REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
           # `gh pr list --head` filters on branch NAME, which also matches pull
           # requests opened from forks — anyone can create `agent/12-x` in their
           # own fork. Restrict to this repository's own head refs.
           COUNT=$(gh pr list --head "$BRANCH" --state open \
-            --json number,headRepositoryOwner \
-            --jq '[.[] | select(.headRepositoryOwner.login == env.REPO_OWNER)] | length')
+            --json number,headRepositoryOwner,headRepository \
+            --jq '[.[] | select(.headRepositoryOwner.login == env.REPO_OWNER and .headRepository.name == env.REPO_NAME)] | length')
           if [ -n "$WIP_LABEL" ] && [ "$COUNT" = "0" ]; then
             echo "No pull request on $BRANCH; unclaiming #$ISSUE."
             # Removing the claim alone would put the ticket straight back on the
