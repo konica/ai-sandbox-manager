@@ -83,10 +83,12 @@ jobs:
 
       - name: Summarise
         if: always()
+        env:
+          FRONTIER: ${{ steps.frontier.outputs.frontier }}
         run: |
           echo "### agent-burn frontier" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          echo '${{ steps.frontier.outputs.frontier || '[]' }}' >> "$GITHUB_STEP_SUMMARY"
+          echo "${FRONTIER:-[]}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   burn:
