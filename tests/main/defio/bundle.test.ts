@@ -158,6 +158,76 @@ describe('cpus/memory round-trip on import', () => {
   })
 })
 
+describe('mcp round-trip on import', () => {
+  it('preserves mode + servers through export + import', () => {
+    const withMcp: DefinitionSpec = { ...spec('d1', 'Alpha'), mcp: { mode: 'static', servers: ['s1', 's2'] } }
+    const bundle = buildExportBundle([withMcp], 'now')
+    const { definitions } = parseImportBundle(JSON.stringify(bundle))
+    expect(definitions[0].mcp).toEqual({ mode: 'static', servers: ['s1', 's2'] })
+  })
+  it('preserves dynamic mode with an empty servers list', () => {
+    const withMcp: DefinitionSpec = { ...spec('d1', 'Alpha'), mcp: { mode: 'dynamic', servers: [] } }
+    const bundle = buildExportBundle([withMcp], 'now')
+    const { definitions } = parseImportBundle(JSON.stringify(bundle))
+    expect(definitions[0].mcp).toEqual({ mode: 'dynamic', servers: [] })
+  })
+  it('yields undefined (not a crash) when mcp is absent', () => {
+    const bundle = buildExportBundle([spec('d1', 'Alpha')], 'now')
+    const { definitions } = parseImportBundle(JSON.stringify(bundle))
+    expect(definitions[0].mcp).toBeUndefined()
+  })
+  it('degrades malformed mode to off without throwing', () => {
+    const bundle = JSON.stringify({
+      formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now',
+      definitions: [{
+        definition: { name: 'Tampered', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked' },
+        mounts: [], domains: [], ports: [], hostServices: [], credentials: [],
+        mcp: { mode: 'bogus', servers: ['s1'] }
+      }]
+    })
+    const { definitions } = parseImportBundle(bundle)
+    expect(definitions[0].mcp).toEqual({ mode: 'off', servers: ['s1'] })
+  })
+  it('filters non-string entries out of servers', () => {
+    const bundle = JSON.stringify({
+      formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now',
+      definitions: [{
+        definition: { name: 'Tampered', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked' },
+        mounts: [], domains: [], ports: [], hostServices: [], credentials: [],
+        mcp: { mode: 'static', servers: ['s1', 42, null, 's2'] }
+      }]
+    })
+    const { definitions } = parseImportBundle(bundle)
+    expect(definitions[0].mcp).toEqual({ mode: 'static', servers: ['s1', 's2'] })
+  })
+  it('degrades a non-object mcp to undefined without throwing', () => {
+    const bundle = JSON.stringify({
+      formatVersion: '1', kind: 'sandbox-definitions', exportedAt: 'now',
+      definitions: [{
+        definition: { name: 'Tampered', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked' },
+        mounts: [], domains: [], ports: [], hostServices: [], credentials: [],
+        mcp: 'nope'
+      }]
+    })
+    const { definitions } = parseImportBundle(bundle)
+    expect(definitions[0].mcp).toBeUndefined()
+  })
+})
+
+describe('copyFiles round-trip on import (regression)', () => {
+  it('preserves copyFiles through export + import', () => {
+    const withCopyFiles: DefinitionSpec = { ...spec('d1', 'Alpha'), copyFiles: [{ hostPath: '/host/f', sandboxPath: '/sbx/f' }] }
+    const bundle = buildExportBundle([withCopyFiles], 'now')
+    const { definitions } = parseImportBundle(JSON.stringify(bundle))
+    expect(definitions[0].copyFiles).toEqual([{ hostPath: '/host/f', sandboxPath: '/sbx/f' }])
+  })
+  it('yields [] (not a crash) when copyFiles is absent', () => {
+    const bundle = buildExportBundle([spec('d1', 'Alpha')], 'now')
+    const { definitions } = parseImportBundle(JSON.stringify(bundle))
+    expect(definitions[0].copyFiles).toEqual([])
+  })
+})
+
 describe('dedupeName', () => {
   it('leaves a free name unchanged; suffixes on collision', () => {
     expect(dedupeName('Alpha', new Set())).toBe('Alpha')
