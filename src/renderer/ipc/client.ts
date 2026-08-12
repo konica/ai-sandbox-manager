@@ -1,6 +1,7 @@
 import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, GlobalSecretMeta, EnvHit, LivePort, PolicySummary, AuthStatus, KitValidation, StorageStatus } from '@shared/types'
 import type { ResourceStats } from '@shared/resource-stats'
 import type { CopyDirection, ListResult, PlanResult, CopyResult } from '@shared/copy'
+import type { McpServer, McpServerDetail, McpAuthState, McpAddInput } from '@shared/mcp'
 
 interface Api {
   prereqCheck(): Promise<Result<PrereqResult>>
@@ -53,6 +54,15 @@ interface Api {
   prefsGet(key: string): Promise<Result<string | null>>
   prefsSet(key: string, value: string): Promise<Result<null>>
   credsStorageStatus(): Promise<Result<StorageStatus>>
+  mcpSupported(): Promise<Result<boolean>>
+  mcpList(): Promise<Result<McpServer[]>>
+  mcpInspect(name: string): Promise<Result<McpServerDetail>>
+  mcpAdd(input: McpAddInput): Promise<Result<null>>
+  mcpRemove(name: string): Promise<Result<null>>
+  mcpAuthStatus(name: string): Promise<Result<McpAuthState>>
+  mcpStartAuth(name: string): Promise<Result<null>>
+  mcpSetClientSecret(name: string, value: string): Promise<Result<null>>
+  mcpRemoveAuth(name: string): Promise<Result<null>>
   setTitleBarOverlay(light: boolean): void
 }
 
@@ -107,5 +117,14 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   prefsGet: async () => ({ ok: true, data: null }),
   prefsSet: async () => ({ ok: true, data: null }),
   credsStorageStatus: async () => ({ ok: true, data: { platform: 'darwin', backend: 'keychain', secure: true } }),
+  mcpSupported: async () => ({ ok: true, data: false }),
+  mcpList: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  mcpInspect: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  mcpAdd: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  mcpRemove: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  mcpAuthStatus: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  mcpStartAuth: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  mcpSetClientSecret: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  mcpRemoveAuth: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   setTitleBarOverlay: () => {}
 }

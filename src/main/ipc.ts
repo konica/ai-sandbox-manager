@@ -4,6 +4,7 @@ import type { ResourceStats } from '@shared/resource-stats'
 import type { AgentId } from '@shared/agents'
 import { AGENT_PROFILES } from '@shared/agents'
 import { needsProviderDomainWarning } from '@shared/provider-domain'
+import type { McpServer, McpServerDetail, McpAuthState, McpAddInput } from '@shared/mcp'
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
@@ -13,7 +14,7 @@ import { SbxError } from '@shared/errors'
 import { normalizeTags } from '@shared/tags'
 import { registerCredentials } from './creds/register'
 import { applyCredentialsLive } from './creds/apply-live'
-import { agentAttachCommand, hostShellCommand, loginCommand, expandSandboxPath, expandHostPath } from './sbx/translate'
+import { agentAttachCommand, hostShellCommand, loginCommand, mcpAuthCommand, expandSandboxPath, expandHostPath } from './sbx/translate'
 import { fetchResourceStats } from './sbx/resource-stats'
 import { claudeAuthStatus, claudeSignOut } from './auth/manager'
 import { sshAgentPresent } from './ssh/detect'
@@ -56,6 +57,8 @@ interface Deps {
   log?: Logger
   /** Reports the app vault's at-rest storage status for the Settings guide. */
   storageStatus?: () => StorageStatus
+  /** Override the clock (tests only) — drives the mcp:list short-lived cache. */
+  now?: () => number
 }
 
 function requireCreds(deps: Deps): CredentialManager {
@@ -164,6 +167,15 @@ export function buildHandlers(deps: Deps): {
   'prefs:get': (key: string) => Promise<Result<string | null>>
   'prefs:set': (key: string, value: string) => Promise<Result<null>>
   'creds:storageStatus': () => Promise<Result<StorageStatus>>
+  'mcp:supported': () => Promise<Result<boolean>>
+  'mcp:list': () => Promise<Result<McpServer[]>>
+  'mcp:inspect': (name: string) => Promise<Result<McpServerDetail>>
+  'mcp:add': (input: McpAddInput) => Promise<Result<null>>
+  'mcp:remove': (name: string) => Promise<Result<null>>
+  'mcp:authStatus': (name: string) => Promise<Result<McpAuthState>>
+  'mcp:startAuth': (name: string) => Promise<Result<null>>
+  'mcp:setClientSecret': (name: string, value: string) => Promise<Result<null>>
+  'mcp:removeAuth': (name: string) => Promise<Result<null>>
 } {
   // Deps for launchDefinition — shared by instance:launch and instance:rebuild.
   const launchDeps = () => ({
@@ -176,6 +188,11 @@ export function buildHandlers(deps: Deps): {
     genHash: deps.genHash,
     log: deps.log
   })
+  // Short-lived cache for mcp:list — the registry rarely changes and the panel polls it,
+  // so avoid a `sbx mcp ls` spawn on every poll tick. Invalidated on add/remove.
+  const now = deps.now ?? (() => Date.now())
+  const MCP_LIST_CACHE_MS = 8000
+  let mcpListCache: { at: number; data: McpServer[] } | null = null
   return {
     'prereq:check': () => wrap(() => checkPrereqs(deps.probes)),
     'instances:list': () => wrap(() => reconcile(deps.adapter, deps.store)),
@@ -452,7 +469,41 @@ export function buildHandlers(deps: Deps): {
     'prefs:set': (key, value) => wrap(async () => { deps.store.setPref(key, value); return null }),
     'creds:storageStatus': () => wrap(async () => deps.storageStatus
       ? deps.storageStatus()
-      : { platform: process.platform, backend: 'unknown', secure: false })
+      : { platform: process.platform, backend: 'unknown', secure: false }),
+    'mcp:supported': () => wrap(() => deps.adapter.mcpSupported()),
+    'mcp:list': () => wrap(async () => {
+      if (mcpListCache && now() - mcpListCache.at < MCP_LIST_CACHE_MS) return mcpListCache.data
+      const data = await deps.adapter.listMcpServers()
+      mcpListCache = { at: now(), data }
+      return data
+    }),
+    'mcp:inspect': (name) => wrap(() => deps.adapter.inspectMcpServer(name)),
+    'mcp:add': (input) => wrap(async () => {
+      await deps.adapter.addMcpServer(input)
+      mcpListCache = null
+      deps.log?.info(`Registered MCP server "${input.name}".`)
+      return null
+    }),
+    'mcp:remove': (name) => wrap(async () => {
+      await deps.adapter.removeMcpServer(name)
+      mcpListCache = null
+      deps.log?.info(`Removed MCP server "${name}".`)
+      return null
+    }),
+    'mcp:authStatus': (name) => wrap(() => deps.adapter.mcpAuthStatus(name)),
+    // `sbx mcp auth <server>` blocks on a browser OAuth flow, so — like auth:startLogin —
+    // it runs in a native terminal rather than a captured child process, and this returns
+    // as soon as the terminal is opened.
+    'mcp:startAuth': (name) => wrap(async () => {
+      const cmd = mcpAuthCommand(name)
+      deps.log?.info(`Opening MCP auth terminal for "${name}": ${cmd}`)
+      deps.openTerminal(cmd)
+      return null
+    }),
+    // The secret value is consumed here (forwarded to the adapter's stdin secret path) and
+    // never included in the Result — nothing but a success/failure signal crosses back.
+    'mcp:setClientSecret': (name, value) => wrap(async () => { await deps.adapter.setMcpClientSecret(name, value); return null }),
+    'mcp:removeAuth': (name) => wrap(async () => { await deps.adapter.removeMcpAuth(name); return null })
   }
 }
 
@@ -546,6 +597,15 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('prefs:get', (_e, key: string) => handlers['prefs:get'](key))
   ipcMain.handle('prefs:set', (_e, key: string, value: string) => handlers['prefs:set'](key, value))
   ipcMain.handle('creds:storageStatus', () => handlers['creds:storageStatus']())
+  ipcMain.handle('mcp:supported', () => handlers['mcp:supported']())
+  ipcMain.handle('mcp:list', () => handlers['mcp:list']())
+  ipcMain.handle('mcp:inspect', (_e, name: string) => handlers['mcp:inspect'](name))
+  ipcMain.handle('mcp:add', (_e, input: McpAddInput) => handlers['mcp:add'](input))
+  ipcMain.handle('mcp:remove', (_e, name: string) => handlers['mcp:remove'](name))
+  ipcMain.handle('mcp:authStatus', (_e, name: string) => handlers['mcp:authStatus'](name))
+  ipcMain.handle('mcp:startAuth', (_e, name: string) => handlers['mcp:startAuth'](name))
+  ipcMain.handle('mcp:setClientSecret', (_e, name: string, value: string) => handlers['mcp:setClientSecret'](name, value))
+  ipcMain.handle('mcp:removeAuth', (_e, name: string) => handlers['mcp:removeAuth'](name))
   ipcMain.handle('dialog:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const opts = { properties: ['openDirectory' as const, 'createDirectory' as const] }
