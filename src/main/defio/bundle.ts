@@ -2,6 +2,7 @@ import type { DefinitionSpec } from '@shared/types'
 import { AGENT_PROFILES, agentFromBaseImage } from '@shared/agents'
 import type { AgentId } from '@shared/agents'
 import { isValidMemory, parseMemory } from '@shared/resources'
+import type { McpBinding, McpMode } from '@shared/mcp'
 
 export type ExportableDefinition = Omit<DefinitionSpec, 'definition'> & {
   definition: Omit<DefinitionSpec['definition'], 'id' | 'createdAt'>
@@ -37,6 +38,18 @@ function normalizeAgent(raw: unknown, baseImage: string): AgentId {
   return agentFromBaseImage(baseImage)
 }
 
+const MCP_MODES: McpMode[] = ['off', 'dynamic', 'static']
+
+/** An imported `mcp` binding is untrusted input: coerce mode to a known value (default
+ * 'off' when unrecognized) and filter servers down to strings, rather than throwing. */
+function normalizeMcp(raw: unknown): McpBinding | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const m = raw as Record<string, unknown>
+  const mode = MCP_MODES.includes(m.mode as McpMode) ? (m.mode as McpMode) : 'off'
+  const servers = Array.isArray(m.servers) ? m.servers.filter((s): s is string => typeof s === 'string') : []
+  return { mode, servers }
+}
+
 // A definition entry is usable when it has the required scalar fields; array fields
 // default to [] so an older/partial export still imports.
 function normalizeEntry(raw: unknown): ExportableDefinition | null {
@@ -58,7 +71,9 @@ function normalizeEntry(raw: unknown): ExportableDefinition | null {
     mounts: arr(e.mounts), domains: arr(e.domains), ports: arr(e.ports),
     hostServices: arr(e.hostServices), credentials: arr(e.credentials),
     ssh: (e.ssh && typeof e.ssh === 'object' ? e.ssh : undefined) as ExportableDefinition['ssh'],
-    kitCommandsYaml: typeof e.kitCommandsYaml === 'string' ? e.kitCommandsYaml : undefined
+    kitCommandsYaml: typeof e.kitCommandsYaml === 'string' ? e.kitCommandsYaml : undefined,
+    copyFiles: arr(e.copyFiles),
+    mcp: normalizeMcp(e.mcp)
   }
 }
 
