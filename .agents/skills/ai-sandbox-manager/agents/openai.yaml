@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ai Sandbox Manager"
+  short_description: "Repo-specific patterns and workflows for ai-sandbox-manager"
+  default_prompt: "Use the ai-sandbox-manager repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
