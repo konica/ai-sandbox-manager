@@ -202,6 +202,7 @@ jobs:
             const c = m.loadConfig(raw)
             const fixed = [
               'Edit',
+              'Write',
               'Bash(gh run view *)',
               'Bash(gh pr comment *)',
               'Bash(git add *)',
