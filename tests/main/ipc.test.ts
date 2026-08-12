@@ -33,7 +33,16 @@ const adapter: SbxAdapter = {
   probeSandboxPath: async () => 'missing',
   sandboxTargetsExist: async () => [],
   copyToSandbox: async () => {},
-  copyFromSandbox: async () => {}
+  copyFromSandbox: async () => {},
+  listMcpServers: async () => [],
+  inspectMcpServer: async () => ({ name: '', transport: 'command', endpoint: '', scopes: [], raw: '' }),
+  addMcpServer: async () => {},
+  removeMcpServer: async () => {},
+  mcpAuthStatus: async () => 'unknown',
+  setMcpClientSecret: async () => {},
+  removeMcpAuth: async () => {},
+  loadMcpServer: async () => {},
+  mcpSupported: async () => false
 }
 const probes: Probes = {
   dockerVersion: async () => 'Docker version 24.0.7', sbxVersion: async () => 'sbx 1.0', sbxAuthed: async () => true,

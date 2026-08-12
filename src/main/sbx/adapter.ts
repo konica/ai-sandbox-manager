@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
 import type { SbxInstance, DefinitionSpec, PortIntent, Tier, LivePort, PolicySummary } from '@shared/types'
+import type { McpServer, McpServerDetail, McpAuthState, McpAddInput } from '@shared/mcp'
 import { SbxError, classifySbxError } from '@shared/errors'
 import { parseSbxLsJson, parseSbxLsText, parsePortsJson } from './parse'
 import { parsePolicyLog } from './policy-log'
@@ -8,6 +9,14 @@ import { specToCreateArgs, tierToAllowlist, portIntentToPublishSpec } from './tr
 import type { Logger } from '../log'
 import { parseListOutput, type ListResult } from '@shared/copy'
 import { listDirScript, statScript, existsScript, parseStat, parseExists } from './fs-probe'
+import {
+  parseMcpLsJson,
+  parseMcpLsText,
+  parseMcpInspectJson,
+  parseMcpInspectText,
+  parseMcpAuthStatusJson,
+  parseMcpAuthStatusText
+} from './mcp-parse'
 
 export interface SbxResult { stdout: string; stderr: string; code: number }
 
@@ -55,6 +64,24 @@ export interface SbxAdapter {
   copyToSandbox(name: string, hostSrc: string, sandboxDest: string): Promise<void>
   /** `sbx cp <name>:<sandboxSrc> <hostDest>`. Throws SbxError on failure. */
   copyFromSandbox(name: string, sandboxSrc: string, hostDest: string): Promise<void>
+  /** Host-registered MCP servers (`sbx mcp ls`). */
+  listMcpServers(): Promise<McpServer[]>
+  /** Detail for one registered MCP server (`sbx mcp inspect <name>`). */
+  inspectMcpServer(name: string): Promise<McpServerDetail>
+  /** Register a new MCP server (`sbx mcp add`); argv shape depends on `input.transport`. */
+  addMcpServer(input: McpAddInput): Promise<void>
+  /** Unregister an MCP server (`sbx mcp rm <name>`). */
+  removeMcpServer(name: string): Promise<void>
+  /** Credential status for one MCP server (`sbx mcp auth status <name> --format json`). Never throws on unparseable output — resolves 'unknown'. */
+  mcpAuthStatus(name: string): Promise<McpAuthState>
+  /** Set an MCP server's confidential-client secret via the stdin secret path (no value on argv). */
+  setMcpClientSecret(name: string, value: string): Promise<void>
+  /** Clear an MCP server's confidential-client secret. */
+  removeMcpAuth(name: string): Promise<void>
+  /** Attach a registered MCP server to a running sandbox (`sbx mcp load`). */
+  loadMcpServer(sandboxName: string, serverName: string): Promise<void>
+  /** Whether the installed `sbx` CLI exposes `mcp` subcommands. Never throws — resolves false on any spawn/parse failure. */
+  mcpSupported(): Promise<boolean>
 }
 
 export const defaultSpawn: SpawnFn = (cmd, args, opts) =>
@@ -241,5 +268,83 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     }
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, listInstanceSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, execScript, execCapture, validateKit, listSandboxDir, probeSandboxPath, sandboxTargetsExist, copyToSandbox, copyFromSandbox }
+  // MCP Gateway (Phase 0 spike-verified against sbx v0.38.0): `mcp ls`/`mcp inspect` are
+  // text-only today, but requested with --json first (like listSandboxes) so a future sbx
+  // that adds JSON support is picked up without an adapter change; parsing falls back to
+  // text on the same stdout when it isn't valid JSON.
+  async function listMcpServers(): Promise<McpServer[]> {
+    const res = await runSbx(['mcp', 'ls', '--json'])
+    try {
+      return parseMcpLsJson(res.stdout)
+    } catch {
+      return parseMcpLsText(res.stdout)
+    }
+  }
+
+  async function inspectMcpServer(name: string): Promise<McpServerDetail> {
+    const res = await runSbx(['mcp', 'inspect', name, '--json'])
+    try {
+      return parseMcpInspectJson(res.stdout, name)
+    } catch {
+      return parseMcpInspectText(res.stdout, name)
+    }
+  }
+
+  function mcpAddArgs(input: McpAddInput): string[] {
+    const scopeArgs = input.scopes.flatMap((s) => ['--scope', s])
+    if (input.transport === 'remote') {
+      return ['mcp', 'add', input.name, '--url', input.url, ...scopeArgs, ...(input.skipAuth ? ['--skip_auth'] : [])]
+    }
+    if (input.transport === 'local') {
+      return ['mcp', 'add', input.name, '--local', '--url', input.metadataUrl, ...scopeArgs]
+    }
+    const argArgs = input.args.flatMap((a) => ['--args', a])
+    return ['mcp', 'add', input.name, '--command', input.command, ...argArgs, ...scopeArgs]
+  }
+
+  async function addMcpServer(input: McpAddInput): Promise<void> {
+    await runSbx(mcpAddArgs(input))
+  }
+
+  async function removeMcpServer(name: string): Promise<void> {
+    await runSbx(['mcp', 'rm', name])
+  }
+
+  async function mcpAuthStatus(name: string): Promise<McpAuthState> {
+    const res = await runSbx(['mcp', 'auth', 'status', name, '--format', 'json'])
+    const entries = parseMcpAuthStatusJson(res.stdout)
+    const found = entries.find((e) => e.name === name)
+    if (found) return found.state
+    const textEntries = parseMcpAuthStatusText(res.stdout)
+    return textEntries.find((e) => e.name === name)?.state ?? 'unknown'
+  }
+
+  // Confidential-client secret: no `--client-secret` flag exists (Phase 0 spike), so this
+  // reuses the same stdin secret path as any other service — never on argv.
+  async function setMcpClientSecret(name: string, value: string): Promise<void> {
+    await setSecret(`mcp:${name}.client_secret`, value, { global: true })
+  }
+
+  async function removeMcpAuth(name: string): Promise<void> {
+    await removeSecret(`mcp:${name}.client_secret`, { global: true })
+  }
+
+  async function loadMcpServer(sandboxName: string, serverName: string): Promise<void> {
+    await runSbx(['mcp', 'load', serverName, '--sandbox', sandboxName])
+  }
+
+  // Exit codes are unreliable for MCP-absence detection (every unsupported-command
+  // invocation on a pre-MCP sbx returns exit 0, per the Phase 0 spike). Instead parse the
+  // `sbx --help` command list for an `mcp` entry; any spawn/parse failure resolves false.
+  async function mcpSupported(): Promise<boolean> {
+    try {
+      const res = await spawnFn('sbx', ['--help'], {})
+      return /^\s*mcp\b/m.test(res.stdout + res.stderr)
+    } catch (e) {
+      logger?.error(`sbx --help failed while probing mcp support: ${(e as Error).message}`)
+      return false
+    }
+  }
+
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, listInstanceSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, execScript, execCapture, validateKit, listSandboxDir, probeSandboxPath, sandboxTargetsExist, copyToSandbox, copyFromSandbox, listMcpServers, inspectMcpServer, addMcpServer, removeMcpServer, mcpAuthStatus, setMcpClientSecret, removeMcpAuth, loadMcpServer, mcpSupported }
 }
