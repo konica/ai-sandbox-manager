@@ -24,7 +24,8 @@ vi.mock('../../src/renderer/ipc/client', () => ({
     instanceStop: (n: string) => instanceStop(n),
     instanceRemove: (n: string) => instanceRemove(n),
     authStartLogin: () => authStartLogin(),
-    envHasVSCode: async () => ({ ok: true, data: { present: true } })
+    envHasVSCode: async () => ({ ok: true, data: { present: true } }),
+    mcpList: async () => ({ ok: true, data: [] })
   }
 }))
 
