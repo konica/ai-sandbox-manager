@@ -92,6 +92,17 @@ export function parseSbxLsText(stdout: string): SbxInstance[] {
 }
 
 /**
+ * Parse the whitespace-aligned `sbx mcp ls` table (no `--json` support) into registered
+ * server names. Empty registry prints `No MCP servers registered` (or just a header/nothing).
+ */
+export function parseMcpLsNames(stdout: string): string[] {
+  const lines = stdout.split('\n').map((l) => l.trim()).filter((l) => l !== '')
+  if (lines.length === 0 || /^no mcp servers registered/i.test(lines[0])) return []
+  const dataLines = lines[0].toUpperCase().startsWith('NAME') ? lines.slice(1) : lines
+  return dataLines.map((line) => line.split(/\s+/)[0]).filter((n) => n !== '')
+}
+
+/**
  * Parse `sbx ports --json` (a bare array of {host_ip, host_port, sandbox_port, protocol})
  * into LivePort[], deduping the 127.0.0.1 + ::1 pair by (host_port, sandbox_port, protocol).
  * Tolerates a `{ ports: [...] }` envelope too.

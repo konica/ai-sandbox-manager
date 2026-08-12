@@ -1,7 +1,7 @@
 import { spawn } from 'child_process'
 import type { SbxInstance, DefinitionSpec, PortIntent, Tier, LivePort, PolicySummary } from '@shared/types'
 import { SbxError, classifySbxError } from '@shared/errors'
-import { parseSbxLsJson, parseSbxLsText, parsePortsJson } from './parse'
+import { parseSbxLsJson, parseSbxLsText, parsePortsJson, parseMcpLsNames } from './parse'
 import { parsePolicyLog } from './policy-log'
 import { parseDiagnoseAuth, type AuthCheck } from './diagnose'
 import { specToCreateArgs, tierToAllowlist, portIntentToPublishSpec } from './translate'
@@ -55,6 +55,8 @@ export interface SbxAdapter {
   copyToSandbox(name: string, hostSrc: string, sandboxDest: string): Promise<void>
   /** `sbx cp <name>:<sandboxSrc> <hostDest>`. Throws SbxError on failure. */
   copyFromSandbox(name: string, sandboxSrc: string, hostDest: string): Promise<void>
+  /** Registered MCP server names (`sbx mcp ls`, text-only — no `--json` support). */
+  listMcpServers(): Promise<string[]>
 }
 
 export const defaultSpawn: SpawnFn = (cmd, args, opts) =>
@@ -230,6 +232,11 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     await runSbx(['cp', `${name}:${sandboxSrc}`, hostDest])
   }
 
+  async function listMcpServers(): Promise<string[]> {
+    const res = await runSbx(['mcp', 'ls'])
+    return parseMcpLsNames(res.stdout)
+  }
+
   async function validateKit(dir: string): Promise<{ code: number; out: string; ran: boolean }> {
     logger?.command(['kit', 'validate', dir])
     try {
@@ -241,5 +248,5 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     }
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, listInstanceSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, execScript, execCapture, validateKit, listSandboxDir, probeSandboxPath, sandboxTargetsExist, copyToSandbox, copyFromSandbox }
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, listInstanceSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, execScript, execCapture, validateKit, listSandboxDir, probeSandboxPath, sandboxTargetsExist, copyToSandbox, copyFromSandbox, listMcpServers }
 }

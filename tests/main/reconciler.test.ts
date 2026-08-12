@@ -29,7 +29,8 @@ function fakeAdapter(names: string[]): SbxAdapter {
     probeSandboxPath: async () => 'missing',
     sandboxTargetsExist: async () => [],
     copyToSandbox: async () => {},
-    copyFromSandbox: async () => {}
+    copyFromSandbox: async () => {},
+    listMcpServers: async () => []
   }
 }
 

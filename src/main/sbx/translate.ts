@@ -120,6 +120,11 @@ export function portsForLaunch(ports: PortIntent[], isSubsequent: boolean): Port
   return isSubsequent ? ports.filter((p) => p.hostPort === null) : ports
 }
 
+/** `--static-mcp a,b` argv for a static MCP binding's (already-resolved) server names; empty ⇒ no flag. */
+export function staticMcpArgs(servers: string[]): string[] {
+  return servers.length > 0 ? ['--static-mcp', servers.join(',')] : []
+}
+
 /** Single-quote a string for safe embedding in a POSIX shell command. */
 export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`
@@ -160,7 +165,7 @@ export function shellCommand(argv: string[]): string {
  *   create (provision) → apply network tier → publish ports → run (attach agent).
  * Chained with `&&` so a failed step stops the sequence and stays visible.
  */
-export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string, ports: PortIntent[] = spec.ports): string {
+export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string, ports: PortIntent[] = spec.ports, mcpServers: string[] = []): string {
   const steps: string[] = [shellCommand(['sbx', ...specToCreateArgs(spec, name, kitDir)])]
   if (!kitDir) {
     // A generated kit owns `allowedDomains`; only apply standalone policy without one.
@@ -174,7 +179,8 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
   }
   // `sbx run` attaches the agent; args after `--` go to the agent CLI. A session
   // name maps to that agent's own session-naming flag for this new conversation.
-  const runArgs = ['sbx', 'run', '--name', name]
+  // The static MCP flag must land before that separator, alongside sbx's own flags.
+  const runArgs = ['sbx', 'run', '--name', name, ...staticMcpArgs(mcpServers)]
   if (sessionName && sessionName.trim()) {
     const nameArgs = AGENT_PROFILES[spec.definition.agent].sessionNameArgs(sessionName.trim())
     // Only add the `--` separator when there's something to put after it — an agent with
