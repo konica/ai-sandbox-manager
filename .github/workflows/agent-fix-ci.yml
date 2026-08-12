@@ -97,6 +97,12 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
+
+      # The fix agent re-runs the verify commands, which need node_modules.
+      # Installing here keeps it deterministic and off the agent's allow-list.
+      - name: Install dependencies
+        run: npm ci
 
       - name: Read config and current retry count
         id: state
@@ -181,6 +187,33 @@ jobs:
           gh pr edit "$PR" --add-label "agent-retry-$NEXT"
           echo "NEXT=$NEXT" >> "$GITHUB_ENV"
 
+      # Headless runs auto-DENY anything outside the allow-list rather than
+      # prompting, so an agent without one ends green having written nothing.
+      # Verify entries come from config so `verifyCommands` stays the single
+      # source of truth. No `gh pr create` here — this job fixes an existing
+      # pull request and the prompt forbids opening another.
+      - name: Render the agent tool allow-list
+        id: tools
+        run: |
+          TOOLS=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
+            const fs = await import('node:fs/promises')
+            let raw = {}
+            try { raw = JSON.parse(await fs.readFile('.github/agent-burn.json', 'utf8')) } catch {}
+            const c = m.loadConfig(raw)
+            const fixed = [
+              'Edit',
+              'Bash(gh run view *)',
+              'Bash(gh pr comment *)',
+              'Bash(git add *)',
+              'Bash(git commit *)',
+              'Bash(git push *)'
+            ]
+            const verify = c.verifyCommands.map((v) => 'Bash(' + v + ')')
+            process.stdout.write([...fixed, ...verify].join(','))
+          })")
+          echo "allowed=$TOOLS" >> "$GITHUB_OUTPUT"
+          echo "allow-list: $TOOLS"
+
       - name: Fix the failure
         # See the numeric-comparison note on "Hand over to a human", above.
         if: steps.state.outputs.pr != '' && fromJSON(steps.state.outputs.attempts) < fromJSON(steps.state.outputs.maxCiRetries)
@@ -188,6 +221,9 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.AGENT_PAT }}
+          claude_args: |
+            --permission-mode dontAsk
+            --allowedTools "${{ steps.tools.outputs.allowed }}"
           prompt: |
             CI failed on pull request #${{ steps.state.outputs.pr }}, branch
             `${{ github.event.workflow_run.head_branch }}`. This is automated fix

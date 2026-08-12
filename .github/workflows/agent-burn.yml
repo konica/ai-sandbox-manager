@@ -149,6 +149,13 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
+
+      # The agent is told to run the verify commands, which need node_modules.
+      # Installing here rather than letting the agent do it keeps the install
+      # deterministic and off the agent's Bash allow-list.
+      - name: Install dependencies
+        run: npm ci
 
       - name: Claim the ticket
         env:
@@ -198,12 +205,54 @@ jobs:
             echo 'PROMPT_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      # Headless runs have nobody to answer a permission prompt, so Claude Code
+      # auto-DENIES anything outside the allow-list and carries on — the run
+      # ends green with a non-zero permission_denials_count and no pull request.
+      # That is exactly how the first live dispatch failed: 8 turns, 6 denials,
+      # nothing written.
+      #
+      # The verify entries are derived from config so `verifyCommands` stays the
+      # single source of truth — a ported repo running pytest gets pytest here
+      # without editing this file. The fixed entries are the commands the prompt
+      # template itself mandates.
+      #
+      # Scoped `Bash(...)` prefixes rather than a bare `Bash`: this is a public
+      # repository, the issue body reaches the prompt, and the runner holds a
+      # write-scoped PAT. `bypassPermissions` would remove the allow-list check
+      # entirely and offers no protection against prompt injection — do not use
+      # it here.
+      - name: Render the agent tool allow-list
+        id: tools
+        run: |
+          TOOLS=$(node -e "import('./scripts/burn/config.mjs').then(async (m) => {
+            const fs = await import('node:fs/promises')
+            let raw = {}
+            try { raw = JSON.parse(await fs.readFile('.github/agent-burn.json', 'utf8')) } catch {}
+            const c = m.loadConfig(raw)
+            const fixed = [
+              'Edit',
+              'Bash(gh issue view *)',
+              'Bash(gh issue comment *)',
+              'Bash(git add *)',
+              'Bash(git commit *)',
+              'Bash(git push *)',
+              'Bash(gh pr create *)'
+            ]
+            const verify = c.verifyCommands.map((v) => 'Bash(' + v + ')')
+            process.stdout.write([...fixed, ...verify].join(','))
+          })")
+          echo "allowed=$TOOLS" >> "$GITHUB_OUTPUT"
+          echo "allow-list: $TOOLS"
+
       - name: Run the agent
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.AGENT_PAT }}
           prompt: ${{ steps.prompt.outputs.prompt }}
+          claude_args: |
+            --permission-mode dontAsk
+            --allowedTools "${{ steps.tools.outputs.allowed }}"
 
       # `Closes #N` is mandated only by a prompt rule, yet three later paths read
       # it: promotion, the CI-retry handover, and the unclaim on a closed pull
