@@ -23,7 +23,7 @@ describe('definition spec persistence', () => {
   it('round-trips a full spec', () => {
     store.insertDefinitionSpec(spec)
     const got = store.getDefinitionSpec('d1')
-    expect(got).toEqual(spec)
+    expect(got).toEqual({ ...spec, mcp: { mode: 'off', servers: [] } })
   })
 
   it('returns null for an unknown id', () => {
@@ -51,6 +51,6 @@ describe('definition spec persistence', () => {
       mounts: [], domains: [], ports: [], hostServices: [], credentials: [], ssh: { forwardAgent: true, commitSigning: false }, copyFiles: []
     }
     store.insertDefinitionSpec(bare)
-    expect(store.getDefinitionSpec('d2')).toEqual(bare)
+    expect(store.getDefinitionSpec('d2')).toEqual({ ...bare, mcp: { mode: 'off', servers: [] } })
   })
 })
