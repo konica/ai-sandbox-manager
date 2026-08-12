@@ -11,7 +11,7 @@ import { normalizeTags } from '@shared/tags'
 import { SbxError } from '@shared/errors'
 
 export interface LaunchDeps {
-  adapter: Pick<SbxAdapter, 'listSandboxes' | 'setSecret' | 'setCustomSecret' | 'setRegistrySecret' | 'checkDockerAuth'>
+  adapter: Pick<SbxAdapter, 'listSandboxes' | 'setSecret' | 'setCustomSecret' | 'setRegistrySecret' | 'checkDockerAuth' | 'listMcpServers'>
   store: Store
   creds: Pick<CredentialManager, 'getStaged'>
   /** Writes the definition's allowlist kit to disk and returns its dir (or undefined to launch kit-less). */
@@ -22,6 +22,34 @@ export interface LaunchDeps {
   /** Generates the unique instance-name suffix (default: 8 random hex chars). Injected for tests. */
   genHash?: () => string
   log?: Logger
+}
+
+/**
+ * Resolve a definition's static MCP binding against the live server registry
+ * (`sbx mcp ls`), mirroring `portsForLaunch`: a server that's no longer registered is
+ * dropped and logged rather than failing the launch. Dynamic/off bindings need no live
+ * check — they pass no `--static-mcp` flag at all — so this returns [] for them.
+ */
+export async function resolveMcpServers(
+  adapter: Pick<SbxAdapter, 'listMcpServers'>,
+  spec: DefinitionSpec,
+  log?: Logger
+): Promise<string[]> {
+  if (!spec.mcp || spec.mcp.mode !== 'static' || spec.mcp.servers.length === 0) return []
+  let live: { name: string }[]
+  try {
+    live = await adapter.listMcpServers()
+  } catch (e) {
+    log?.error(`Could not list registered MCP servers; launching "${spec.definition.name}" without its static MCP binding: ${(e as Error).message}`)
+    return []
+  }
+  const liveNames = new Set(live.map((s) => s.name))
+  const resolved: string[] = []
+  for (const serverName of spec.mcp.servers) {
+    if (liveNames.has(serverName)) resolved.push(serverName)
+    else log?.error(`MCP server "${serverName}" is no longer registered; skipping it for this launch.`)
+  }
+  return resolved
 }
 
 /**
@@ -83,8 +111,10 @@ export async function launchDefinition(
   // Shared with the re-attach path so credentials stay in sync with the definition.
   await registerCredentials({ adapter: deps.adapter, creds: deps.creds, log: deps.log }, definitionId, spec.credentials, name)
 
+  const mcpServers = await resolveMcpServers(deps.adapter, spec, deps.log)
+
   const kitDir = deps.materializeKit(spec, name)
-  const command = launchCommand(spec, name, sessionName, kitDir, ports)
+  const command = launchCommand(spec, name, sessionName, kitDir, ports, mcpServers)
   deps.log?.info(`Launching sandbox "${name}"${sessionName ? ` (session "${sessionName}")` : ''} from definition ${definitionId} (tier: ${spec.definition.tier}, creds: ${spec.credentials.length}, ports: ${spec.ports.length})`)
   deps.log?.info(`Opening terminal to provision and run: ${command}`)
 
