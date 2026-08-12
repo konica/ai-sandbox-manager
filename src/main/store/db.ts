@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import type { Definition, InstanceMeta, DefinitionSpec, MountMode, CredentialRef, CredentialStore, GlobalSecretMeta, PortProtocol, RegistryScope, CopyFileIntent } from '@shared/types'
 import { DEFAULT_SSH } from '@shared/types'
+import type { McpBinding, McpMode } from '@shared/mcp'
 
 export interface Store {
   insertDefinition(d: Definition): void
@@ -112,7 +113,13 @@ CREATE TABLE IF NOT EXISTS instance_tag (
   tag      TEXT NOT NULL,
   PRIMARY KEY (sbx_name, tag)
 );
-PRAGMA user_version = 11;
+CREATE TABLE IF NOT EXISTS mcp_server_binding (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  definition_id TEXT NOT NULL,
+  server_name TEXT NOT NULL,
+  FOREIGN KEY (definition_id) REFERENCES definition(id) ON DELETE CASCADE
+);
+PRAGMA user_version = 12;
 `
 
 export function openStore(filename: string): Store {
@@ -167,6 +174,12 @@ export function openStore(filename: string): Store {
     db.exec(`ALTER TABLE definition ADD COLUMN cpus INTEGER;`)
     db.exec(`ALTER TABLE definition ADD COLUMN memory TEXT;`)
   }
+  // v11 → v12: definitions gain an MCP Gateway mode; mcp_server_binding (created via
+  // CREATE TABLE IF NOT EXISTS above) holds the static server allow-list. Non-destructive;
+  // existing rows default to mode 'off' with no bindings (MCP stays disabled for them).
+  if (!defCols.includes('mcp_mode')) {
+    db.exec(`ALTER TABLE definition ADD COLUMN mcp_mode TEXT NOT NULL DEFAULT 'off';`)
+  }
 
   // v3 → v4: port_intent gains `protocol` + nullable host_port; add host_service. Recreate
   // port_intent (old rows are dev throwaway — SQLite can't relax NOT NULL in place).
@@ -211,10 +224,12 @@ export function openStore(filename: string): Store {
         cIns.run(s.definition.id, 'custom', null, c.id, c.label, c.envVar, JSON.stringify(c.domains), '[]', c.store, null, null, null)
       }
     }
+    const mcpIns = db.prepare(`INSERT INTO mcp_server_binding (definition_id, server_name) VALUES (?, ?)`)
+    for (const name of s.mcp?.servers ?? []) mcpIns.run(s.definition.id, name)
   }
 
   function deleteChildren(definitionId: string): void {
-    for (const table of ['mount_intent', 'policy_domain', 'port_intent', 'host_service', 'credential_ref', 'copy_file']) {
+    for (const table of ['mount_intent', 'policy_domain', 'port_intent', 'host_service', 'credential_ref', 'copy_file', 'mcp_server_binding']) {
       db.prepare(`DELETE FROM ${table} WHERE definition_id = ?`).run(definitionId)
     }
   }
@@ -238,10 +253,10 @@ export function openStore(filename: string): Store {
       const insertAll = db.transaction((s: DefinitionSpec) => {
         const ssh = s.ssh ?? DEFAULT_SSH
         db.prepare(
-          `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at, ssh_forward_agent, ssh_commit_signing, kit_commands_yaml, cpus, memory)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO definition (id, name, description, base_image, agent, tier, created_at, ssh_forward_agent, ssh_commit_signing, kit_commands_yaml, cpus, memory, mcp_mode)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).run(s.definition.id, s.definition.name, s.definition.description, s.definition.baseImage, s.definition.agent, s.definition.tier, s.definition.createdAt,
-          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.cpus ?? null, s.definition.memory ?? null)
+          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.cpus ?? null, s.definition.memory ?? null, s.mcp?.mode ?? 'off')
         insertChildren(s)
       })
       insertAll(spec)
@@ -250,9 +265,9 @@ export function openStore(filename: string): Store {
       const updateAll = db.transaction((s: DefinitionSpec) => {
         const ssh = s.ssh ?? DEFAULT_SSH
         const res = db.prepare(
-          `UPDATE definition SET name = ?, description = ?, base_image = ?, agent = ?, tier = ?, ssh_forward_agent = ?, ssh_commit_signing = ?, kit_commands_yaml = ?, cpus = ?, memory = ? WHERE id = ?`
+          `UPDATE definition SET name = ?, description = ?, base_image = ?, agent = ?, tier = ?, ssh_forward_agent = ?, ssh_commit_signing = ?, kit_commands_yaml = ?, cpus = ?, memory = ?, mcp_mode = ? WHERE id = ?`
         ).run(s.definition.name, s.definition.description, s.definition.baseImage, s.definition.agent, s.definition.tier,
-          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.cpus ?? null, s.definition.memory ?? null, s.definition.id)
+          ssh.forwardAgent ? 1 : 0, (ssh.forwardAgent && ssh.commitSigning) ? 1 : 0, s.kitCommandsYaml ?? null, s.definition.cpus ?? null, s.definition.memory ?? null, s.mcp?.mode ?? 'off', s.definition.id)
         if (res.changes === 0) throw new Error(`Definition ${s.definition.id} not found`)
         deleteChildren(s.definition.id)
         insertChildren(s)
@@ -285,7 +300,11 @@ export function openStore(filename: string): Store {
       const ssh = { forwardAgent: (sshRow?.fwd ?? 1) === 1, commitSigning: (sshRow?.sign ?? 0) === 1 }
       const kitRow = db.prepare(`SELECT kit_commands_yaml AS y FROM definition WHERE id = ?`).get(id) as { y: string | null } | undefined
       const kitCommandsYaml = kitRow?.y ?? undefined
-      return { definition: def, mounts, domains, ports, hostServices, credentials, ssh, kitCommandsYaml, copyFiles }
+      const mcpRow = db.prepare(`SELECT mcp_mode AS mode FROM definition WHERE id = ?`).get(id) as { mode: string } | undefined
+      const mcpServers = (db.prepare(`SELECT server_name AS serverName FROM mcp_server_binding WHERE definition_id = ? ORDER BY id`).all(id) as Array<{ serverName: string }>)
+        .map((r) => r.serverName)
+      const mcp: McpBinding = { mode: (mcpRow?.mode ?? 'off') as McpMode, servers: mcpServers }
+      return { definition: def, mounts, domains, ports, hostServices, credentials, ssh, kitCommandsYaml, copyFiles, mcp }
     },
     deleteDefinition(id) {
       // FK cascade isn't enabled, so remove children explicitly, then the row.
