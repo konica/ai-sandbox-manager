@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { DefinitionSpec, LivePort } from '@shared/types'
+import type { McpAddInput } from '@shared/mcp'
 
 const api = {
   prereqCheck: () => ipcRenderer.invoke('prereq:check'),
@@ -52,6 +53,15 @@ const api = {
   prefsGet: (key: string) => ipcRenderer.invoke('prefs:get', key),
   prefsSet: (key: string, value: string) => ipcRenderer.invoke('prefs:set', key, value),
   credsStorageStatus: () => ipcRenderer.invoke('creds:storageStatus'),
+  mcpSupported: () => ipcRenderer.invoke('mcp:supported'),
+  mcpList: () => ipcRenderer.invoke('mcp:list'),
+  mcpInspect: (name: string) => ipcRenderer.invoke('mcp:inspect', name),
+  mcpAdd: (input: McpAddInput) => ipcRenderer.invoke('mcp:add', input),
+  mcpRemove: (name: string) => ipcRenderer.invoke('mcp:remove', name),
+  mcpAuthStatus: (name: string) => ipcRenderer.invoke('mcp:authStatus', name),
+  mcpStartAuth: (name: string) => ipcRenderer.invoke('mcp:startAuth', name),
+  mcpSetClientSecret: (name: string, value: string) => ipcRenderer.invoke('mcp:setClientSecret', name, value),
+  mcpRemoveAuth: (name: string) => ipcRenderer.invoke('mcp:removeAuth', name),
   setTitleBarOverlay: (light: boolean) => ipcRenderer.send('theme:setOverlay', light)
 }
 

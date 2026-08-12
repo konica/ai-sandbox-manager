@@ -30,7 +30,15 @@ function fakeAdapter(names: string[]): SbxAdapter {
     sandboxTargetsExist: async () => [],
     copyToSandbox: async () => {},
     copyFromSandbox: async () => {},
-    listMcpServers: async () => []
+    listMcpServers: async () => [],
+    inspectMcpServer: async () => ({ name: '', transport: 'command', endpoint: '', scopes: [], raw: '' }),
+    addMcpServer: async () => {},
+    removeMcpServer: async () => {},
+    mcpAuthStatus: async () => 'unknown',
+    setMcpClientSecret: async () => {},
+    removeMcpAuth: async () => {},
+    loadMcpServer: async () => {},
+    mcpSupported: async () => false
   }
 }
 

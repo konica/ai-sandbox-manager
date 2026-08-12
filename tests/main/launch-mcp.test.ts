@@ -11,7 +11,8 @@ const spec: DefinitionSpec = {
 }
 
 describe('resolveMcpServers', () => {
-  function fakeAdapter(live: string[]) {
+  function fakeAdapter(liveNames: string[]) {
+    const live = liveNames.map((name) => ({ name, transport: 'command' as const, endpoint: '', scopes: [] }))
     return { listMcpServers: vi.fn(async () => live) }
   }
 
@@ -54,7 +55,7 @@ describe('resolveMcpServers', () => {
   })
 })
 
-function deps(getSpec: () => DefinitionSpec | undefined, liveMcp: string[] = []) {
+function deps(getSpec: () => DefinitionSpec | undefined, liveMcpNames: string[] = []) {
   const metas: InstanceMeta[] = []
   const store = {
     getDefinitionSpec: vi.fn(getSpec),
@@ -62,6 +63,7 @@ function deps(getSpec: () => DefinitionSpec | undefined, liveMcp: string[] = [])
     listInstanceMeta: vi.fn(() => metas),
     setInstanceTags: vi.fn()
   } as never
+  const liveMcp = liveMcpNames.map((name) => ({ name, transport: 'command' as const, endpoint: '', scopes: [] }))
   const adapter = {
     listSandboxes: vi.fn(async (): Promise<SbxInstance[]> => []),
     setSecret: vi.fn(async () => {}),

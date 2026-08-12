@@ -36,14 +36,14 @@ export async function resolveMcpServers(
   log?: Logger
 ): Promise<string[]> {
   if (!spec.mcp || spec.mcp.mode !== 'static' || spec.mcp.servers.length === 0) return []
-  let live: string[]
+  let live: { name: string }[]
   try {
     live = await adapter.listMcpServers()
   } catch (e) {
     log?.error(`Could not list registered MCP servers; launching "${spec.definition.name}" without its static MCP binding: ${(e as Error).message}`)
     return []
   }
-  const liveNames = new Set(live)
+  const liveNames = new Set(live.map((s) => s.name))
   const resolved: string[] = []
   for (const serverName of spec.mcp.servers) {
     if (liveNames.has(serverName)) resolved.push(serverName)

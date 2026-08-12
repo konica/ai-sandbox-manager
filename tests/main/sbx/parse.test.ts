@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseSbxLsJson, parseSbxLsText, parseMcpLsNames } from '@main/sbx/parse'
+import { parseSbxLsJson, parseSbxLsText } from '@main/sbx/parse'
 
 describe('parseSbxLsText', () => {
   it('parses the documented table layout', () => {
@@ -65,23 +65,5 @@ describe('parseSbxLsJson', () => {
   })
   it('throws on non-JSON so the caller can fall back to text', () => {
     expect(() => parseSbxLsJson('SANDBOX AGENT ...')).toThrow()
-  })
-})
-
-describe('parseMcpLsNames', () => {
-  it('parses the documented table layout, dropping the header', () => {
-    const out = [
-      'NAME                 TYPE     URL/COMMAND',
-      'notion               remote   https://mcp.notion.com/mcp',
-      'github               local    npx @modelcontextprotocol/server-github'
-    ].join('\n')
-    expect(parseMcpLsNames(out)).toEqual(['notion', 'github'])
-  })
-  it('returns [] for the empty-registry message', () => {
-    expect(parseMcpLsNames('No MCP servers registered')).toEqual([])
-  })
-  it('returns [] for a header-only / blank listing', () => {
-    expect(parseMcpLsNames('NAME  TYPE  URL/COMMAND\n')).toEqual([])
-    expect(parseMcpLsNames('')).toEqual([])
   })
 })

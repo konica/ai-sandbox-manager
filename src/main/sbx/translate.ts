@@ -219,3 +219,9 @@ export function sshHostKeySetupCommand(name: string): string {
 export function commitSigningExecCommand(name: string): string {
   return `sbx exec ${name} bash -lc 'git config --global gpg.format ssh && git config --global user.signingkey "key::$(ssh-add -L | head -n 1)"'`
 }
+
+// `sbx mcp auth` blocks on a browser-based OAuth flow (Phase 0 spike), so it runs in a
+// native terminal like login/attach rather than a captured child process.
+export function mcpAuthCommand(name: string): string {
+  return shellCommand(['sbx', 'mcp', 'auth', name])
+}
