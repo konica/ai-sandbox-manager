@@ -7,7 +7,8 @@ const defList = vi.fn()
 vi.mock('../../src/renderer/ipc/client', () => ({ api: {
   prereqCheck: () => prereqCheck(), instancesList: () => instancesList(), defList: () => defList(),
   defCreate: async () => ({ ok: true, data: { id: 'id1' } }),
-  envHasVSCode: async () => ({ ok: true, data: { present: false } })
+  envHasVSCode: async () => ({ ok: true, data: { present: false } }),
+  mcpList: async () => ({ ok: true, data: [] })
 } }))
 
 import App from '../../src/renderer/App'

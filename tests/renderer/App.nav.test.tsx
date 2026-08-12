@@ -12,7 +12,8 @@ vi.mock('../../src/renderer/ipc/client', () => ({
     defCreate: async () => ({ ok: true, data: { id: 'id1' } }),
     envHasVSCode: async () => ({ ok: true, data: { present: false } }),
     prefsGet: async () => ({ ok: true, data: null }),
-    hostCapacity: async () => ({ ok: true, data: { cpuCores: 0, totalMemBytes: 0 } })
+    hostCapacity: async () => ({ ok: true, data: { cpuCores: 0, totalMemBytes: 0 } }),
+    mcpList: async () => ({ ok: true, data: [] })
   }
 }))
 
@@ -36,6 +37,15 @@ describe('App navigation', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Sandbox Definitions' })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /sandbox instances/i }))
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Instances' })).toBeInTheDocument())
+  })
+
+  it('shows MCP Servers between Definitions and Instances, and navigates to it', async () => {
+    const { container } = render(<App />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sandbox Definitions' })).toBeInTheDocument())
+    const navItems = Array.from(container.querySelectorAll('.nav-item')).map((el) => el.textContent)
+    expect(navItems).toEqual(['Prerequisites', 'Sandbox Definitions', 'MCP Servers', 'Sandbox Instances', 'Settings'])
+    fireEvent.click(screen.getByRole('button', { name: 'MCP Servers' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'MCP Servers' })).toBeInTheDocument())
   })
 
   it('opens the wizard from the create button and returns on cancel', async () => {

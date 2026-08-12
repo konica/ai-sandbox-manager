@@ -5,6 +5,7 @@ import { Prereq } from './screens/Prereq'
 import { Instances } from './screens/Instances'
 import { InstanceDetail } from './screens/InstanceDetail'
 import { Definitions } from './screens/Definitions'
+import { McpServers } from './screens/McpServers'
 import { Settings } from './screens/Settings'
 import { CreateDefinition } from './wizard/CreateDefinition'
 import { AppShell, type NavScreen } from './components/AppShell'
@@ -34,6 +35,7 @@ export default function App(): JSX.Element {
   const [wizard, setWizard] = useState<{ spec?: DefinitionSpec } | null>(null)
   const [defs, setDefs] = useState<Definition[]>([])
   const [instances, setInstances] = useState<InstanceView[]>([])
+  const [mcpCount, setMcpCount] = useState(0)
   const [pending, setPending] = useState<{ kind: 'stop' | 'remove' | 'rebuild'; name: string } | null>(null)
   const [launchFor, setLaunchFor] = useState<Definition | null>(null)
   const [attachFor, setAttachFor] = useState<string | null>(null)
@@ -57,6 +59,13 @@ export default function App(): JSX.Element {
     const r = await api.instancesList()
     if (r.ok) setInstances(r.data)
   }, [])
+  // Nav-badge count only — the MCP Servers screen fetches its own list (with distinct
+  // loading/error states and a Refresh button); the `mcp:list` IPC call is short-lived
+  // cached on the main side, so this duplicate call is cheap.
+  const loadMcpCount = useCallback(async () => {
+    const r = await api.mcpList()
+    if (r.ok) setMcpCount(r.data.length)
+  }, [])
 
   const runGate = useCallback(async () => {
     setPhase({ kind: 'loading' })
@@ -64,8 +73,8 @@ export default function App(): JSX.Element {
     if (!pre.ok) return setPhase({ kind: 'error', message: pre.error.message })
     setPhase({ kind: 'ready', prereq: pre.data })
     setScreen(pre.data.ok ? 'definitions' : 'prereq')
-    await Promise.all([loadDefs(), loadInstances()])
-  }, [loadDefs, loadInstances])
+    await Promise.all([loadDefs(), loadInstances(), loadMcpCount()])
+  }, [loadDefs, loadInstances, loadMcpCount])
 
   useEffect(() => { void runGate() }, [runGate])
 
@@ -83,6 +92,7 @@ export default function App(): JSX.Element {
     setScreen(s)
     if (s === 'definitions') void loadDefs()
     else if (s === 'instances') void loadInstances()
+    else if (s === 'mcp') void loadMcpCount()
   }
 
   async function openEditor(definitionId: string): Promise<void> {
@@ -204,7 +214,7 @@ export default function App(): JSX.Element {
   if (phase.kind === 'error') return <p style={{ padding: 'var(--space-6)', color: 'var(--danger)' }}>Error: {phase.message}</p>
 
   return (
-    <AppShell active={screen} onNavigate={navigate} defCount={defs.length} instanceCount={instances.length}>
+    <AppShell active={screen} onNavigate={navigate} defCount={defs.length} mcpCount={mcpCount} instanceCount={instances.length}>
       {notice && (
         <div
           role={notice.kind === 'error' ? 'alert' : 'status'}
@@ -228,6 +238,7 @@ export default function App(): JSX.Element {
           ? <CreateDefinition initial={wizard.spec} onDone={() => { setWizard(null); void loadDefs() }} onCancel={() => setWizard(null)} />
           : <Definitions definitions={defs} onCreate={() => setWizard({})} onLaunch={(id) => void openLaunchDialog(id)} onEdit={(id) => void openEditor(id)} onImport={() => void onImportDefs()} onExport={(ids) => void onExportDefs(ids)} onRemove={(id) => openDefRemove(id)} flash={defFlash} launchingId={busyId} />
       )}
+      {screen === 'mcp' && <McpServers defs={defs} instances={instances} />}
       {screen === 'instances' && (() => {
         const detail = detailName ? instances.find((i) => i.name === detailName) : null
         return detail ? (

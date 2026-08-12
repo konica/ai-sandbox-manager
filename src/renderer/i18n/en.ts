@@ -4,6 +4,7 @@ export const en = {
   nav: {
     prerequisites: 'Prerequisites',
     definitions: 'Sandbox Definitions',
+    mcpServers: 'MCP Servers',
     instances: 'Sandbox Instances',
     settings: 'Settings'
   },
@@ -95,6 +96,33 @@ export const en = {
     launched: 'Launched “{name}” — a terminal is opening.',
     applyLiveDone: 'Credentials synced to the running sandbox ({applied} set, {removed} removed). The agent picks them up the next time you open it.',
     actionFailed: 'Action failed: {message}'
+  },
+  mcp: {
+    title: 'MCP Servers',
+    subtitle: 'MCP servers registered on this host. Read-only for now — add, remove, and authorize actions are coming soon.',
+    refresh: 'Refresh',
+    loading: 'Loading MCP servers…',
+    error: 'Could not load MCP servers: {message}',
+    retry: 'Retry',
+    empty: 'No MCP servers registered yet.',
+    emptyCta: 'Register one from the command line:',
+    colName: 'Name',
+    colType: 'Type',
+    colEndpoint: 'Endpoint / Command',
+    colAuth: 'Auth',
+    colActions: 'Actions',
+    inspect: 'Inspect',
+    back: 'Back',
+    transport: { remote: 'Remote', local: 'Local', command: 'Local (stdio)' },
+    authBadge: { authorized: 'Authorized', 'needs-auth': 'Needs auth', na: 'N/A' },
+    inspectType: 'Type',
+    inspectEndpoint: 'Endpoint / Command',
+    inspectAuth: 'Auth status',
+    inspectConnectivity: 'Connectivity',
+    connected: 'Connected',
+    connectivityUnknown: 'Unknown',
+    usedBy: 'Used by',
+    usedByCount: '{defs} definition(s) · {instances} instance(s)'
   },
   launch: {
     title: 'Launch “{name}”',

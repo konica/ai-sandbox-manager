@@ -3,7 +3,7 @@ import { useI18n, LANG_NAMES, type Lang } from '../i18n'
 import { api } from '../ipc/client'
 import iconUrl from '../../../build/icon.png'
 
-export type NavScreen = 'prereq' | 'definitions' | 'instances' | 'settings'
+export type NavScreen = 'prereq' | 'definitions' | 'mcp' | 'instances' | 'settings'
 
 // Injected from package.json at build time (electron.vite.config.ts `define`).
 // Guarded so it also resolves under Vitest, where the define isn't applied.
@@ -69,6 +69,8 @@ function NavIcon({ screen }: { screen: NavScreen }): JSX.Element {
       return <svg {...common}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
     case 'definitions':
       return <svg {...common}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
+    case 'mcp':
+      return <svg {...common}><rect x="4" y="4" width="16" height="7" rx="1.5" /><rect x="4" y="13" width="16" height="7" rx="1.5" /><circle cx="8" cy="7.5" r="1" fill="currentColor" stroke="none" /><circle cx="8" cy="16.5" r="1" fill="currentColor" stroke="none" /></svg>
     case 'instances':
       return <svg {...common}><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
     case 'settings':
@@ -82,12 +84,14 @@ export function AppShell({
   active,
   onNavigate,
   defCount,
+  mcpCount,
   instanceCount,
   children
 }: {
   active: NavScreen
   onNavigate: (s: NavScreen) => void
   defCount: number
+  mcpCount: number
   instanceCount: number
   children: ReactNode
 }): JSX.Element {
@@ -95,6 +99,7 @@ export function AppShell({
   const items: NavItemDef[] = [
     { screen: 'prereq', label: t('nav.prerequisites') },
     { screen: 'definitions', label: t('nav.definitions'), badge: defCount },
+    { screen: 'mcp', label: t('nav.mcpServers'), badge: mcpCount },
     { screen: 'instances', label: t('nav.instances'), badge: instanceCount },
     { screen: 'settings', label: t('nav.settings') }
   ]

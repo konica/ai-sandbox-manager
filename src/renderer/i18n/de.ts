@@ -6,6 +6,7 @@ export const de: Dict = {
   nav: {
     prerequisites: 'Voraussetzungen',
     definitions: 'Sandbox-Definitionen',
+    mcpServers: 'MCP-Server',
     instances: 'Sandbox-Instanzen',
     settings: 'Einstellungen'
   },
@@ -97,6 +98,33 @@ export const de: Dict = {
     launched: '„{name}“ gestartet — ein Terminal wird geöffnet.',
     applyLiveDone: 'Anmeldedaten mit der laufenden Sandbox abgeglichen ({applied} gesetzt, {removed} entfernt). Der Agent verwendet sie beim nächsten Öffnen.',
     actionFailed: 'Aktion fehlgeschlagen: {message}'
+  },
+  mcp: {
+    title: 'MCP-Server',
+    subtitle: 'Auf diesem Host registrierte MCP-Server. Vorerst schreibgeschützt — Hinzufügen, Entfernen und Autorisieren folgen bald.',
+    refresh: 'Aktualisieren',
+    loading: 'MCP-Server werden geladen…',
+    error: 'MCP-Server konnten nicht geladen werden: {message}',
+    retry: 'Wiederholen',
+    empty: 'Noch keine MCP-Server registriert.',
+    emptyCta: 'Über die Befehlszeile registrieren:',
+    colName: 'Name',
+    colType: 'Typ',
+    colEndpoint: 'Endpunkt / Befehl',
+    colAuth: 'Auth',
+    colActions: 'Aktionen',
+    inspect: 'Details',
+    back: 'Zurück',
+    transport: { remote: 'Remote', local: 'Lokal', command: 'Lokal (stdio)' },
+    authBadge: { authorized: 'Autorisiert', 'needs-auth': 'Autorisierung nötig', na: 'Entfällt' },
+    inspectType: 'Typ',
+    inspectEndpoint: 'Endpunkt / Befehl',
+    inspectAuth: 'Auth-Status',
+    inspectConnectivity: 'Verbindung',
+    connected: 'Verbunden',
+    connectivityUnknown: 'Unbekannt',
+    usedBy: 'Verwendet von',
+    usedByCount: '{defs} Definition(en) · {instances} Instanz(en)'
   },
   launch: {
     title: '„{name}“ starten',
