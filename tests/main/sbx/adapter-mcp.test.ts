@@ -11,6 +11,19 @@ function fakeSpawn(result: { stdout?: string; stderr?: string; code?: number } =
   return { spawn, calls }
 }
 
+/** Mimics a real sbx that rejects `--json` outright (exit 1, "unknown flag") and only speaks text. */
+function unknownFlagSpawn(textStdout: string) {
+  const calls: { args: string[]; stdin?: string }[] = []
+  const spawn: SpawnFn = (_cmd, args, opts) => {
+    calls.push({ args, stdin: opts?.stdin })
+    if (args.includes('--json')) {
+      return Promise.resolve({ stdout: '', stderr: 'ERROR: unknown flag: --json\n', code: 1 })
+    }
+    return Promise.resolve({ stdout: textStdout, stderr: '', code: 0 })
+  }
+  return { spawn, calls }
+}
+
 describe('adapter.addMcpServer', () => {
   it('builds argv for a remote server (--url, repeated --scope, --skip_auth)', async () => {
     const { spawn, calls } = fakeSpawn()
@@ -95,6 +108,24 @@ describe('adapter.listMcpServers', () => {
     const rows = await a.listMcpServers()
     expect(rows).toEqual([{ name: 'notion', transport: 'remote', endpoint: 'https://mcp.notion.com/mcp', scopes: [] }])
   })
+  it('retries without --json when sbx rejects the flag, instead of surfacing "unknown flag"', async () => {
+    const text = 'NAME    TYPE    URL/COMMAND\nnotion  remote  https://mcp.notion.com/mcp'
+    const { spawn, calls } = unknownFlagSpawn(text)
+    const a = createSbxAdapter(spawn)
+    const rows = await a.listMcpServers()
+    expect(calls.map((c) => c.args)).toEqual([['mcp', 'ls', '--json'], ['mcp', 'ls']])
+    expect(rows).toEqual([{ name: 'notion', transport: 'remote', endpoint: 'https://mcp.notion.com/mcp', scopes: [] }])
+  })
+  it('reports an empty registry rather than an error on a flagless sbx with no servers', async () => {
+    const { spawn } = unknownFlagSpawn('No MCP servers registered\n')
+    const a = createSbxAdapter(spawn)
+    await expect(a.listMcpServers()).resolves.toEqual([])
+  })
+  it('surfaces a genuine failure when the flagless retry also fails', async () => {
+    const spawn: SpawnFn = () => Promise.resolve({ stdout: '', stderr: 'ERROR: docker daemon unreachable', code: 1 })
+    const a = createSbxAdapter(spawn)
+    await expect(a.listMcpServers()).rejects.toThrow(/docker daemon unreachable/)
+  })
 })
 
 describe('adapter.inspectMcpServer', () => {
@@ -104,6 +135,17 @@ describe('adapter.inspectMcpServer', () => {
     const a = createSbxAdapter(spawn)
     const detail = await a.inspectMcpServer('github')
     expect(calls[0].args).toEqual(['mcp', 'inspect', 'github', '--json'])
+    expect(detail).toMatchObject({ name: 'github', transport: 'local', endpoint: 'npx @modelcontextprotocol/server-github' })
+  })
+  it('retries without --json when sbx rejects the flag', async () => {
+    const text = 'Name:      github\nType:      local\nCommand:   npx @modelcontextprotocol/server-github'
+    const { spawn, calls } = unknownFlagSpawn(text)
+    const a = createSbxAdapter(spawn)
+    const detail = await a.inspectMcpServer('github')
+    expect(calls.map((c) => c.args)).toEqual([
+      ['mcp', 'inspect', 'github', '--json'],
+      ['mcp', 'inspect', 'github']
+    ])
     expect(detail).toMatchObject({ name: 'github', transport: 'local', endpoint: 'npx @modelcontextprotocol/server-github' })
   })
 })
