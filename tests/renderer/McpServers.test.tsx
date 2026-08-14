@@ -7,6 +7,7 @@ const mcpList = vi.fn()
 const mcpAuthStatus = vi.fn()
 const mcpInspect = vi.fn()
 const mcpAdd = vi.fn()
+const mcpStartAuth = vi.fn()
 const defGetSpec = vi.fn()
 
 vi.mock('../../src/renderer/ipc/client', () => ({
@@ -15,6 +16,7 @@ vi.mock('../../src/renderer/ipc/client', () => ({
     mcpAuthStatus: (name: string) => mcpAuthStatus(name),
     mcpInspect: (name: string) => mcpInspect(name),
     mcpAdd: (input: unknown) => mcpAdd(input),
+    mcpStartAuth: (name: string) => mcpStartAuth(name),
     defGetSpec: (id: string) => defGetSpec(id)
   }
 }))
@@ -27,7 +29,7 @@ const instances: InstanceView[] = [
 ]
 
 beforeEach(() => {
-  mcpList.mockReset(); mcpAuthStatus.mockReset(); mcpInspect.mockReset(); mcpAdd.mockReset(); defGetSpec.mockReset()
+  mcpList.mockReset(); mcpAuthStatus.mockReset(); mcpInspect.mockReset(); mcpAdd.mockReset(); mcpStartAuth.mockReset(); defGetSpec.mockReset()
   mcpAuthStatus.mockResolvedValue({ ok: true, data: 'unknown' })
 })
 
@@ -220,5 +222,90 @@ describe('McpServers screen', () => {
     // form stays populated after a CLI-level failure
     expect(screen.getByLabelText('Server name')).toHaveValue('notion')
     expect(screen.getByLabelText('Server URL')).toHaveValue('https://mcp.notion.com/mcp')
+  })
+
+  it('shows an inline Authorize action only on needs-auth rows', async () => {
+    mcpList.mockResolvedValue({
+      ok: true,
+      data: [
+        { name: 'needs-it', transport: 'remote', endpoint: 'https://a.example.com', scopes: [] },
+        { name: 'already-authed', transport: 'remote', endpoint: 'https://b.example.com', scopes: [] },
+        { name: 'no-auth-required', transport: 'remote', endpoint: 'https://c.example.com', scopes: [] }
+      ]
+    })
+    mcpAuthStatus.mockImplementation((name: string) =>
+      Promise.resolve({ ok: true, data: name === 'needs-it' ? 'unauthorized' : name === 'already-authed' ? 'authorized' : 'not-required' })
+    )
+
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText('needs-it')).toBeInTheDocument())
+
+    expect(screen.getAllByRole('button', { name: /^authorize$/i })).toHaveLength(1)
+  })
+
+  it('clicking Authorize starts the terminal OAuth flow and shows a hint', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [{ name: 'notion', transport: 'remote', endpoint: 'https://mcp.notion.com/mcp', scopes: [] }] })
+    mcpAuthStatus.mockResolvedValue({ ok: true, data: 'unauthorized' })
+    mcpStartAuth.mockResolvedValue({ ok: true, data: null })
+
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText('notion')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /^authorize$/i }))
+
+    expect(mcpStartAuth).toHaveBeenCalledWith('notion')
+    await waitFor(() => expect(screen.getByText(/complete sign-in in the terminal/i)).toBeInTheDocument())
+    // status is untouched until the re-poll — still needs-auth
+    expect(screen.getByText('Needs auth')).toBeInTheDocument()
+  })
+
+  it('leaves status unchanged and shows a clear notice when starting auth fails', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [{ name: 'notion', transport: 'remote', endpoint: 'https://mcp.notion.com/mcp', scopes: [] }] })
+    mcpAuthStatus.mockResolvedValue({ ok: true, data: 'unauthorized' })
+    mcpStartAuth.mockResolvedValue({ ok: false, error: { kind: 'generic', message: 'could not open terminal' } })
+
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText('notion')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /^authorize$/i }))
+
+    await waitFor(() => expect(screen.getByText(/could not open terminal/i)).toBeInTheDocument())
+    expect(screen.getByText('Needs auth')).toBeInTheDocument()
+  })
+
+  it('re-polls auth status on window focus and flips the badge without re-fetching the list', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [{ name: 'notion', transport: 'remote', endpoint: 'https://mcp.notion.com/mcp', scopes: [] }] })
+    mcpAuthStatus.mockResolvedValue({ ok: true, data: 'unauthorized' })
+
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText('Needs auth')).toBeInTheDocument())
+    expect(mcpList).toHaveBeenCalledTimes(1)
+
+    mcpAuthStatus.mockResolvedValue({ ok: true, data: 'authorized' })
+    fireEvent(window, new Event('focus'))
+
+    await waitFor(() => expect(screen.getByText('Authorized')).toBeInTheDocument())
+    expect(mcpList).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows Authorize in the inspect view for a needs-auth server and re-polls on focus', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [{ name: 'notion', transport: 'remote', endpoint: 'https://mcp.notion.com/mcp', scopes: [] }] })
+    mcpAuthStatus.mockResolvedValue({ ok: true, data: 'unauthorized' })
+    mcpInspect.mockResolvedValue({
+      ok: true,
+      data: { name: 'notion', transport: 'remote', endpoint: 'https://mcp.notion.com/mcp', scopes: [], tools: ['search'], raw: '{}' }
+    })
+    defGetSpec.mockResolvedValue({ ok: true, data: null })
+
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText('notion')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /inspect/i }))
+
+    await waitFor(() => expect(screen.getByText('Needs auth')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /^authorize$/i })).toBeInTheDocument()
+
+    mcpAuthStatus.mockResolvedValue({ ok: true, data: 'authorized' })
+    fireEvent(window, new Event('focus'))
+    await waitFor(() => expect(screen.getByText('Authorized')).toBeInTheDocument())
   })
 })
