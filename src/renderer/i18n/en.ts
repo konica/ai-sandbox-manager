@@ -109,7 +109,13 @@ export const en = {
     addServer: 'Add Server',
     add: {
       tablistLabel: 'Server type',
+      tabRegistry: 'Registry',
       tabRemote: 'Remote',
+      popularLabel: 'Popular servers',
+      registryNameLabel: 'Registry server name',
+      registryNamePlaceholder: 'io.github.github/github-mcp-server',
+      registryNameHint: 'The server’s name in the MCP community registry, as <namespace>/<server>. Pick one above or paste a name — the registry URL is built for you. The server runs sandboxed in the MCP gateway and uses your own account token.',
+      errRegistryNameInvalid: 'Enter a registry server name as <namespace>/<server>, e.g. io.github.github/github-mcp-server — not a URL.',
       tabLocal: 'Local (stdio)',
       tabCommand: 'Command',
       nameLabel: 'Name',
