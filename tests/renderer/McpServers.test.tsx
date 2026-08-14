@@ -153,6 +153,61 @@ describe('McpServers screen', () => {
     expect(mcpAdd).not.toHaveBeenCalled()
   })
 
+  // Regression: GitHub's api.githubcopilot.com/mcp/ advertises no registration endpoint, so
+  // sbx demands a pre-registered --client-id. Without a field for it the server could not be
+  // added from the UI at all.
+  it('passes an optional OAuth client ID through to the CLI on the Remote tab', async () => {
+    mcpList.mockResolvedValueOnce({ ok: true, data: [] })
+    mcpAdd.mockResolvedValue({ ok: true, data: null })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'github' } })
+    fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://api.githubcopilot.com/mcp/' } })
+    fireEvent.change(screen.getByLabelText('OAuth client ID'), { target: { value: 'Iv1.abc123' } })
+
+    mcpList.mockResolvedValueOnce({ ok: true, data: [{ name: 'github', transport: 'remote', endpoint: 'https://api.githubcopilot.com/mcp/', scopes: [] }] })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(mcpAdd).toHaveBeenCalledWith({
+      transport: 'remote', name: 'github', url: 'https://api.githubcopilot.com/mcp/', scopes: [], clientId: 'Iv1.abc123'
+    }))
+  })
+
+  it('omits clientId from the payload when the OAuth client ID is left blank', async () => {
+    mcpList.mockResolvedValueOnce({ ok: true, data: [] })
+    mcpAdd.mockResolvedValue({ ok: true, data: null })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'notion' } })
+    fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://mcp.notion.com/mcp' } })
+
+    mcpList.mockResolvedValueOnce({ ok: true, data: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(mcpAdd).toHaveBeenCalled())
+    expect(mcpAdd.mock.calls[0][0]).not.toHaveProperty('clientId')
+  })
+
+  // The actionable line is buried behind four INFO lines of sbx runtime chatter.
+  it('surfaces an actionable hint when the add fails for want of a client id', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [] })
+    mcpAdd.mockResolvedValue({ ok: false, error: { kind: 'generic', message: 'INFO: mcpruntime: probing URL as a server manifest INFO: mcpruntime: remote server spec discovered ERROR: server "github" advertises no registration endpoint (no dynamic client registration); --client-id is required to register it' } })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'github' } })
+    fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://api.githubcopilot.com/mcp/' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    const alerts = await screen.findAllByRole('alert')
+    expect(alerts.some((a) => /OAuth client ID/i.test(a.textContent ?? ''))).toBe(true)
+  })
+
   it('blocks a duplicate server name with a role=alert message', async () => {
     mcpList.mockResolvedValue({ ok: true, data: [{ name: 'notion', transport: 'remote', endpoint: 'https://mcp.notion.com/mcp', scopes: [] }] })
     render(<McpServers defs={[]} instances={[]} />)
