@@ -99,7 +99,7 @@ export const en = {
   },
   mcp: {
     title: 'MCP Servers',
-    subtitle: 'MCP servers registered on this host. Read-only for now — add, remove, and authorize actions are coming soon.',
+    subtitle: 'MCP servers registered on this host. Remove is coming soon.',
     refresh: 'Refresh',
     loading: 'Loading MCP servers…',
     error: 'Could not load MCP servers: {message}',
@@ -142,6 +142,9 @@ export const en = {
     back: 'Back',
     transport: { remote: 'Remote', local: 'Local', command: 'Local (stdio)' },
     authBadge: { authorized: 'Authorized', 'needs-auth': 'Needs auth', na: 'N/A' },
+    authorize: 'Authorize',
+    authHint: 'Complete sign-in in the terminal window, then return here — the status updates automatically.',
+    authFailed: 'Could not start authorization: {message}',
     inspectType: 'Type',
     inspectEndpoint: 'Endpoint / Command',
     inspectAuth: 'Auth status',

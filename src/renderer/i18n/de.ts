@@ -101,7 +101,7 @@ export const de: Dict = {
   },
   mcp: {
     title: 'MCP-Server',
-    subtitle: 'Auf diesem Host registrierte MCP-Server. Vorerst schreibgeschützt — Hinzufügen, Entfernen und Autorisieren folgen bald.',
+    subtitle: 'Auf diesem Host registrierte MCP-Server. Entfernen folgt bald.',
     refresh: 'Aktualisieren',
     loading: 'MCP-Server werden geladen…',
     error: 'MCP-Server konnten nicht geladen werden: {message}',
@@ -144,6 +144,9 @@ export const de: Dict = {
     back: 'Zurück',
     transport: { remote: 'Remote', local: 'Lokal', command: 'Lokal (stdio)' },
     authBadge: { authorized: 'Autorisiert', 'needs-auth': 'Autorisierung nötig', na: 'Entfällt' },
+    authorize: 'Autorisieren',
+    authHint: 'Melden Sie sich im Terminal-Fenster an und kehren Sie dann hierher zurück — der Status aktualisiert sich automatisch.',
+    authFailed: 'Autorisierung konnte nicht gestartet werden: {message}',
     inspectType: 'Typ',
     inspectEndpoint: 'Endpunkt / Befehl',
     inspectAuth: 'Auth-Status',
