@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import type { Tier, DefinitionSpec } from '@shared/types'
+import type { McpMode, McpServer, McpAuthState } from '@shared/mcp'
 import { serviceById } from '@shared/services'
 import { normalizeCommandsYaml } from '@shared/kit-commands'
 import { api } from '../ipc/client'
@@ -9,6 +10,7 @@ import { AGENT_PROFILES } from '@shared/agents'
 import { isValidCpus, isValidMemory } from '@shared/resources'
 import { CredentialsStep } from './CredentialsStep'
 import { PortsStep } from './PortsStep'
+import { McpStep } from './McpStep'
 import { TierBadge } from '../components/badges'
 import { useT } from '../i18n'
 
@@ -37,6 +39,13 @@ function credentialsSummary(creds: DraftCred[]): string | null {
 export function sshSummary(d: { sshForwardAgent: boolean; sshCommitSigning: boolean }, t: (k: string) => string): string {
   if (!d.sshForwardAgent) return t('wizard.sshOff')
   return d.sshCommitSigning ? `${t('wizard.sshForwarded')} ${t('wizard.sshPlusSigning')}` : t('wizard.sshForwarded')
+}
+
+// Review-step MCP summary: "Off" / "Dynamic" / "Static (n)".
+export function mcpSummary(d: { mcpMode: McpMode; mcpServers: string[] }, t: (k: string) => string): string {
+  if (d.mcpMode === 'off') return t('wizard.mcpMode.off')
+  if (d.mcpMode === 'dynamic') return t('wizard.mcpMode.dynamic')
+  return `${t('wizard.mcpMode.static')} (${d.mcpServers.length})`
 }
 
 /** Map a credential-staging failure to a user-facing message: friendly copy for insecure storage,
@@ -94,6 +103,10 @@ export function CreateDefinition({
     return () => document.removeEventListener('mousedown', onDown)
   }, [cfBrowseOpen])
   const [envHits, setEnvHits] = useState<EnvHit[]>([])
+  const [mcpServers, setMcpServers] = useState<McpServer[]>([])
+  const [mcpAuth, setMcpAuth] = useState<Record<string, McpAuthState>>({})
+  const [mcpListState, setMcpListState] = useState<'loading' | 'error' | 'ready'>('loading')
+  const [mcpError, setMcpError] = useState<string | undefined>(undefined)
   const [sshDetected, setSshDetected] = useState(false)
   const [hostPlatform, setHostPlatform] = useState('')
   const [hostCap, setHostCap] = useState({ cpuCores: 0, totalMemBytes: 0 })
@@ -107,6 +120,26 @@ export function CreateDefinition({
     let alive = true
     void api.credScanEnv().then((r) => { if (alive && r.ok) setEnvHits(r.data) })
     void api.sshDetect().then((r) => { if (!alive || !r.ok) return; setSshDetected(r.data.present); setHostPlatform(r.data.platform) })
+    return () => { alive = false }
+  }, [draft.step])
+
+  // Load the MCP server registry + auth status when the MCP step opens, for the Static
+  // mode multi-select.
+  useEffect(() => {
+    if (draft.step !== 5) return
+    let alive = true
+    setMcpListState('loading')
+    void api.mcpList().then(async (r) => {
+      if (!alive) return
+      if (!r.ok) { setMcpListState('error'); setMcpError(r.error.message); return }
+      const authResults = await Promise.all(r.data.map((s) => api.mcpAuthStatus(s.name)))
+      if (!alive) return
+      const auth: Record<string, McpAuthState> = {}
+      r.data.forEach((s, i) => { const a = authResults[i]; auth[s.name] = a.ok ? a.data : 'unknown' })
+      setMcpServers(r.data)
+      setMcpAuth(auth)
+      setMcpListState('ready')
+    })
     return () => { alive = false }
   }, [draft.step])
 
@@ -149,7 +182,7 @@ export function CreateDefinition({
     // unknown (cpuMax undefined): falls back to the structural check above, never blocking.
     if (cpuMax !== undefined && !isValidCpus(draft.cpus, cpuMax)) { dispatch({ type: 'goToStep', step: 2 }); setError(t('wizard.cpusExceedsMax', { cores: cpuMax })); return false }
     const kitCheck = normalizeCommandsYaml(draft.kitCommandsYaml)
-    if (!kitCheck.ok) { dispatch({ type: 'goToStep', step: 6 }); setKitMsg({ kind: 'error', text: t('wizard.kitYamlInvalid', { message: kitCheck.error }) }); return false }
+    if (!kitCheck.ok) { dispatch({ type: 'goToStep', step: 7 }); setKitMsg({ kind: 'error', text: t('wizard.kitYamlInvalid', { message: kitCheck.error }) }); return false }
     const spec = initial
       ? toSpec(draft, initial.definition.id, initial.definition.createdAt)
       : toSpec(draft, createId(), now())
@@ -197,7 +230,7 @@ export function CreateDefinition({
   const folderRowStyle = { display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '8px 12px', background: 'var(--surface-2, rgba(127,127,127,.08))', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' } as const
   const accessPillStyle = { flexShrink: 0, border: '1px solid var(--border)', borderRadius: 999, padding: '2px 12px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', background: 'var(--surface, #fff)', color: 'var(--text-secondary)', cursor: 'pointer' } as const
   const folderRemoveStyle = { flexShrink: 0, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 2 } as const
-  const stepKeys = ['workspace', 'baseImage', 'network', 'credentials', 'ports', 'advanced', 'review']
+  const stepKeys = ['workspace', 'baseImage', 'network', 'credentials', 'mcp', 'ports', 'advanced', 'review']
 
   return (
     <section className="screen active">
@@ -386,7 +419,7 @@ export function CreateDefinition({
             </>
           )}
 
-          {draft.step === 5 && (
+          {draft.step === 6 && (
             <PortsStep
               ports={draft.ports}
               hostServices={draft.hostServices}
@@ -394,6 +427,21 @@ export function CreateDefinition({
               onRemovePort={(index) => dispatch({ type: 'removePort', index })}
               onAddHostService={(hostPort, label) => dispatch({ type: 'addHostService', hostPort, label })}
               onRemoveHostService={(index) => dispatch({ type: 'removeHostService', index })}
+            />
+          )}
+
+          {draft.step === 5 && (
+            <McpStep
+              mode={draft.mcpMode}
+              selected={draft.mcpServers}
+              agentLabel={AGENT_PROFILES[draft.agent].label}
+              agentMcpSupported={AGENT_PROFILES[draft.agent].mcpSupported}
+              listState={mcpListState}
+              errorMessage={mcpError}
+              servers={mcpServers}
+              auth={mcpAuth}
+              onModeChange={(mode) => dispatch({ type: 'setMcpMode', mode })}
+              onToggleServer={(name) => dispatch({ type: 'toggleMcpServer', name })}
             />
           )}
 
@@ -417,7 +465,7 @@ export function CreateDefinition({
             />
           )}
 
-          {draft.step === 6 && (
+          {draft.step === 7 && (
             <>
               <h3 style={{ fontSize: 15, marginBottom: 'var(--space-1)' }}>{t('wizard.advancedTitle')}</h3>
               <p className="section-desc" style={{ marginTop: 0 }}>{t('wizard.advancedSubtitle')} <a href="https://docs.docker.com/ai/sandboxes/customize/kit-reference/" target="_blank" rel="noreferrer">{t('wizard.kitReference')}</a></p>
@@ -450,7 +498,7 @@ export function CreateDefinition({
             </>
           )}
 
-          {draft.step === 7 && (
+          {draft.step === 8 && (
             <>
               <h3 style={{ fontSize: 15, marginBottom: 'var(--space-2)' }}>{t('wizard.review')}</h3>
               <p className="section-desc">{t('wizard.reviewSubtitle')}</p>
@@ -465,6 +513,7 @@ export function CreateDefinition({
                   <tr><td>{t('wizard.reviewPorts')}</td><td>{draft.ports.length === 0 ? '—' : (<>{t('wizard.reviewPortRules', { count: draft.ports.length })}: {draft.ports.map((p, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">{p.hostPort !== null ? p.hostPort : ''}→{p.containerPort}/{p.protocol}</span></span>))}</>)}</td></tr>
                   {draft.hostServices.length > 0 && <tr><td>{t('wizard.reviewHostServices')}</td><td>{draft.hostServices.map((h, i) => (<span key={i}>{i > 0 && ', '}<span className="code-inline">host.docker.internal:{h.hostPort}</span></span>))}</td></tr>}
                   <tr><td>{t('wizard.reviewCredentials')}</td><td>{credentialsSummary(draft.credentials) ?? '—'}</td></tr>
+                  <tr><td>{t('wizard.reviewMcp')}</td><td>{mcpSummary(draft, t)}</td></tr>
                   <tr><td>{t('wizard.reviewSsh')}</td><td>{sshSummary(draft, t)}</td></tr>
                   {draft.copyFiles.filter((c) => c.hostPath.trim() && c.sandboxPath.trim()).length > 0 && (
                     <tr><td>{t('wizard.reviewCopyFiles')}</td><td>{t('wizard.reviewCopyFilesCount', { count: draft.copyFiles.filter((c) => c.hostPath.trim() && c.sandboxPath.trim()).length })}</td></tr>
