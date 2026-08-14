@@ -5,6 +5,7 @@ import { redactMcpEndpoint } from '@shared/mcp-redact'
 import { McpAuthBadge } from '../components/badges'
 import { api } from '../ipc/client'
 import { useT } from '../i18n'
+import { McpAddForm } from './McpAddForm'
 
 type ListState =
   | { status: 'loading' }
@@ -70,6 +71,7 @@ export function McpServers({ defs, instances }: { defs: Definition[]; instances:
   const [list, setList] = useState<ListState>({ status: 'loading' })
   const [inspectName, setInspectName] = useState<string | null>(null)
   const [inspect, setInspect] = useState<InspectState | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
 
   const load = useCallback(async () => {
     setList({ status: 'loading' })
@@ -105,9 +107,20 @@ export function McpServers({ defs, instances }: { defs: Definition[]; instances:
     <section className="screen active">
       <div className="flex items-center justify-between mb-4">
         <h2 className="section-title" style={{ marginBottom: 0 }}>{t('mcp.title')}</h2>
-        <button className="btn btn-secondary" onClick={() => void load()}>{t('mcp.refresh')}</button>
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <button className="btn btn-primary" aria-expanded={addOpen} onClick={() => setAddOpen((v) => !v)}>{t('mcp.addServer')}</button>
+          <button className="btn btn-secondary" onClick={() => void load()}>{t('mcp.refresh')}</button>
+        </div>
       </div>
       <p className="section-desc">{t('mcp.subtitle')}</p>
+
+      {addOpen && list.status === 'ready' && (
+        <McpAddForm
+          existingNames={list.servers.map((s) => s.name)}
+          onAdded={() => { setAddOpen(false); void load() }}
+          onCancel={() => setAddOpen(false)}
+        />
+      )}
 
       {list.status === 'loading' && (
         <div className="card" style={{ textAlign: 'center', padding: 'var(--space-10)' }}>
