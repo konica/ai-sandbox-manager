@@ -6,7 +6,7 @@ const defUpdate = vi.fn()
 const credStageValue = vi.fn()
 const prefsGet = vi.fn(async (_key: string) => ({ ok: true, data: 'balanced' }))
 const hostCapacity = vi.fn()
-vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), defUpdate: (s: unknown) => defUpdate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v), kitValidate: async () => ({ ok: true, data: { status: 'valid', message: 'ok' } }), prefsGet: (k: string) => prefsGet(k), hostCapacity: () => hostCapacity() } }))
+vi.mock('../../../src/renderer/ipc/client', () => ({ api: { defCreate: (s: unknown) => defCreate(s), defUpdate: (s: unknown) => defUpdate(s), pickFolder: async () => null, credScanEnv: async () => ({ ok: true, data: [] }), sshDetect: async () => ({ ok: true, data: { present: false } }), credStageValue: (k: string, v: string) => credStageValue(k, v), kitValidate: async () => ({ ok: true, data: { status: 'valid', message: 'ok' } }), prefsGet: (k: string) => prefsGet(k), hostCapacity: () => hostCapacity(), mcpList: async () => ({ ok: true, data: [] }), mcpAuthStatus: async () => ({ ok: true, data: 'unknown' }) } }))
 
 import { CreateDefinition, sshSummary, stageErrorMessage } from '../../../src/renderer/wizard/CreateDefinition'
 
@@ -118,10 +118,11 @@ describe('CreateDefinition wizard', () => {
     fireEvent.change(screen.getByLabelText(/workspace/i), { target: { value: '/home/u/alpha' } })
     fireEvent.click(screen.getByRole('button', { name: /next/i })) // 1 -> 2 base image
     fireEvent.click(screen.getByRole('button', { name: /next/i })) // 2 -> 3 network
-    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 3 -> 4 ports
-    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 4 -> 5 credentials
-    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 5 -> 6 advanced
-    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 6 -> 7 review
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 3 -> 4 credentials
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 4 -> 5 mcp
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 5 -> 6 ports
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 6 -> 7 advanced
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 7 -> 8 review
     fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
     await waitFor(() => expect(defCreate).toHaveBeenCalledOnce())
     const arg = defCreate.mock.calls[0][0]
@@ -132,11 +133,11 @@ describe('CreateDefinition wizard', () => {
   it('adds a port on the Ports step and summarises it in Review with protocol', async () => {
     render(<CreateDefinition onDone={() => {}} onCancel={() => {}} createId={() => 'id1'} now={() => '2026-07-18T00:00:00Z'} />)
     fireEvent.change(screen.getByLabelText(/workspace/i), { target: { value: '/home/u/alpha' } })
-    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: /next/i })) // -> 5 ports
+    for (let i = 0; i < 5; i++) fireEvent.click(screen.getByRole('button', { name: /next/i })) // -> 6 ports
     fireEvent.change(screen.getByLabelText('Port mapping'), { target: { value: '8080:3000' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
-    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 5 -> 6 advanced
-    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 6 -> 7 review
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 6 -> 7 advanced
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 7 -> 8 review
     expect(screen.getByText('8080→3000/tcp')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
     await waitFor(() => expect(defCreate).toHaveBeenCalledOnce())
@@ -151,9 +152,10 @@ describe('CreateDefinition wizard', () => {
     fireEvent.change(screen.getByLabelText('Service'), { target: { value: 'anthropic' } })
     fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'sk-ant-xyz' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
-    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 4 -> 5 ports
-    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 5 -> 6 advanced
-    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 6 -> 7 review
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 4 -> 5 mcp
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 5 -> 6 ports
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 6 -> 7 advanced
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // 7 -> 8 review
     expect(screen.getByText(/Anthropic/)).toBeInTheDocument() // review summarises credentials by name
     fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
     await waitFor(() => expect(credStageValue).toHaveBeenCalledWith('id1:service:anthropic', 'sk-ant-xyz'))
@@ -162,7 +164,7 @@ describe('CreateDefinition wizard', () => {
   it('derives the sandbox name from the working directory when name is blank', async () => {
     render(<CreateDefinition onDone={() => {}} onCancel={() => {}} createId={() => 'id1'} now={() => '2026-07-18T00:00:00Z'} />)
     fireEvent.change(screen.getByLabelText(/workspace/i), { target: { value: '/home/u/my-project' } })
-    for (let i = 0; i < 6; i++) fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    for (let i = 0; i < 7; i++) fireEvent.click(screen.getByRole('button', { name: /next/i }))
     fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
     await waitFor(() => expect(defCreate).toHaveBeenCalledOnce())
     expect(defCreate.mock.calls[0][0].definition.name).toBe('my-project')
@@ -171,9 +173,9 @@ describe('CreateDefinition wizard', () => {
   it('blocks submit when the Advanced kit YAML is unparseable', async () => {
     render(<CreateDefinition onDone={() => {}} onCancel={() => {}} createId={() => 'id1'} now={() => 't'} />)
     fireEvent.change(screen.getByLabelText(/workspace/i), { target: { value: '/home/u/alpha' } })
-    for (let i = 0; i < 5; i++) fireEvent.click(screen.getByRole('button', { name: /next/i })) // → step 6 Advanced
+    for (let i = 0; i < 6; i++) fireEvent.click(screen.getByRole('button', { name: /next/i })) // → step 7 Advanced
     fireEvent.change(screen.getByLabelText('Custom kit YAML'), { target: { value: 'commands: [oops' } })
-    fireEvent.click(screen.getByRole('button', { name: /next/i })) // → step 7 Review
+    fireEvent.click(screen.getByRole('button', { name: /next/i })) // → step 8 Review
     fireEvent.click(screen.getByRole('button', { name: /create sandbox/i }))
     expect(await screen.findByText(/kit YAML is invalid/i)).toBeInTheDocument()
     expect(defCreate).not.toHaveBeenCalled()

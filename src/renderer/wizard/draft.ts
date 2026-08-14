@@ -4,6 +4,7 @@ import type { AgentId, BuiltinVariant } from '@shared/agents'
 import { AGENT_PROFILES, VARIANT_AGENT, agentFromBaseImage, matchedAgentFromBaseImage } from '@shared/agents'
 import { needsProviderDomainWarning } from '@shared/provider-domain'
 import { isValidCpus, isValidMemory, parseCpus, parseMemory } from '@shared/resources'
+import type { McpMode } from '@shared/mcp'
 export type { BuiltinVariant } from '@shared/agents'
 
 // Draft credentials carry a transient plaintext `value` that is NEVER persisted to
@@ -33,7 +34,7 @@ export interface DraftRegistryCred {
 }
 export type DraftCred = DraftServiceCred | DraftCustomCred | DraftRegistryCred
 
-export const TOTAL_STEPS = 7
+export const TOTAL_STEPS = 8
 
 // Docker Sandboxes publishes built-in base images under this repository.
 // Refs must include the docker.io host — sbx does not auto-resolve it.
@@ -69,6 +70,8 @@ export interface Draft {
   hostServices: { hostPort: number; label: string }[]
   copyFiles: { hostPath: string; sandboxPath: string }[]
   credentials: DraftCred[]
+  mcpMode: McpMode
+  mcpServers: string[]
   sshForwardAgent: boolean
   sshCommitSigning: boolean
   kitCommandsYaml: string
@@ -91,6 +94,8 @@ export const initialDraft: Draft = {
   hostServices: [],
   copyFiles: [],
   credentials: [],
+  mcpMode: 'off',
+  mcpServers: [],
   sshForwardAgent: true,
   sshCommitSigning: false,
   kitCommandsYaml: '',
@@ -121,6 +126,8 @@ export type DraftAction =
   | { type: 'addCustomCred'; cred: DraftCustomCred }
   | { type: 'addRegistryCred'; cred: DraftRegistryCred }
   | { type: 'removeCredential'; index: number }
+  | { type: 'setMcpMode'; mode: McpMode }
+  | { type: 'toggleMcpServer'; name: string }
   | { type: 'setSshForward'; value: boolean }
   | { type: 'setSshCommitSigning'; value: boolean }
 
@@ -160,6 +167,8 @@ export function draftReducer(d: Draft, a: DraftAction): Draft {
     case 'addCustomCred': return { ...d, credentials: [...d.credentials, a.cred] }
     case 'addRegistryCred': return { ...d, credentials: [...d.credentials, a.cred] }
     case 'removeCredential': return { ...d, credentials: d.credentials.filter((_, i) => i !== a.index) }
+    case 'setMcpMode': return { ...d, mcpMode: a.mode }
+    case 'toggleMcpServer': return { ...d, mcpServers: d.mcpServers.includes(a.name) ? d.mcpServers.filter((n) => n !== a.name) : [...d.mcpServers, a.name] }
     case 'setSshForward': return { ...d, sshForwardAgent: a.value, sshCommitSigning: a.value ? d.sshCommitSigning : false }
     case 'setSshCommitSigning': return { ...d, sshCommitSigning: a.value }
     default: return d
@@ -232,6 +241,8 @@ export function draftFromSpec(spec: DefinitionSpec): Draft {
       if (c.kind === 'registry') return { kind: 'registry', id: c.id, host: c.host, username: c.username ?? '', scope: c.scope, value: '' }
       return { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: [...c.domains], value: '' }
     }),
+    mcpMode: spec.mcp?.mode ?? 'off',
+    mcpServers: spec.mcp?.servers ? [...spec.mcp.servers] : [],
     sshForwardAgent: (spec.ssh ?? DEFAULT_SSH).forwardAgent,
     sshCommitSigning: (spec.ssh ?? DEFAULT_SSH).commitSigning,
     kitCommandsYaml: spec.kitCommandsYaml ?? '',
@@ -256,6 +267,7 @@ export function toSpec(d: Draft, id: string, createdAt: string): DefinitionSpec 
       if (c.kind === 'registry') return { kind: 'registry', id: c.id, host: c.host, username: c.username.trim() || undefined, scope: c.scope, store: 'sbx' }
       return { kind: 'custom', id: c.id, label: c.label, envVar: c.envVar, domains: c.domains, store: 'encrypted' }
     }),
+    mcp: d.mcpMode === 'off' ? undefined : { mode: d.mcpMode, servers: d.mcpMode === 'static' ? d.mcpServers : [] },
     ssh: { forwardAgent: d.sshForwardAgent, commitSigning: d.sshForwardAgent && d.sshCommitSigning },
     kitCommandsYaml: d.kitCommandsYaml.trim() ? d.kitCommandsYaml : undefined
   }

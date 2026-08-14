@@ -87,7 +87,7 @@ describe('draftReducer', () => {
     expect(d.step).toBe(1)
   })
   it('does not advance past the last step or before the first', () => {
-    expect(draftReducer({ ...initialDraft, step: 7 }, { type: 'next' }).step).toBe(7)
+    expect(draftReducer({ ...initialDraft, step: 8 }, { type: 'next' }).step).toBe(8)
     expect(draftReducer({ ...initialDraft, step: 1 }, { type: 'back' }).step).toBe(1)
   })
   it('adds and removes domains', () => {

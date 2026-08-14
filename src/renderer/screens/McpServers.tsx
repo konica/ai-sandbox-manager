@@ -18,7 +18,7 @@ type InspectState =
   | { status: 'ready'; detail: McpServerDetail; auth: McpAuthState; usedByDefs: number; usedByInstances: number }
 
 /** 'command' spawns a local process talking MCP over stdio — the riskiest transport, flagged with a warning tone. */
-function isLocalStdio(transport: McpServer['transport']): boolean {
+export function isLocalStdio(transport: McpServer['transport']): boolean {
   return transport === 'command'
 }
 
