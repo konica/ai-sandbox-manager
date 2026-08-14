@@ -111,7 +111,13 @@ export const de: Dict = {
     addServer: 'Server hinzufügen',
     add: {
       tablistLabel: 'Servertyp',
+      tabRegistry: 'Registry',
       tabRemote: 'Remote',
+      popularLabel: 'Beliebte Server',
+      registryNameLabel: 'Registry-Servername',
+      registryNamePlaceholder: 'io.github.github/github-mcp-server',
+      registryNameHint: 'Der Name des Servers in der MCP-Community-Registry im Format <Namespace>/<Server>. Wählen Sie oben einen aus oder fügen Sie einen Namen ein — die Registry-URL wird für Sie erzeugt. Der Server läuft gekapselt im MCP-Gateway und nutzt Ihr eigenes Konto-Token.',
+      errRegistryNameInvalid: 'Geben Sie einen Registry-Servernamen im Format <Namespace>/<Server> an, z. B. io.github.github/github-mcp-server — keine URL.',
       tabLocal: 'Lokal (stdio)',
       tabCommand: 'Befehl',
       nameLabel: 'Name',

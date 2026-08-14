@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { McpAddInput } from '@shared/mcp'
+import { registryUrlForName, isRegistryServerName, POPULAR_MCP_SERVERS } from '@shared/mcp'
 import { api } from '../ipc/client'
 import { useT } from '../i18n'
 
-type Tab = 'remote' | 'local' | 'command'
+type Tab = 'registry' | 'remote' | 'local' | 'command'
 
 const field = { display: 'flex', flexDirection: 'column' as const, gap: 4, marginBottom: 'var(--space-3)' }
 const lbl = { fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' as const, letterSpacing: '.04em' }
@@ -27,7 +28,7 @@ function isHttpsUrl(value: string): boolean {
   }
 }
 
-type Errors = { name?: string; url?: string; command?: string; ack?: string }
+type Errors = { name?: string; url?: string; command?: string; ack?: string; registryName?: string }
 
 /**
  * sbx buries the actionable line behind four INFO lines of runtime chatter:
@@ -51,7 +52,8 @@ export function McpAddForm({ existingNames, onAdded, onCancel }: {
   onCancel: () => void
 }): JSX.Element {
   const t = useT()
-  const [tab, setTab] = useState<Tab>('remote')
+  const [tab, setTab] = useState<Tab>('registry')
+  const [registryName, setRegistryName] = useState('')
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [clientId, setClientId] = useState('')
@@ -78,7 +80,9 @@ export function McpAddForm({ existingNames, onAdded, onCancel }: {
       errs.name = t('mcp.add.errNameDuplicate', { name: trimmedName })
     }
 
-    if (tab === 'remote') {
+    if (tab === 'registry') {
+      if (!isRegistryServerName(registryName)) errs.registryName = t('mcp.add.errRegistryNameInvalid')
+    } else if (tab === 'remote') {
       if (!isHttpsUrl(url)) errs.url = t('mcp.add.errUrlInvalid')
     } else if (tab === 'local') {
       if (!isHttpsUrl(metadataUrl)) errs.url = t('mcp.add.errUrlInvalid')
@@ -92,6 +96,12 @@ export function McpAddForm({ existingNames, onAdded, onCancel }: {
 
   function buildInput(): McpAddInput {
     const trimmedName = name.trim()
+    // A registry add is a plain `--url <registry-url>` add — the same argv shape as a
+    // remote endpoint, so it reuses the 'remote' input variant rather than adding a
+    // second adapter branch that would build identical arguments.
+    if (tab === 'registry') {
+      return { transport: 'remote', name: trimmedName, url: registryUrlForName(registryName), scopes: [] }
+    }
     if (tab === 'remote') {
       const trimmedClientId = clientId.trim()
       // Omit the key entirely rather than sending an empty string, so the adapter never
@@ -122,6 +132,7 @@ export function McpAddForm({ existingNames, onAdded, onCancel }: {
   return (
     <div className="card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
       <div role="tablist" aria-label={t('mcp.add.tablistLabel')} style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 'var(--space-3)', borderBottom: '1px solid var(--border)', paddingBottom: 'var(--space-2)' }}>
+        <button type="button" role="tab" aria-selected={tab === 'registry'} style={tabStyle(tab === 'registry')} onClick={() => switchTab('registry')}>{t('mcp.add.tabRegistry')}</button>
         <button type="button" role="tab" aria-selected={tab === 'remote'} style={tabStyle(tab === 'remote')} onClick={() => switchTab('remote')}>{t('mcp.add.tabRemote')}</button>
         <button type="button" role="tab" aria-selected={tab === 'local'} style={tabStyle(tab === 'local')} onClick={() => switchTab('local')}>{t('mcp.add.tabLocal')}</button>
         <button type="button" role="tab" aria-selected={tab === 'command'} style={tabStyle(tab === 'command')} onClick={() => switchTab('command')}>{t('mcp.add.tabCommand')}</button>
@@ -132,6 +143,34 @@ export function McpAddForm({ existingNames, onAdded, onCancel }: {
         <input aria-label="Server name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('mcp.add.namePlaceholder')} />
         {errors.name && <p role="alert" style={errStyle}>{errors.name}</p>}
       </div>
+
+      {tab === 'registry' && (
+        <>
+          <div style={field}>
+            <span style={lbl}>{t('mcp.add.popularLabel')}</span>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+              {POPULAR_MCP_SERVERS.map((s) => (
+                <button
+                  key={s.registryName}
+                  type="button"
+                  className={`btn btn-sm ${registryName === s.registryName ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => {
+                    setRegistryName(s.registryName)
+                    setErrors({})
+                    if (!name.trim()) setName(s.suggestedName)
+                  }}
+                >{s.label}</button>
+              ))}
+            </div>
+          </div>
+          <div style={field}>
+            <span style={lbl}>{t('mcp.add.registryNameLabel')}</span>
+            <input aria-label="Registry server name" className="input" value={registryName} onChange={(e) => setRegistryName(e.target.value)} placeholder={t('mcp.add.registryNamePlaceholder')} />
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{t('mcp.add.registryNameHint')}</p>
+            {errors.registryName && <p role="alert" style={errStyle}>{errors.registryName}</p>}
+          </div>
+        </>
+      )}
 
       {tab === 'remote' && (
         <>

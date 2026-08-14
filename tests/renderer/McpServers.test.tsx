@@ -127,6 +127,7 @@ describe('McpServers screen', () => {
     await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Remote' }))
     fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'notion' } })
     fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://mcp.notion.com/mcp' } })
 
@@ -145,6 +146,7 @@ describe('McpServers screen', () => {
     await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Remote' }))
     fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'notion' } })
     fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'http://insecure.example.com' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
@@ -163,6 +165,7 @@ describe('McpServers screen', () => {
     await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Remote' }))
     fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'github' } })
     fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://api.githubcopilot.com/mcp/' } })
     fireEvent.change(screen.getByLabelText('OAuth client ID'), { target: { value: 'Iv1.abc123' } })
@@ -182,6 +185,7 @@ describe('McpServers screen', () => {
     await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Remote' }))
     fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'notion' } })
     fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://mcp.notion.com/mcp' } })
 
@@ -190,6 +194,66 @@ describe('McpServers screen', () => {
 
     await waitFor(() => expect(mcpAdd).toHaveBeenCalled())
     expect(mcpAdd.mock.calls[0][0]).not.toHaveProperty('clientId')
+  })
+
+  // The whole point of the Registry tab: the user should never hand-write a percent-encoded
+  // registry API URL. Picking GitHub must produce exactly the URL verified to register.
+  it('adds GitHub from the Registry tab without the user typing a URL', async () => {
+    mcpList.mockResolvedValueOnce({ ok: true, data: [] })
+    mcpAdd.mockResolvedValue({ ok: true, data: null })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Registry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'GitHub' }))
+
+    mcpList.mockResolvedValueOnce({ ok: true, data: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(mcpAdd).toHaveBeenCalledWith({
+      transport: 'remote',
+      name: 'github',
+      url: 'https://registry.modelcontextprotocol.io/v0/servers/io.github.github%2Fgithub-mcp-server/versions/latest',
+      scopes: []
+    }))
+  })
+
+  it('accepts a hand-typed registry name and resolves it to the registry URL', async () => {
+    mcpList.mockResolvedValueOnce({ ok: true, data: [] })
+    mcpAdd.mockResolvedValue({ ok: true, data: null })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Registry' }))
+    fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'grafana' } })
+    fireEvent.change(screen.getByLabelText('Registry server name'), { target: { value: 'io.github.grafana/mcp-grafana' } })
+
+    mcpList.mockResolvedValueOnce({ ok: true, data: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(mcpAdd).toHaveBeenCalledWith({
+      transport: 'remote',
+      name: 'grafana',
+      url: 'https://registry.modelcontextprotocol.io/v0/servers/io.github.grafana%2Fmcp-grafana/versions/latest',
+      scopes: []
+    }))
+  })
+
+  it('rejects a URL pasted into the registry name field and never calls the CLI', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [] })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Registry' }))
+    fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'github' } })
+    fireEvent.change(screen.getByLabelText('Registry server name'), { target: { value: 'https://api.githubcopilot.com/mcp/' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/registry server name/i)
+    expect(mcpAdd).not.toHaveBeenCalled()
   })
 
   // A registry/manifest server runs its image in the MCP gateway, NOT on the host. Badging
@@ -212,6 +276,7 @@ describe('McpServers screen', () => {
     await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Remote' }))
     fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'github' } })
     fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://api.githubcopilot.com/mcp/' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
@@ -229,6 +294,7 @@ describe('McpServers screen', () => {
     await waitFor(() => expect(screen.getByText('notion')).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Remote' }))
     fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'Notion' } })
     fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://mcp.notion.com/mcp' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
@@ -284,6 +350,7 @@ describe('McpServers screen', () => {
     await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Remote' }))
     fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'notion' } })
     fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://mcp.notion.com/mcp' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
