@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { McpServer, McpServerDetail, McpAuthState } from '@shared/mcp'
 import type { Definition, InstanceView } from '@shared/types'
 import { redactMcpEndpoint } from '@shared/mcp-redact'
-import { McpAuthBadge } from '../components/badges'
+import { McpAuthBadge, mcpAuthBucket } from '../components/badges'
 import { api } from '../ipc/client'
 import { useT } from '../i18n'
 import { McpAddForm } from './McpAddForm'
+
+type AuthNotice = { name: string; message: string }
 
 type ListState =
   | { status: 'loading' }
@@ -36,7 +38,15 @@ async function usedByCounts(serverName: string, defs: Definition[], instances: I
   return { usedByDefs: usedByDefIds.size, usedByInstances }
 }
 
-function McpServerInspect({ name, state, onBack }: { name: string; state: InspectState; onBack: () => void }): JSX.Element {
+function McpServerInspect({
+  name, state, onBack, onAuthorize, authNotice
+}: {
+  name: string
+  state: InspectState
+  onBack: () => void
+  onAuthorize: (name: string) => void
+  authNotice: AuthNotice | null
+}): JSX.Element {
   const t = useT()
   return (
     <section className="screen active">
@@ -56,12 +66,21 @@ function McpServerInspect({ name, state, onBack }: { name: string; state: Inspec
           <tbody>
             <tr><td>{t('mcp.inspectType')}</td><td>{t(`mcp.transport.${state.detail.transport}`)}</td></tr>
             <tr><td>{t('mcp.inspectEndpoint')}</td><td><span className="code-inline">{redactMcpEndpoint(state.detail.endpoint)}</span></td></tr>
-            <tr><td>{t('mcp.inspectAuth')}</td><td><McpAuthBadge state={state.auth} /></td></tr>
+            <tr>
+              <td>{t('mcp.inspectAuth')}</td>
+              <td style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <McpAuthBadge state={state.auth} />
+                {mcpAuthBucket(state.auth) === 'needs-auth' && (
+                  <button className="btn btn-secondary btn-sm" onClick={() => onAuthorize(name)}>{t('mcp.authorize')}</button>
+                )}
+              </td>
+            </tr>
             <tr><td>{t('mcp.inspectConnectivity')}</td><td>{state.detail.tools !== undefined ? t('mcp.connected') : t('mcp.connectivityUnknown')}</td></tr>
             <tr><td>{t('mcp.usedBy')}</td><td>{t('mcp.usedByCount', { defs: state.usedByDefs, instances: state.usedByInstances })}</td></tr>
           </tbody>
         </table>
       )}
+      {authNotice?.name === name && <p className="section-desc" style={{ fontSize: 12, marginTop: 'var(--space-2)' }}>{authNotice.message}</p>}
     </section>
   )
 }
@@ -72,6 +91,12 @@ export function McpServers({ defs, instances }: { defs: Definition[]; instances:
   const [inspectName, setInspectName] = useState<string | null>(null)
   const [inspect, setInspect] = useState<InspectState | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [authNotice, setAuthNotice] = useState<AuthNotice | null>(null)
+
+  const listRef = useRef(list)
+  useEffect(() => { listRef.current = list }, [list])
+  const inspectNameRef = useRef(inspectName)
+  useEffect(() => { inspectNameRef.current = inspectName }, [inspectName])
 
   const load = useCallback(async () => {
     setList({ status: 'loading' })
@@ -99,8 +124,49 @@ export function McpServers({ defs, instances }: { defs: Definition[]; instances:
     })
   }, [defs, instances])
 
+  // Re-poll auth status only (not the whole list/inspect detail) on window focus, so the
+  // badge flips automatically once the user finishes (or abandons) the terminal OAuth flow.
+  useEffect(() => {
+    const onFocus = (): void => {
+      const current = listRef.current
+      if (current.status === 'ready') {
+        void Promise.all(current.servers.map((s) => api.mcpAuthStatus(s.name))).then((results) => {
+          setList((prev) => {
+            if (prev.status !== 'ready') return prev
+            const auth = { ...prev.auth }
+            current.servers.forEach((s, i) => { const a = results[i]; if (a.ok) auth[s.name] = a.data })
+            return { ...prev, auth }
+          })
+        })
+      }
+      const name = inspectNameRef.current
+      if (name) {
+        void api.mcpAuthStatus(name).then((r) => {
+          if (!r.ok) return
+          setInspect((prev) => (prev && prev.status === 'ready' ? { ...prev, auth: r.data } : prev))
+        })
+      }
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [])
+
+  const authorize = useCallback(async (name: string) => {
+    setAuthNotice({ name, message: t('mcp.authHint') })
+    const r = await api.mcpStartAuth(name)
+    if (!r.ok) setAuthNotice({ name, message: t('mcp.authFailed', { message: r.error.message }) })
+  }, [t])
+
   if (inspectName) {
-    return <McpServerInspect name={inspectName} state={inspect ?? { status: 'loading' }} onBack={() => { setInspectName(null); setInspect(null) }} />
+    return (
+      <McpServerInspect
+        name={inspectName}
+        state={inspect ?? { status: 'loading' }}
+        onBack={() => { setInspectName(null); setInspect(null); setAuthNotice(null) }}
+        onAuthorize={(name) => void authorize(name)}
+        authNotice={authNotice}
+      />
+    )
   }
 
   return (
@@ -157,12 +223,21 @@ export function McpServers({ defs, instances }: { defs: Definition[]; instances:
                   <td><span className={`badge ${isLocalStdio(s.transport) ? 'tier-balanced' : 'badge-stopped'}`}>{t(`mcp.transport.${s.transport}`)}</span></td>
                   <td><span className="code-inline">{redactMcpEndpoint(s.endpoint)}</span></td>
                   <td><McpAuthBadge state={list.auth[s.name] ?? 'unknown'} /></td>
-                  <td><button className="btn btn-secondary btn-sm" onClick={() => void openInspect(s.name)}>{t('mcp.inspect')}</button></td>
+                  <td style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => void openInspect(s.name)}>{t('mcp.inspect')}</button>
+                    {mcpAuthBucket(list.auth[s.name] ?? 'unknown') === 'needs-auth' && (
+                      <button className="btn btn-secondary btn-sm" onClick={() => void authorize(s.name)}>{t('mcp.authorize')}</button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {authNotice && (
+        <p className="section-desc" style={{ fontSize: 12, marginTop: 'var(--space-2)' }}>{authNotice.message}</p>
       )}
     </section>
   )
