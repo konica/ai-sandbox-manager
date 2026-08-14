@@ -138,6 +138,7 @@ export function McpAddForm({ existingNames, onAdded, onCancel }: {
           <div style={field}>
             <span style={lbl}>{t('mcp.add.urlLabel')}</span>
             <input aria-label="Server URL" className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t('mcp.add.urlPlaceholder')} />
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{t('mcp.add.urlHint')}</p>
             {errors.url && <p role="alert" style={errStyle}>{errors.url}</p>}
           </div>
           <div style={field}>

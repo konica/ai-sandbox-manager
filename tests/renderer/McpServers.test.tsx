@@ -192,6 +192,18 @@ describe('McpServers screen', () => {
     expect(mcpAdd.mock.calls[0][0]).not.toHaveProperty('clientId')
   })
 
+  // A registry/manifest server runs its image in the MCP gateway, NOT on the host. Badging
+  // it as "Local (stdio)" would claim the opposite of the truth about its isolation.
+  it('labels a registry-manifest server as sandboxed, not host stdio', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [
+      { name: 'github', transport: 'server', endpoint: 'ghcr.io/github/github-mcp-server:1.9.0', scopes: [] }
+    ] })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText('github')).toBeInTheDocument())
+    expect(screen.getByText('Registry (sandboxed)')).toBeInTheDocument()
+    expect(screen.queryByText('Local (stdio)')).toBeNull()
+  })
+
   // The actionable line is buried behind four INFO lines of sbx runtime chatter.
   it('surfaces an actionable hint when the add fails for want of a client id', async () => {
     mcpList.mockResolvedValue({ ok: true, data: [] })
@@ -205,6 +217,9 @@ describe('McpServers screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     const alerts = await screen.findAllByRole('alert')
+    // GitHub's server is normally used with your own account token via its registry
+    // manifest, so the hint must lead with that, not only the pre-registered-client route.
+    expect(alerts.some((a) => /registry/i.test(a.textContent ?? ''))).toBe(true)
     expect(alerts.some((a) => /OAuth client ID/i.test(a.textContent ?? ''))).toBe(true)
   })
 

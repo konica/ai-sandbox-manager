@@ -2,7 +2,7 @@ import type { McpServer, McpServerDetail, McpTransport, McpAuthState } from '@sh
 
 function toTransport(raw: unknown): McpTransport {
   const s = String(raw ?? '').trim().toLowerCase()
-  if (s === 'remote' || s === 'local' || s === 'command') return s
+  if (s === 'remote' || s === 'local' || s === 'command' || s === 'server') return s
   return 'command'
 }
 
@@ -12,7 +12,7 @@ export function parseMcpLsJson(stdout: string): McpServer[] {
   return extractRows(parsed).map((r) => ({
     name: String(r.name ?? ''),
     transport: toTransport(r.type ?? r.transport),
-    endpoint: String(r.url ?? r.command ?? r.endpoint ?? ''),
+    endpoint: String(r.url ?? r.command ?? r.image ?? r.endpoint ?? ''),
     scopes: toScopes(r.scopes ?? r.scope)
   }))
 }
@@ -55,7 +55,7 @@ export function parseMcpInspectJson(stdout: string, fallbackName: string): McpSe
   return {
     name: String(parsed.name ?? fallbackName),
     transport: toTransport(parsed.type ?? parsed.transport),
-    endpoint: String(parsed.url ?? parsed.command ?? parsed.endpoint ?? ''),
+    endpoint: String(parsed.url ?? parsed.command ?? parsed.image ?? parsed.endpoint ?? ''),
     scopes: toScopes(parsed.scopes ?? parsed.scope),
     tools: Array.isArray(parsed.tools) ? parsed.tools.map((t) => String(t)) : undefined,
     raw: stdout
@@ -80,7 +80,8 @@ export function parseMcpInspectText(stdout: string, fallbackName: string): McpSe
     const value = line.slice(idx + 1).trim()
     if (key) fields[key] = value
   }
-  const endpoint = fields.url ?? fields.command ?? fields.resolved ?? ''
+  // A registry/manifest server reports `Image:` (+ `Registry:`) instead of Url:/Command:.
+  const endpoint = fields.url ?? fields.command ?? fields.image ?? fields.resolved ?? fields.registry ?? ''
   const scopes = fields.scopes ? fields.scopes.split(',').map((s) => s.trim()).filter(Boolean) : []
   const tools = fields.tools ? fields.tools.split(',').map((s) => s.trim()).filter(Boolean) : undefined
   return {

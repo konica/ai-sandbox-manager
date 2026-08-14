@@ -6,7 +6,13 @@ export interface McpBinding {
   servers: string[]
 }
 
-export type McpTransport = 'remote' | 'local' | 'command'
+/**
+ * 'server' is what sbx reports for a community-registry / server-manifest registration:
+ * the OCI image runs inside the MCP gateway, so it is sandboxed — unlike 'command', which
+ * spawns a process on the host. Keeping them distinct matters: they carry opposite
+ * isolation guarantees.
+ */
+export type McpTransport = 'remote' | 'local' | 'command' | 'server'
 
 export interface McpServer {
   name: string

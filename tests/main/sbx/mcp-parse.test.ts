@@ -20,6 +20,18 @@ describe('parseMcpLsText', () => {
       { name: 'github', transport: 'local', endpoint: 'npx @modelcontextprotocol/server-github', scopes: [] }
     ])
   })
+  // A registry/manifest server (`sbx mcp add --url <registry-url>`) reports type "server"
+  // and runs its OCI image in the MCP gateway. Falling through to 'command' would badge it
+  // as host-executing stdio — the opposite of the truth. Captured from a real registration.
+  it('keeps the registry-manifest "server" type distinct from host stdio', () => {
+    const out = [
+      'NAME                 TYPE     URL/COMMAND',
+      'github-registry      server   ghcr.io/github/github-mcp-server:1.9.0'
+    ].join('\n')
+    expect(parseMcpLsText(out)).toEqual([
+      { name: 'github-registry', transport: 'server', endpoint: 'ghcr.io/github/github-mcp-server:1.9.0', scopes: [] }
+    ])
+  })
   it('returns [] for an empty registry', () => {
     expect(parseMcpLsText('No MCP servers registered\n')).toEqual([])
     expect(parseMcpLsText('')).toEqual([])
@@ -47,6 +59,24 @@ describe('parseMcpLsJson', () => {
   })
   it('throws on non-JSON so the caller can fall back to text', () => {
     expect(() => parseMcpLsJson('NAME TYPE ...')).toThrow()
+  })
+})
+
+describe('parseMcpInspectText (registry-manifest server)', () => {
+  // Real `sbx mcp inspect` output for a registry server: the endpoint lives in Image:,
+  // not Url:/Command:, so the inspect view rendered a blank endpoint.
+  const out = [
+    'Name:      github-registry',
+    'Type:      server',
+    'Image:     ghcr.io/github/github-mcp-server:1.9.0',
+    'Registry:  https://registry.modelcontextprotocol.io/v0/servers/io.github.github%2Fgithub-mcp-server/versions/latest'
+  ].join('\n')
+  it('uses the image as the endpoint and keeps the server transport', () => {
+    expect(parseMcpInspectText(out, 'github-registry')).toMatchObject({
+      name: 'github-registry',
+      transport: 'server',
+      endpoint: 'ghcr.io/github/github-mcp-server:1.9.0'
+    })
   })
 })
 
