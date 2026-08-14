@@ -270,10 +270,21 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
 
   // MCP Gateway (Phase 0 spike-verified against sbx v0.38.0): `mcp ls`/`mcp inspect` are
   // text-only today, but requested with --json first (like listSandboxes) so a future sbx
-  // that adds JSON support is picked up without an adapter change; parsing falls back to
-  // text on the same stdout when it isn't valid JSON.
+  // that adds JSON support is picked up without an adapter change.
+  //
+  // Today's sbx doesn't merely ignore the unknown flag — it exits 1 with
+  // "ERROR: unknown flag: --json", so the run has to be retried flagless before parsing.
+  // If the flagless retry fails too, that's a real failure and its error propagates.
+  async function runSbxPreferJson(baseArgs: string[]): Promise<SbxResult> {
+    try {
+      return await runSbx([...baseArgs, '--json'])
+    } catch {
+      return await runSbx(baseArgs)
+    }
+  }
+
   async function listMcpServers(): Promise<McpServer[]> {
-    const res = await runSbx(['mcp', 'ls', '--json'])
+    const res = await runSbxPreferJson(['mcp', 'ls'])
     try {
       return parseMcpLsJson(res.stdout)
     } catch {
@@ -282,7 +293,7 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
   }
 
   async function inspectMcpServer(name: string): Promise<McpServerDetail> {
-    const res = await runSbx(['mcp', 'inspect', name, '--json'])
+    const res = await runSbxPreferJson(['mcp', 'inspect', name])
     try {
       return parseMcpInspectJson(res.stdout, name)
     } catch {
