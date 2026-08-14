@@ -6,6 +6,7 @@ import type { Definition, InstanceView } from '@shared/types'
 const mcpList = vi.fn()
 const mcpAuthStatus = vi.fn()
 const mcpInspect = vi.fn()
+const mcpAdd = vi.fn()
 const defGetSpec = vi.fn()
 
 vi.mock('../../src/renderer/ipc/client', () => ({
@@ -13,6 +14,7 @@ vi.mock('../../src/renderer/ipc/client', () => ({
     mcpList: () => mcpList(),
     mcpAuthStatus: (name: string) => mcpAuthStatus(name),
     mcpInspect: (name: string) => mcpInspect(name),
+    mcpAdd: (input: unknown) => mcpAdd(input),
     defGetSpec: (id: string) => defGetSpec(id)
   }
 }))
@@ -25,7 +27,8 @@ const instances: InstanceView[] = [
 ]
 
 beforeEach(() => {
-  mcpList.mockReset(); mcpAuthStatus.mockReset(); mcpInspect.mockReset(); defGetSpec.mockReset()
+  mcpList.mockReset(); mcpAuthStatus.mockReset(); mcpInspect.mockReset(); mcpAdd.mockReset(); defGetSpec.mockReset()
+  mcpAuthStatus.mockResolvedValue({ ok: true, data: 'unknown' })
 })
 
 describe('McpServers screen', () => {
@@ -113,5 +116,109 @@ describe('McpServers screen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /back/i }))
     await waitFor(() => expect(screen.getByText('github')).toBeInTheDocument())
+  })
+
+  it('adds a valid remote server and refreshes the list without a restart', async () => {
+    mcpList.mockResolvedValueOnce({ ok: true, data: [] })
+    mcpAdd.mockResolvedValue({ ok: true, data: null })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'notion' } })
+    fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://mcp.notion.com/mcp' } })
+
+    mcpList.mockResolvedValueOnce({ ok: true, data: [{ name: 'notion', transport: 'remote', endpoint: 'https://mcp.notion.com/mcp', scopes: [] }] })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(mcpAdd).toHaveBeenCalledWith({ transport: 'remote', name: 'notion', url: 'https://mcp.notion.com/mcp', scopes: [] }))
+    await waitFor(() => expect(screen.getByText('notion')).toBeInTheDocument())
+    // panel collapses on success
+    expect(screen.queryByLabelText('Server URL')).toBeNull()
+  })
+
+  it('blocks a non-https remote URL with a role=alert message and never calls the CLI', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [] })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'notion' } })
+    fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'http://insecure.example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/valid https/i)
+    expect(mcpAdd).not.toHaveBeenCalled()
+  })
+
+  it('blocks a duplicate server name with a role=alert message', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [{ name: 'notion', transport: 'remote', endpoint: 'https://mcp.notion.com/mcp', scopes: [] }] })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText('notion')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'Notion' } })
+    fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://mcp.notion.com/mcp' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/already registered/i)
+    expect(mcpAdd).not.toHaveBeenCalled()
+  })
+
+  it('requires an empty command to be rejected on the Command tab, never calling the CLI', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [] })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Command' }))
+    fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'local-tool' } })
+    fireEvent.click(screen.getByLabelText(/understand this server runs on the host/i))
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    const alerts = await screen.findAllByRole('alert')
+    expect(alerts.some((a) => /command is required/i.test(a.textContent ?? ''))).toBe(true)
+    expect(mcpAdd).not.toHaveBeenCalled()
+  })
+
+  it('shows the host-isolation warning on the Command tab and blocks submit until acknowledged', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [] })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Command' }))
+    expect(screen.getByText('Host access — no sandbox isolation')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'local-tool' } })
+    fireEvent.change(screen.getByLabelText('Command'), { target: { value: 'npx' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/acknowledge host access/i)
+    expect(mcpAdd).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByLabelText(/understand this server runs on the host/i))
+    mcpAdd.mockResolvedValue({ ok: true, data: null })
+    mcpList.mockResolvedValueOnce({ ok: true, data: [{ name: 'local-tool', transport: 'command', endpoint: 'npx', scopes: [] }] })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(mcpAdd).toHaveBeenCalledWith({ transport: 'command', name: 'local-tool', command: 'npx', args: [], scopes: [] }))
+  })
+
+  it('surfaces a CLI-level add failure and leaves the form populated', async () => {
+    mcpList.mockResolvedValue({ ok: true, data: [] })
+    mcpAdd.mockResolvedValue({ ok: false, error: { kind: 'generic', message: 'already registered on host' } })
+    render(<McpServers defs={[]} instances={[]} />)
+    await waitFor(() => expect(screen.getByText(/no mcp servers registered/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add server/i }))
+    fireEvent.change(screen.getByLabelText('Server name'), { target: { value: 'notion' } })
+    fireEvent.change(screen.getByLabelText('Server URL'), { target: { value: 'https://mcp.notion.com/mcp' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/already registered on host/i)
+    // form stays populated after a CLI-level failure
+    expect(screen.getByLabelText('Server name')).toHaveValue('notion')
+    expect(screen.getByLabelText('Server URL')).toHaveValue('https://mcp.notion.com/mcp')
   })
 })
