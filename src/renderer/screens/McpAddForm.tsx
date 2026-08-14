@@ -30,6 +30,16 @@ function isHttpsUrl(value: string): boolean {
 type Errors = { name?: string; url?: string; command?: string; ack?: string }
 
 /**
+ * sbx buries the actionable line behind four INFO lines of runtime chatter:
+ *   "...ERROR: server "x" advertises no registration endpoint (no dynamic client
+ *    registration); --client-id is required to register it"
+ * Detect that shape so the form can point at the OAuth client ID field.
+ */
+function needsClientId(message: string): boolean {
+  return /--client-id is required|no dynamic client registration/i.test(message)
+}
+
+/**
  * Inline "Add Server" form for the MCP Servers screen: Remote / Local (stdio) / Command
  * tabs mapped 1:1 to the `McpAddInput` transport union. Local and Command both register
  * host-executing servers (confirmed by the Phase 0 spike, issue #16) so both require the
@@ -44,6 +54,7 @@ export function McpAddForm({ existingNames, onAdded, onCancel }: {
   const [tab, setTab] = useState<Tab>('remote')
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
+  const [clientId, setClientId] = useState('')
   const [metadataUrl, setMetadataUrl] = useState('')
   const [command, setCommand] = useState('')
   const [args, setArgs] = useState('')
@@ -81,7 +92,15 @@ export function McpAddForm({ existingNames, onAdded, onCancel }: {
 
   function buildInput(): McpAddInput {
     const trimmedName = name.trim()
-    if (tab === 'remote') return { transport: 'remote', name: trimmedName, url: url.trim(), scopes: [] }
+    if (tab === 'remote') {
+      const trimmedClientId = clientId.trim()
+      // Omit the key entirely rather than sending an empty string, so the adapter never
+      // puts a bare `--client-id ''` on argv.
+      return {
+        transport: 'remote', name: trimmedName, url: url.trim(), scopes: [],
+        ...(trimmedClientId ? { clientId: trimmedClientId } : {})
+      }
+    }
     if (tab === 'local') return { transport: 'local', name: trimmedName, metadataUrl: metadataUrl.trim(), scopes: [] }
     return { transport: 'command', name: trimmedName, command: command.trim(), args: args.trim() ? args.trim().split(/\s+/) : [], scopes: [] }
   }
@@ -115,11 +134,18 @@ export function McpAddForm({ existingNames, onAdded, onCancel }: {
       </div>
 
       {tab === 'remote' && (
-        <div style={field}>
-          <span style={lbl}>{t('mcp.add.urlLabel')}</span>
-          <input aria-label="Server URL" className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t('mcp.add.urlPlaceholder')} />
-          {errors.url && <p role="alert" style={errStyle}>{errors.url}</p>}
-        </div>
+        <>
+          <div style={field}>
+            <span style={lbl}>{t('mcp.add.urlLabel')}</span>
+            <input aria-label="Server URL" className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t('mcp.add.urlPlaceholder')} />
+            {errors.url && <p role="alert" style={errStyle}>{errors.url}</p>}
+          </div>
+          <div style={field}>
+            <span style={lbl}>{t('mcp.add.clientIdLabel')}</span>
+            <input aria-label="OAuth client ID" className="input" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder={t('mcp.add.clientIdPlaceholder')} />
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{t('mcp.add.clientIdHint')}</p>
+          </div>
+        </>
       )}
 
       {tab === 'local' && (
@@ -156,7 +182,12 @@ export function McpAddForm({ existingNames, onAdded, onCancel }: {
         </div>
       )}
 
-      {cliError && <p role="alert" style={{ ...errStyle, marginTop: 'var(--space-3)' }}>{t('mcp.add.addFailed', { message: cliError })}</p>}
+      {cliError && (
+        <>
+          <p role="alert" style={{ ...errStyle, marginTop: 'var(--space-3)' }}>{t('mcp.add.addFailed', { message: cliError })}</p>
+          {needsClientId(cliError) && <p role="alert" style={{ ...errStyle, color: 'var(--text-primary)' }}>{t('mcp.add.clientIdRequiredHint')}</p>}
+        </>
+      )}
 
       <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-4)' }}>
         <button type="button" className="btn btn-primary btn-sm" disabled={submitting} onClick={() => void submit()}>{t('mcp.add.submit')}</button>

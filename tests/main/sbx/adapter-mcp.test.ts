@@ -34,6 +34,33 @@ describe('adapter.addMcpServer', () => {
       'mcp', 'add', 'notion', '--url', 'https://mcp.notion.com/mcp', '--scope', 'proj-a', '--scope', 'proj-b', '--skip_auth'
     ])
   })
+  // Servers whose discovered OAuth metadata exposes no registration_endpoint (GitHub's
+  // api.githubcopilot.com/mcp/, Slack) cannot do Dynamic Client Registration; sbx rejects
+  // the add with "--client-id is required to register it" unless a pre-registered client
+  // id is supplied. Verified against the CLI.
+  it('passes --client-id for a remote server with a pre-registered OAuth client', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    const input: McpAddInput = { transport: 'remote', name: 'github', url: 'https://api.githubcopilot.com/mcp/', scopes: [], clientId: 'Iv1.abc123' }
+    await a.addMcpServer(input)
+    expect(calls[0].args).toEqual(['mcp', 'add', 'github', '--url', 'https://api.githubcopilot.com/mcp/', '--client-id', 'Iv1.abc123'])
+  })
+  it('omits --client-id entirely when no client id is supplied', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    const input: McpAddInput = { transport: 'remote', name: 'notion', url: 'https://mcp.notion.com/mcp', scopes: [] }
+    await a.addMcpServer(input)
+    expect(calls[0].args).not.toContain('--client-id')
+  })
+  it('keeps --client-id alongside scopes and --skip_auth', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    const input: McpAddInput = { transport: 'remote', name: 'slack', url: 'https://slack.example.com/mcp', scopes: ['read'], skipAuth: true, clientId: 'pre-reg' }
+    await a.addMcpServer(input)
+    expect(calls[0].args).toEqual([
+      'mcp', 'add', 'slack', '--url', 'https://slack.example.com/mcp', '--client-id', 'pre-reg', '--scope', 'read', '--skip_auth'
+    ])
+  })
   it('omits --skip_auth for a remote server when not requested', async () => {
     const { spawn, calls } = fakeSpawn()
     const a = createSbxAdapter(spawn)

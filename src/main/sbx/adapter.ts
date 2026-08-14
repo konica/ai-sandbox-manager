@@ -304,7 +304,12 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
   function mcpAddArgs(input: McpAddInput): string[] {
     const scopeArgs = input.scopes.flatMap((s) => ['--scope', s])
     if (input.transport === 'remote') {
-      return ['mcp', 'add', input.name, '--url', input.url, ...scopeArgs, ...(input.skipAuth ? ['--skip_auth'] : [])]
+      // A server whose discovered OAuth metadata has no registration_endpoint can't do
+      // Dynamic Client Registration, so sbx rejects the add unless --client-id names a
+      // pre-registered client. The client *secret* has no flag by design — it goes to the
+      // secret store via setMcpClientSecret().
+      const clientIdArgs = input.clientId ? ['--client-id', input.clientId] : []
+      return ['mcp', 'add', input.name, '--url', input.url, ...clientIdArgs, ...scopeArgs, ...(input.skipAuth ? ['--skip_auth'] : [])]
     }
     if (input.transport === 'local') {
       return ['mcp', 'add', input.name, '--local', '--url', input.metadataUrl, ...scopeArgs]
