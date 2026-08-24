@@ -92,6 +92,27 @@ An earlier attempt with a wrong model name returned a `not_found_error` carrying
 `request_id`, which is itself the same proof: model validation happens after
 authentication, so a `404` on the model already rules out an auth failure.
 
+### Claude Code itself is captured
+
+Curl proves the transport; it does not prove the *agent* is captured. Claude Code is the
+actual target, it ships here as a native ELF binary (v2.1.241), and an HTTP client that
+ignores `http_proxy` is a real and common failure mode — Node's `fetch`/undici does exactly
+that by default. So this was tested directly rather than assumed.
+
+With capture on, `claude -p` in a login shell exited `0` and returned the expected answer,
+while `/proc/net/tcp` showed:
+
+- **33 distinct TCP connections to `127.0.0.1:18080`**, the capture port
+- **zero** connections to `:443` on any non-loopback address
+
+Claude Code therefore honours `http_proxy`/`https_proxy` for all of its traffic, with no
+bypass, and trusts the Burp CA via `NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt`.
+With capture off it works identically through the stock sbx proxy.
+
+Those 33 concurrent connections are also independent justification for keeping the
+12-concurrent verification check: this is precisely the load profile that collapsed the
+original `-R` transport.
+
 ### sbx performs its own TLS interception
 
 Worth recording because it is easy to misread while debugging. Requests through the stock
@@ -118,7 +139,11 @@ property. After tearing capture down:
 | `https://example.com` | `200` |
 | `api.github.com` with `GH_TOKEN` | `200` — credential injection intact |
 | `api.anthropic.com` `POST /v1/messages` | `200` with a genuine completion |
+| `claude -p` in a new shell | exit `0`, expected answer, zero connections to the capture port |
 | TLS issuer on `example.com` | back to `Cloudflare TLS Issuing ECC CA 3`, no PortSwigger |
+
+The only sockets remaining on the capture port after teardown were in `TIME_WAIT`; no
+listener, no established connection, no `socat` process, and the port file removed.
 
 Egress never lapsed at any point. The profile script self-disables when the port file is
 gone, so the sandbox falls back to its own proxy rather than losing connectivity.
@@ -309,9 +334,12 @@ in the capture card:
    `update-ca-certificates`. Idempotent, and re-run on every enable because a sandbox
    rebuild wipes it
 3. **profile** — write `/etc/profile.d/burp-proxy.sh` (the spike's POSIX-sh version:
-   `/bin/sh` is dash and has no `/dev/tcp`, so liveness is checked by matching state `0A` in
-   `/proc/net/tcp`; matching anything looser also matches `TIME_WAIT` sockets and gives a
-   false pass)
+   `/bin/sh` is dash and has no `/dev/tcp`, so liveness is checked by matching state `0A`
+   — LISTEN — in `/proc/net/tcp`). **The `0A`-only match is load-bearing, not fussiness.**
+   Measured immediately after a teardown: the capture port held 20 sockets in state `06`
+   (`TIME_WAIT`) and no listener. A looser match would have read those as a live tunnel and
+   kept exporting `http_proxy` to a dead relay — turning a clean fallback into an egress
+   outage. Any reimplementation must preserve the exact state comparison.
 4. **tunnel** — spawn the `ssh` child, wait for the local listener to actually appear
 5. **verify** — upstream chain → `200`; 12 concurrent requests → `12/12`; credential
    injection → `200`
