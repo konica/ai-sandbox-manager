@@ -33,6 +33,11 @@ import os from 'node:os'
 import { join, isAbsolute, resolve } from 'node:path'
 import { resolveSandboxPath, basenameAny, posixJoin } from '@shared/copy'
 import type { CopyDirection, ListResult, PlanResult, CopyResult } from '@shared/copy'
+import type { CaptureSession } from './capture/session'
+import { readBurpSettings, writeBurpSettings } from './capture/settings'
+import { readCaFile, type CaInfo } from './capture/ca'
+import { buildBurpUserConfig, BURP_CONFIG_FILENAME } from './capture/burp-config'
+import type { BurpSettings, CaptureStatus } from '@shared/capture'
 
 interface Deps {
   adapter: SbxAdapter
@@ -59,11 +64,20 @@ interface Deps {
   storageStatus?: () => StorageStatus
   /** Override the clock (tests only) — drives the mcp:list short-lived cache. */
   now?: () => number
+  /** Burp traffic-capture session manager. Absent in tests that do not exercise capture. */
+  capture?: CaptureSession
+  /** Override CA reading (tests only). */
+  readCa?: (path: string) => CaInfo
 }
 
 function requireCreds(deps: Deps): CredentialManager {
   if (!deps.creds) throw new Error('credential manager not configured')
   return deps.creds
+}
+
+function requireCapture(deps: Deps): CaptureSession {
+  if (!deps.capture) throw new Error('traffic capture is not available in this session')
+  return deps.capture
 }
 
 /**
@@ -166,6 +180,14 @@ export function buildHandlers(deps: Deps): {
   'kit:validate': (yaml: string) => Promise<Result<KitValidation>>
   'prefs:get': (key: string) => Promise<Result<string | null>>
   'prefs:set': (key: string, value: string) => Promise<Result<null>>
+  'capture:status': () => Promise<Result<CaptureStatus>>
+  'capture:enable': (name: string, force: boolean) => Promise<Result<CaptureStatus>>
+  'capture:disable': () => Promise<Result<CaptureStatus>>
+  'capture:settingsGet': () => Promise<Result<BurpSettings>>
+  'capture:settingsSet': (patch: Partial<BurpSettings>) => Promise<Result<BurpSettings>>
+  'capture:caInspect': (path: string) => Promise<Result<CaInfo>>
+  'capture:burpConfig': () => Promise<Result<string>>
+  'capture:exportConfig': () => Promise<Result<{ canceled?: boolean; path?: string }>>
   'creds:storageStatus': () => Promise<Result<StorageStatus>>
   'mcp:supported': () => Promise<Result<boolean>>
   'mcp:list': () => Promise<Result<McpServer[]>>
@@ -467,6 +489,20 @@ export function buildHandlers(deps: Deps): {
     }),
     'prefs:get': (key) => wrap(async () => deps.store.getPref(key)),
     'prefs:set': (key, value) => wrap(async () => { deps.store.setPref(key, value); return null }),
+    'capture:status': () => wrap(async () => deps.capture?.status() ?? { sandbox: null, state: 'off' as const, checks: [] }),
+    'capture:enable': (name, force) => wrap(async () => requireCapture(deps).enable(name, { force })),
+    'capture:disable': () => wrap(async () => requireCapture(deps).disable()),
+    'capture:settingsGet': () => wrap(async () => readBurpSettings(deps.store)),
+    'capture:settingsSet': (patch) => wrap(async () => writeBurpSettings(deps.store, patch)),
+    'capture:caInspect': (path) => wrap(async () => (deps.readCa ?? readCaFile)(path)),
+    'capture:burpConfig': () => wrap(async () => buildBurpUserConfig(readBurpSettings(deps.store).upstreamPort)),
+    // Writing to disk is a main-process job — reuse the same Save dialog def:export uses.
+    'capture:exportConfig': () => wrap(async () => {
+      if (!deps.saveFile) throw new Error('file export is not available in this session')
+      const contents = buildBurpUserConfig(readBurpSettings(deps.store).upstreamPort)
+      const path = await deps.saveFile(BURP_CONFIG_FILENAME, contents)
+      return path === null ? { canceled: true } : { path }
+    }),
     'creds:storageStatus': () => wrap(async () => deps.storageStatus
       ? deps.storageStatus()
       : { platform: process.platform, backend: 'unknown', secure: false }),
@@ -596,6 +632,14 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('kit:validate', (_e, yaml: string) => handlers['kit:validate'](yaml))
   ipcMain.handle('prefs:get', (_e, key: string) => handlers['prefs:get'](key))
   ipcMain.handle('prefs:set', (_e, key: string, value: string) => handlers['prefs:set'](key, value))
+  ipcMain.handle('capture:status', () => handlers['capture:status']())
+  ipcMain.handle('capture:enable', (_e, name: string, force: boolean) => handlers['capture:enable'](name, force))
+  ipcMain.handle('capture:disable', () => handlers['capture:disable']())
+  ipcMain.handle('capture:settingsGet', () => handlers['capture:settingsGet']())
+  ipcMain.handle('capture:settingsSet', (_e, patch: Partial<BurpSettings>) => handlers['capture:settingsSet'](patch))
+  ipcMain.handle('capture:caInspect', (_e, path: string) => handlers['capture:caInspect'](path))
+  ipcMain.handle('capture:burpConfig', () => handlers['capture:burpConfig']())
+  ipcMain.handle('capture:exportConfig', () => handlers['capture:exportConfig']())
   ipcMain.handle('creds:storageStatus', () => handlers['creds:storageStatus']())
   ipcMain.handle('mcp:supported', () => handlers['mcp:supported']())
   ipcMain.handle('mcp:list', () => handlers['mcp:list']())
