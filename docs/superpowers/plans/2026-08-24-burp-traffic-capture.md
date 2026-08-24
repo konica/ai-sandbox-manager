@@ -250,7 +250,7 @@ export function writeBurpSettings(store: PrefStore, patch: Partial<BurpSettings>
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `npx vitest run tests/main/capture/settings.test.ts`
-Expected: PASS (10 assertions across 8 tests).
+Expected: PASS (7 tests).
 
 - [ ] **Step 6: Typecheck and commit**
 
