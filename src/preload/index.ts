@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { DefinitionSpec, LivePort } from '@shared/types'
 import type { McpAddInput } from '@shared/mcp'
+import type { BurpSettings } from '@shared/capture'
 
 const api = {
   prereqCheck: () => ipcRenderer.invoke('prereq:check'),
@@ -62,6 +63,14 @@ const api = {
   mcpStartAuth: (name: string) => ipcRenderer.invoke('mcp:startAuth', name),
   mcpSetClientSecret: (name: string, value: string) => ipcRenderer.invoke('mcp:setClientSecret', name, value),
   mcpRemoveAuth: (name: string) => ipcRenderer.invoke('mcp:removeAuth', name),
+  captureStatus: () => ipcRenderer.invoke('capture:status'),
+  captureEnable: (name: string, force = false) => ipcRenderer.invoke('capture:enable', name, force),
+  captureDisable: () => ipcRenderer.invoke('capture:disable'),
+  captureSettingsGet: () => ipcRenderer.invoke('capture:settingsGet'),
+  captureSettingsSet: (patch: Partial<BurpSettings>) => ipcRenderer.invoke('capture:settingsSet', patch),
+  captureCaInspect: (path: string) => ipcRenderer.invoke('capture:caInspect', path),
+  captureBurpConfig: () => ipcRenderer.invoke('capture:burpConfig'),
+  captureExportConfig: () => ipcRenderer.invoke('capture:exportConfig'),
   setTitleBarOverlay: (light: boolean) => ipcRenderer.send('theme:setOverlay', light)
 }
 

@@ -2,6 +2,7 @@ import type { Result, PrereqResult, InstanceView, DefinitionSpec, Definition, Gl
 import type { ResourceStats } from '@shared/resource-stats'
 import type { CopyDirection, ListResult, PlanResult, CopyResult } from '@shared/copy'
 import type { McpServer, McpServerDetail, McpAuthState, McpAddInput } from '@shared/mcp'
+import type { BurpSettings, CaptureStatus } from '@shared/capture'
 
 interface Api {
   prereqCheck(): Promise<Result<PrereqResult>>
@@ -63,6 +64,14 @@ interface Api {
   mcpStartAuth(name: string): Promise<Result<null>>
   mcpSetClientSecret(name: string, value: string): Promise<Result<null>>
   mcpRemoveAuth(name: string): Promise<Result<null>>
+  captureStatus(): Promise<Result<CaptureStatus>>
+  captureEnable(name: string, force?: boolean): Promise<Result<CaptureStatus>>
+  captureDisable(): Promise<Result<CaptureStatus>>
+  captureSettingsGet(): Promise<Result<BurpSettings>>
+  captureSettingsSet(patch: Partial<BurpSettings>): Promise<Result<BurpSettings>>
+  captureCaInspect(path: string): Promise<Result<{ pem: string; subject: string; commonName: string; expires: string }>>
+  captureBurpConfig(): Promise<Result<string>>
+  captureExportConfig(): Promise<Result<{ canceled?: boolean; path?: string }>>
   setTitleBarOverlay(light: boolean): void
 }
 
@@ -126,5 +135,13 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   mcpStartAuth: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   mcpSetClientSecret: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   mcpRemoveAuth: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  captureStatus: async () => ({ ok: true, data: { sandbox: null, state: 'off' as const, checks: [] } }),
+  captureEnable: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  captureDisable: async () => ({ ok: true, data: { sandbox: null, state: 'off' as const, checks: [] } }),
+  captureSettingsGet: async () => ({ ok: true, data: { caPath: '', proxyPort: 8080, upstreamPort: 3128 } }),
+  captureSettingsSet: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  captureCaInspect: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  captureBurpConfig: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  captureExportConfig: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   setTitleBarOverlay: () => {}
 }
