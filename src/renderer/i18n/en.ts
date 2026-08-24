@@ -555,6 +555,24 @@ export const en = {
     reviewCopyFiles: 'Copied files',
     reviewCopyFilesCount: '{count} file(s) copied at launch'
   },
+  capture: {
+    settingsTitle: 'Traffic capture (Burp)',
+    settingsHint: 'Route a sandbox’s traffic through Burp Suite to inspect requests. Enable it per sandbox on the Monitoring tab.',
+    caLabel: 'Burp CA certificate',
+    caHint: 'Burp › Proxy › Proxy settings › Import / export CA certificate. DER or PEM.',
+    caBrowse: 'Choose file…',
+    caValid: '{name} · expires {expires}',
+    proxyPort: 'Burp proxy port',
+    advanced: 'Advanced',
+    upstreamPort: 'Upstream port',
+    upstreamHint: 'Burp’s upstream proxy points at this host port. It must match the exported config.',
+    burpRuleTitle: 'Burp upstream rule',
+    burpRuleHint: 'Burp must chain back into the sbx proxy, or authenticated requests return 401. Import this once via Burp › Settings › User settings › Import.',
+    exportConfig: 'Export Burp config',
+    copyConfig: 'Copy',
+    copied: 'Copied',
+    saved: 'Saved'
+  },
   tier: { open: 'Open', balanced: 'Balanced', locked: 'Locked Down', custom: 'Custom' },
   status: { running: 'Running', stopped: 'Stopped', error: 'Error', unknown: 'Unknown' }
 }

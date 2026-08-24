@@ -15,7 +15,10 @@ vi.mock('../../src/renderer/ipc/client', () => ({
     authStatus: async () => ({ ok: true, data: { anthropic: 'none' } }),
     authSignOut: async () => ({ ok: true, data: null }),
     authStartLogin: async () => ({ ok: true, data: { name: 'x' } }),
-    credsStorageStatus: async () => ({ ok: true, data: { platform: 'darwin', backend: 'keychain', secure: true } })
+    credsStorageStatus: async () => ({ ok: true, data: { platform: 'darwin', backend: 'keychain', secure: true } }),
+    // Settings mounts <BurpSettings />, which loads its own state on mount.
+    captureSettingsGet: async () => ({ ok: true, data: { caPath: '', proxyPort: 8080, upstreamPort: 3128 } }),
+    captureCaInspect: async () => ({ ok: false, error: { kind: 'generic', message: 'no CA' } })
   }
 }))
 

@@ -557,6 +557,24 @@ export const de: Dict = {
     reviewCopyFiles: 'Kopierte Dateien',
     reviewCopyFilesCount: '{count} Datei(en) werden beim Start kopiert'
   },
+  capture: {
+    settingsTitle: 'Datenverkehr aufzeichnen (Burp)',
+    settingsHint: 'Den Datenverkehr einer Sandbox über Burp Suite leiten, um Anfragen zu inspizieren. Pro Sandbox im Tab „Monitoring“ aktivierbar.',
+    caLabel: 'Burp-CA-Zertifikat',
+    caHint: 'Burp › Proxy › Proxy settings › Import / export CA certificate. DER oder PEM.',
+    caBrowse: 'Datei wählen…',
+    caValid: '{name} · gültig bis {expires}',
+    proxyPort: 'Burp-Proxy-Port',
+    advanced: 'Erweitert',
+    upstreamPort: 'Upstream-Port',
+    upstreamHint: 'Burps Upstream-Proxy zeigt auf diesen Host-Port. Er muss zur exportierten Konfiguration passen.',
+    burpRuleTitle: 'Burp-Upstream-Regel',
+    burpRuleHint: 'Burp muss zurück in den sbx-Proxy verketten, sonst liefern authentifizierte Anfragen 401. Einmalig importieren über Burp › Settings › User settings › Import.',
+    exportConfig: 'Burp-Konfiguration exportieren',
+    copyConfig: 'Kopieren',
+    copied: 'Kopiert',
+    saved: 'Gespeichert'
+  },
   tier: { open: 'Offen', balanced: 'Ausgewogen', locked: 'Abgeschottet', custom: 'Benutzerdefiniert' },
   status: { running: 'Läuft', stopped: 'Gestoppt', error: 'Fehler', unknown: 'Unbekannt' }
 }
