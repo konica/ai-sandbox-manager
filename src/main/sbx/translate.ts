@@ -139,8 +139,33 @@ export function agentAttachCommand(name: string, agent: AgentId): string {
   return `sbx run --name ${shellQuote(name)} -- ${shellCommand(AGENT_PROFILES[agent].resumeArgs)}`
 }
 
-export function hostShellCommand(name: string): string {
-  return `sbx exec -it ${shellQuote(name)} bash`
+/** Destinations that stay direct while capturing — mirrors the capture profile script.
+ * Matched against the DESTINATION, never the proxy address, so keeping loopback here
+ * leaves sandbox-local services direct without bypassing the capture relay. */
+const CAPTURE_NO_PROXY = 'localhost,127.0.0.1,::1,gateway.docker.internal'
+
+/**
+ * The command that opens a shell inside a running sandbox.
+ *
+ * `capturePort` is the in-sandbox capture relay port, passed only while traffic capture is
+ * actively running for THIS sandbox. It has to be injected here because `sbx exec` starts a
+ * **non-login** bash, which never sources `/etc/profile.d` — so the capture profile script
+ * cannot reach it, and the shell would silently keep the sandbox's stock proxy and bypass
+ * Burp entirely. Omitting it leaves the command byte-identical to the pre-capture form, so
+ * nothing changes for sandboxes that are not being captured.
+ */
+export function hostShellCommand(name: string, capturePort?: number): string {
+  const env = capturePort === undefined
+    ? ''
+    : [
+        `http_proxy=http://127.0.0.1:${capturePort}`,
+        `https_proxy=http://127.0.0.1:${capturePort}`,
+        `HTTP_PROXY=http://127.0.0.1:${capturePort}`,
+        `HTTPS_PROXY=http://127.0.0.1:${capturePort}`,
+        `no_proxy=${CAPTURE_NO_PROXY}`,
+        `NO_PROXY=${CAPTURE_NO_PROXY}`
+      ].map((e) => `-e ${e} `).join('')
+  return `sbx exec -it ${env}${shellQuote(name)} bash`
 }
 
 // Ephemeral Claude session for a host-side OAuth `/login`. Chained with `;` so the

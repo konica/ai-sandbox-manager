@@ -75,6 +75,20 @@ function requireCreds(deps: Deps): CredentialManager {
   return deps.creds
 }
 
+/**
+ * The in-sandbox capture port to inject into a shell opened on `name`, or undefined.
+ *
+ * Only a session that is actually `on` counts: one that is still starting, or that failed,
+ * has no working relay, and pointing a shell at a dead port would cost it egress rather
+ * than capture it. The sandbox must match too — only one capture session exists, so a
+ * sibling sandbox has no relay of its own to reach.
+ */
+function capturePortFor(deps: Deps, name: string): number | undefined {
+  const status = deps.capture?.status()
+  if (!status || status.state !== 'on' || status.sandbox !== name) return undefined
+  return status.ports?.app
+}
+
 function requireCapture(deps: Deps): CaptureSession {
   if (!deps.capture) throw new Error('traffic capture is not available in this session')
   return deps.capture
@@ -338,13 +352,13 @@ export function buildHandlers(deps: Deps): {
       )
     }),
     'instance:shell': (name) => wrap(async () => {
-      const cmd = hostShellCommand(name)
+      const cmd = hostShellCommand(name, capturePortFor(deps, name))
       deps.log?.info(`Opening host shell: ${cmd}`)
       deps.openTerminal(cmd)
       return null
     }),
     // The exact sbx commands to run the agent / open a shell manually (for copy-to-clipboard).
-    'instance:commands': (name) => wrap(async () => ({ agent: agentAttachCommand(name, await resolveAgentForInstance(deps, name)), shell: hostShellCommand(name) })),
+    'instance:commands': (name) => wrap(async () => ({ agent: agentAttachCommand(name, await resolveAgentForInstance(deps, name)), shell: hostShellCommand(name, capturePortFor(deps, name)) })),
     'instance:stop': (name) => wrap(async () => { await deps.adapter.stopSandbox(name); return null }),
     'instance:remove': (name) => wrap(async () => { await cleanupInstance(deps, name); return null }),
     'secret:listGlobal': () => wrap(async () => requireCreds(deps).listGlobalSecrets()),
