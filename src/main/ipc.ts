@@ -217,7 +217,13 @@ export function buildHandlers(deps: Deps): {
   let mcpListCache: { at: number; data: McpServer[] } | null = null
   return {
     'prereq:check': () => wrap(() => checkPrereqs(deps.probes)),
-    'instances:list': () => wrap(() => reconcile(deps.adapter, deps.store)),
+    'instances:list': () => wrap(async () => {
+      const views = await reconcile(deps.adapter, deps.store)
+      // The reconciler is the app's only poll: capture learns here that its sandbox
+      // stopped or was rebuilt, and tears itself down. No separate timer exists.
+      deps.capture?.onRunningInstances(views.filter((v) => v.status === 'running').map((v) => v.name))
+      return views
+    }),
     'def:create': (spec) => wrap(async () => { deps.store.insertDefinitionSpec(spec); return { id: spec.definition.id } }),
     'def:update': (spec) => wrap(async () => { deps.store.updateDefinitionSpec(spec); return { id: spec.definition.id } }),
     'def:getSpec': (id) => wrap(async () => deps.store.getDefinitionSpec(id)),
