@@ -36,13 +36,15 @@ export type ResourceStatsState =
  * The Resource usage card is on-demand — the sandbox has no push metrics, so the
  * Fetch/Refresh button probes it via `instance:stats` rather than polling continuously.
  */
-export function MonitoringTab({ summary, onAllow, onDeny, stats, running, onFetchStats }: {
+export function MonitoringTab({ summary, onAllow, onDeny, stats, running, onFetchStats, captureSlot }: {
   summary: PolicySummary
   onAllow: (host: string) => void
   onDeny: (host: string) => void
   stats: ResourceStatsState
   running: boolean
   onFetchStats: () => void
+  /** Rendered above the resource card; omitted when the caller has no capture wiring. */
+  captureSlot?: JSX.Element
 }): JSX.Element {
   const t = useT()
   // Counts are over distinct domains (one row per host) so they map to the list, the
@@ -53,6 +55,7 @@ export function MonitoringTab({ summary, onAllow, onDeny, stats, running, onFetc
   const blockedDomains = blockedList.length
   return (
     <div>
+      {captureSlot}
       <ResourceCard stats={stats} running={running} onFetch={onFetchStats} t={t} />
 
       <div className="mon-summary" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-5)', marginBottom: 'var(--space-5)' }}>
