@@ -1175,7 +1175,15 @@ const CA = { pem: '-----BEGIN CERTIFICATE-----\nAA\n-----END CERTIFICATE-----', 
 /** Default happy-path capture output, keyed by a distinguishing fragment of the script. */
 function happyCapture(script: string): string {
   if (script.includes('command -v socat')) return `${SOCAT_OK_MARK}\n`
-  if (script.includes(FREE_PORT_MARK)) return `${FREE_PORT_MARK} 3129\n`
+  // The relay and app probes are the same script shape over different candidate lists, so
+  // answer with the first candidate the script itself names rather than a fixed port —
+  // otherwise both calls resolve to the relay port and the `app` port assertion fails.
+  if (script.includes(FREE_PORT_MARK)) {
+    const port = script.includes(`${FREE_PORT_MARK} ${CAPTURE_DEFAULTS.appPort}`)
+      ? CAPTURE_DEFAULTS.appPort
+      : CAPTURE_DEFAULTS.relayPort
+    return `${FREE_PORT_MARK} ${port}\n`
+  }
   if (script.includes('update-ca-certificates')) return `${CA_OK_MARK}\n`
   if (script.includes('profile.d')) return `${PROFILE_OK_MARK}\n`
   if (script.includes('CONC=')) return 'CONC=12/12\nCRED=200\nCREDHOST=anthropic\n'
