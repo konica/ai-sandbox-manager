@@ -579,7 +579,7 @@ export const en = {
     enable: 'Enable',
     disable: 'Disable',
     enableAnyway: 'Enable anyway',
-    agentNotCaptured: 'The running agent is not captured — it keeps the environment it started with. Open a new shell or restart it.',
+    agentNotCaptured: 'The running agent is not captured — it keeps the environment it started with. Open a new shell and start the agent there. Re-attaching from Terminals is not captured.',
     openShell: 'Open shell',
     needsRunning: 'The sandbox must be running.',
     needsCa: 'Set a Burp CA certificate in Settings first.',

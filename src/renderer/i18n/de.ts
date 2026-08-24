@@ -581,7 +581,7 @@ export const de: Dict = {
     enable: 'Aktivieren',
     disable: 'Deaktivieren',
     enableAnyway: 'Trotzdem aktivieren',
-    agentNotCaptured: 'Der laufende Agent wird nicht aufgezeichnet — er behält seine Startumgebung. Öffne eine neue Shell oder starte ihn neu.',
+    agentNotCaptured: 'Der laufende Agent wird nicht aufgezeichnet — er behält seine Startumgebung. Öffne eine neue Shell und starte den Agenten dort. Erneutes Verbinden über „Terminals“ wird nicht aufgezeichnet.',
     openShell: 'Shell öffnen',
     needsRunning: 'Die Sandbox muss laufen.',
     needsCa: 'Zuerst ein Burp-CA-Zertifikat in den Einstellungen hinterlegen.',
