@@ -1933,18 +1933,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BurpSettings } from '../../src/renderer/screens/BurpSettings'
 
-const api = {
+// `src/renderer/ipc/client` resolves `api` from `globalThis.api` ONCE, at module-eval time,
+// so assigning `globalThis.api` in a hook is too late — the component would see the
+// "IPC unavailable" fallbacks. Mock the module instead, which is what all nine existing
+// renderer tests in this repo do. `vi.hoisted` lets the mock factory reference the object
+// without a TDZ error. `clearAllMocks` calls mockClear, preserving the implementations.
+const api = vi.hoisted(() => ({
   captureSettingsGet: vi.fn(async () => ({ ok: true, data: { caPath: '', proxyPort: 8080, upstreamPort: 3128 } })),
   captureSettingsSet: vi.fn(async (patch: Record<string, unknown>) => ({ ok: true, data: { caPath: '', proxyPort: 8080, upstreamPort: 3128, ...patch } })),
   captureCaInspect: vi.fn(async () => ({ ok: true, data: { pem: 'P', subject: 'CN=PortSwigger CA', commonName: 'PortSwigger CA', expires: 'Aug 21 2036 GMT' } })),
   captureBurpConfig: vi.fn(async () => ({ ok: true, data: '{"user_options":{}}' })),
   captureExportConfig: vi.fn(async () => ({ ok: true, data: { path: 'C:/out.json' } })),
   pickFile: vi.fn(async () => 'C:/burp.cer')
-}
+}))
+vi.mock('../../src/renderer/ipc/client', () => ({ api }))
 
 beforeEach(() => {
   vi.clearAllMocks()
-  ;(globalThis as unknown as { api: unknown }).api = api
 })
 
 describe('BurpSettings', () => {
@@ -2162,6 +2167,12 @@ export function BurpSettings(): JSX.Element {
 ```
 
 - [ ] **Step 5: Mount it in Settings**
+
+Mounting `BurpSettings` makes `Settings` call `api.captureSettingsGet()` on mount, which
+breaks the pre-existing `tests/renderer/Settings.test.tsx` — it mocks the IPC client with a
+*partial* `api`, so the new call is `undefined`. Add `captureSettingsGet` and
+`captureCaInspect` stubs to that file's mock. This is an unavoidable consequence of this
+step, not a design change.
 
 In `src/renderer/screens/Settings.tsx`, add the import:
 
@@ -2604,10 +2615,12 @@ describe('capture lifecycle wiring', () => {
         { name: 'b', status: 'stopped', agent: 'claude', workspace: '', createdAt: '' }
       ])
     }
-    // `instances:list` runs the real reconciler, so the store fake must satisfy it. Copy the
-    // fake from tests/main/reconciler.test.ts rather than inventing a thinner one here —
-    // reconcile() calls more store methods than are obvious, and a missing one fails with a
-    // confusing TypeError instead of a useful assertion.
+    // `instances:list` runs the real reconciler, so this fake must satisfy everything
+    // reconcile() calls — it touches more store methods than are obvious, and a missing one
+    // surfaces as a confusing TypeError rather than a useful assertion. The fake below is
+    // complete as written; check it against src/main/reconciler.ts if that changes.
+    // (Note: tests/main/reconciler.test.ts is NOT a source for this — it uses a real
+    // openStore(':memory:'), not an object fake.)
     const store = {
       listInstanceMeta: () => [], listInstanceTags: () => new Map<string, string[]>(),
       deleteInstanceMeta: vi.fn(), deleteInstanceTags: vi.fn(), listDefinitions: () => [],

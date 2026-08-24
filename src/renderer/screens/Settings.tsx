@@ -5,6 +5,7 @@ import { useT } from '../i18n'
 import { GlobalSecrets } from './GlobalSecrets'
 import { AccountsSection } from './AccountsSection'
 import { CredentialStorageGuide } from './CredentialStorageGuide'
+import { BurpSettings } from './BurpSettings'
 
 const TIERS: Tier[] = ['open', 'balanced', 'locked']
 function isTier(v: string | null): v is Tier { return v === 'open' || v === 'balanced' || v === 'locked' }
@@ -71,6 +72,8 @@ export function Settings(): JSX.Element {
       </div>
 
       <CredentialStorageGuide status={storage} />
+
+      <BurpSettings />
 
       {notice && <p className="section-desc" style={{ color: 'var(--danger)', marginTop: 'var(--space-3)' }}>{notice}</p>}
       <GlobalSecrets secrets={secrets} envHits={envHits} onAdd={(id, v) => void onAdd(id, v)} onRemove={(id) => void onRemove(id)} onImport={(id) => void onImport(id)} />
