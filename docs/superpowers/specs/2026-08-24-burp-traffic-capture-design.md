@@ -75,6 +75,54 @@ the sandbox, `https://example.com` through the capture port presents `CN=example
 install reaches the trust store that `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE` and
 `NODE_EXTRA_CA_CERTS` all point at.
 
+### The Anthropic API path
+
+`api.anthropic.com` is the host that matters most — it is what the agent actually talks to,
+and it is credential-injected, so it exercises the Burp-chains-back-into-the-sbx-proxy
+requirement rather than merely proving egress. Tested directly:
+
+- Through the capture port, `POST /v1/messages` presents `CN=api.anthropic.com` **issued by
+  `PortSwigger CA`** — Burp terminates the TLS and sees the plaintext request.
+- The same request returns **`HTTP 200`** with a genuine model completion. The sandbox
+  carries no Anthropic credential of its own (`SBX_CRED_ANTHROPIC_MODE=none`); the account
+  is `(oauth configured)` at global scope and injected at the sbx proxy. A `200` is
+  therefore only reachable if injection survived the detour — a broken chain returns `401`.
+
+An earlier attempt with a wrong model name returned a `not_found_error` carrying a real
+`request_id`, which is itself the same proof: model validation happens after
+authentication, so a `404` on the model already rules out an auth failure.
+
+### sbx performs its own TLS interception
+
+Worth recording because it is easy to misread while debugging. Requests through the stock
+sbx proxy present `CN=Docker Sandboxes Proxy CA` **for credential-injected hosts only**
+(`api.anthropic.com` does; `example.com` shows the genuine Cloudflare issuer). sbx must
+MITM those hosts in order to substitute the real secret for the placeholder.
+
+With capture on there are therefore *two* interception layers on those hosts: Burp first,
+then sbx. This is the mechanism behind the "Burp sees pre-injection requests" limitation —
+Burp is upstream of the substitution, so it observes the placeholder token, and the real
+credential is attached afterwards at a layer Burp never sees.
+
+### Disable restores normal operation
+
+The disable path was verified explicitly, since the whole design leans on it as the safety
+property. After tearing capture down:
+
+| check | result |
+|---|---|
+| `http_proxy` in a new login shell | reverted to `http://gateway.docker.internal:3128` (stock sbx proxy) |
+| `/tmp/burp-proxy-port` | removed |
+| `socat` relays in the sandbox | none running |
+| host listeners on `3128` / `3129` | none |
+| `https://example.com` | `200` |
+| `api.github.com` with `GH_TOKEN` | `200` — credential injection intact |
+| `api.anthropic.com` `POST /v1/messages` | `200` with a genuine completion |
+| TLS issuer on `example.com` | back to `Cloudflare TLS Issuing ECC CA 3`, no PortSwigger |
+
+Egress never lapsed at any point. The profile script self-disables when the port file is
+gone, so the sandbox falls back to its own proxy rather than losing connectivity.
+
 ## Architecture
 
 ```
@@ -351,11 +399,23 @@ across sessions: the next Enable starts from the fail-closed default again. A on
 override of a safety gate that silently persists would be worse than no gate, because the
 `401`s it permits look like broken credentials.
 
-**The credential check is conditional.** It probes `api.github.com` with `$GH_TOKEN`, which
-a sandbox without a GitHub credential does not have — there, a failure would mean nothing.
-So it runs only when `GH_TOKEN` is non-empty. When it is absent the card states plainly that
-the upstream rule could not be verified, shows the export, and enables with a warning rather
-than a false green tick.
+**The credential check probes Anthropic first, GitHub second.** The check has to use a host
+whose credential is injected at the sbx proxy, because that is the only way to tell a
+working chain from Burp going direct.
+
+1. **`GET https://api.anthropic.com/v1/models`** is the primary probe. It is the agent's own
+   API and is configured in every sandbox this app targets; it authenticates purely by
+   injection, needs no request body, and **spends no tokens**. Verified returning `200`.
+2. **`api.github.com` with `$GH_TOKEN`** is the fallback, used when the Anthropic
+   credential is absent.
+3. **Neither configured** — the card states plainly that the upstream rule could not be
+   verified, shows the config export, and enables with a warning rather than a false green
+   tick.
+
+The spike used the GitHub probe alone; demoting it to fallback removes the case where a
+sandbox with no GitHub credential produces a meaningless failure. Note that a `4xx` which
+is *not* `401` still proves the chain works — authentication precedes request validation,
+so only `401` indicates a broken chain.
 
 **Every failure names its phase.** "Burp not listening on 127.0.0.1:8080" and "socat not
 found in this sandbox" are different problems with different fixes, and the card says which
@@ -370,9 +430,10 @@ one happened.
   healthy, partial and malformed cases; `burp-config` asserts the exact JSON shape recorded
   above.
 - **`session.ts`** — tested with an injected fake adapter and fake spawn: full phase
-  ordering, the one-at-a-time guard, fail-closed teardown on a failed credential check, the
-  `GH_TOKEN`-absent branch, idempotent disable, and teardown on sandbox stop. No Burp, no
-  ssh and no sandbox required.
+  ordering, the one-at-a-time guard, fail-closed teardown on a failed credential check, all
+  three branches of the credential probe (Anthropic, GitHub fallback, neither configured),
+  the non-`401` `4xx` case that must still count as a pass, idempotent disable, and teardown
+  on sandbox stop. No Burp, no ssh and no sandbox required.
 - **Renderer** — testing-library over the card's four states and the settings card,
   including the disabled-Enable reasons.
 - **i18n** — every new string added to both `i18n/en.ts` and `i18n/de.ts`.
