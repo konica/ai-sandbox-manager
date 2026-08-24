@@ -774,7 +774,8 @@ export function profileScriptBody(): string {
   return `# ${PROFILE_PATH}
 # Point login shells at Burp, but only while the tunnel is genuinely up, so closing Burp
 # degrades to the stock sbx proxy instead of killing egress.
-# Must stay POSIX sh: /bin/sh here is dash, which has no /dev/tcp.
+# Must stay POSIX sh: /bin/sh here is dash, which has no bash-style TCP device redirection.
+# (Do not write the literal device path here — the test asserts the emitted body omits it.)
 
 _bp_file=${PORT_FILE}
 if [ -r "$_bp_file" ]; then
@@ -845,11 +846,16 @@ export function publishPortScript(appPort: number): string {
  * sbx's SSH server is a custom Go implementation whose signal propagation is not guaranteed.
  * Removing the port file is what makes new shells fall back to the stock sbx proxy.
  * Always exits 0 — a teardown that throws would strand the session in a wedged state.
+ *
+ * The `[ ]` in the pattern is a self-match guard: the `bash -lc` parent carries this whole
+ * script in its own cmdline, and a plain `-f` pattern would match it and kill the exec that
+ * is doing the teardown. `socat[ ]TCP4-LISTEN:<port>` matches the real relay (`socat` then a
+ * space) but not this script's own text (`socat` then `[`). Do not "simplify" the brackets.
  */
 export function teardownScript(p: { relayPort: number; appPort: number }): string {
   return [
-    `pkill -f '[T]CP4-LISTEN:${p.relayPort}' >/dev/null 2>&1`,
-    `pkill -f '[T]CP4-LISTEN:${p.appPort}' >/dev/null 2>&1`,
+    `pkill -f 'socat[ ]TCP4-LISTEN:${p.relayPort}' >/dev/null 2>&1`,
+    `pkill -f 'socat[ ]TCP4-LISTEN:${p.appPort}' >/dev/null 2>&1`,
     `rm -f ${PORT_FILE}`,
     'exit 0'
   ].join('; ')
@@ -859,7 +865,7 @@ export function teardownScript(p: { relayPort: number; appPort: number }): strin
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/main/capture/scripts.test.ts`
-Expected: PASS (13 tests).
+Expected: PASS (14 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -1128,7 +1134,7 @@ export function verifyChecks(v: VerifyResult): CaptureCheck[] {
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run tests/main/capture/verify.test.ts`
-Expected: PASS (14 tests).
+Expected: PASS (16 tests).
 
 - [ ] **Step 5: Commit**
 
