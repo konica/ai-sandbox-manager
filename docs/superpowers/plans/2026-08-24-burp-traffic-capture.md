@@ -2394,7 +2394,10 @@ function CheckPill({ check, t }: { check: CaptureCheck; t: TFn }): JSX.Element {
   const label = CHECK_KEYS[check.id] ? t(CHECK_KEYS[check.id]) : check.id
   return (
     <span title={check.detail} style={{ fontSize: 12, color: check.ok ? 'var(--success, var(--accent))' : 'var(--danger)' }}>
-      {check.ok ? '✓' : '✕'} {label} {check.detail}
+      {/* `detail` needs its own span: testing-library's getByText matches an element's
+          joined direct text nodes, so inlining it here makes the pill's queryable text
+          "✓ Concurrency 12/12" and the test's getByText('12/12') can never match. */}
+      {check.ok ? '✓' : '✕'} {label} <span className="capture-check-detail">{check.detail}</span>
     </span>
   )
 }

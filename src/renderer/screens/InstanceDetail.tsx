@@ -6,6 +6,8 @@ import { useT } from '../i18n'
 import { TerminalsTab } from './detail/TerminalsTab'
 import { PortsTab } from './detail/PortsTab'
 import { MonitoringTab, type ResourceStatsState } from './detail/MonitoringTab'
+import { CaptureCard } from './detail/CaptureCard'
+import { IDLE_STATUS, type CaptureStatus } from '@shared/capture'
 import { MetadataTab } from './detail/MetadataTab'
 import { FilesTab } from './detail/FilesTab'
 
@@ -78,6 +80,14 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
     const r = await api.instancePolicyLog(instance.name)
     if (r.ok) setPolicy(r.data)
   }, [instance.name])
+  // Capture status is global (only one session may exist), so it is not keyed by instance.
+  const [capture, setCapture] = useState<CaptureStatus>(IDLE_STATUS)
+  const [hasCa, setHasCa] = useState(false)
+  useEffect(() => { void api.captureSettingsGet().then((r) => { if (r.ok) setHasCa(r.data.caPath.trim().length > 0) }) }, [])
+  const reloadCapture = useCallback(async () => {
+    const r = await api.captureStatus()
+    if (r.ok) setCapture(r.data)
+  }, [])
 
   useEffect(() => { void reloadSpec() }, [reloadSpec])
   useEffect(() => { void api.instanceCommands(instance.name).then((r) => { if (r.ok) setCommands(r.data) }) }, [instance.name])
@@ -89,6 +99,13 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
     const id = setInterval(() => void reloadPolicy(), 5000)
     return () => clearInterval(id)
   }, [tab, reloadPolicy])
+  // Polled on the same interval as the policy log rather than via a new push channel.
+  useEffect(() => {
+    if (tab !== 'monitoring') return
+    void reloadCapture()
+    const id = setInterval(() => void reloadCapture(), 5000)
+    return () => clearInterval(id)
+  }, [tab, reloadCapture])
 
   const running = instance.status === 'running'
   // "Apply live" is actionable whenever a running instance is linked to a definition that has
@@ -222,6 +239,17 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
           stats={stats}
           running={running}
           onFetchStats={() => void onFetchStats()}
+          captureSlot={
+            <CaptureCard
+              status={capture}
+              sandbox={instance.name}
+              running={running}
+              hasCa={hasCa}
+              onEnable={async (force) => { const r = await api.captureEnable(instance.name, force); if (r.ok) setCapture(r.data) }}
+              onDisable={async () => { const r = await api.captureDisable(); if (r.ok) setCapture(r.data) }}
+              onOpenShell={() => onShell(instance.name)}
+            />
+          }
           onAllow={async (host) => {
             setHostOverride(host, 'allow') // reflect immediately (log keeps the stale row until next request)
             await api.instanceDomainAllow(instance.name, host)
