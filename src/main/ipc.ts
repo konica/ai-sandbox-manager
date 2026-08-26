@@ -302,7 +302,7 @@ export function buildHandlers(deps: Deps): {
     'instance:setTags': (name, tags) => wrap(async () => { deps.store.setInstanceTags(name, normalizeTags(tags)); return null }),
     'instance:attach': (name, opener) => wrap(async () => {
       const { definitionId, spec } = await resolveInstanceDefinition(deps, name)
-      const cmd = agentAttachCommand(name, spec?.definition.agent ?? 'claude')
+      const cmd = agentAttachCommand(name, spec?.definition.agent ?? 'claude', capturePortFor(deps, name))
       // Re-register the definition's current credentials scoped to this instance so any
       // added/changed since the initial launch are synced into sbx before the agent runs.
       if (spec && deps.creds && definitionId && spec.credentials.length > 0) {
@@ -358,7 +358,7 @@ export function buildHandlers(deps: Deps): {
       return null
     }),
     // The exact sbx commands to run the agent / open a shell manually (for copy-to-clipboard).
-    'instance:commands': (name) => wrap(async () => ({ agent: agentAttachCommand(name, await resolveAgentForInstance(deps, name)), shell: hostShellCommand(name, capturePortFor(deps, name)) })),
+    'instance:commands': (name) => wrap(async () => ({ agent: agentAttachCommand(name, await resolveAgentForInstance(deps, name), capturePortFor(deps, name)), shell: hostShellCommand(name, capturePortFor(deps, name)) })),
     'instance:stop': (name) => wrap(async () => { await deps.adapter.stopSandbox(name); return null }),
     'instance:remove': (name) => wrap(async () => { await cleanupInstance(deps, name); return null }),
     'secret:listGlobal': () => wrap(async () => requireCreds(deps).listGlobalSecrets()),

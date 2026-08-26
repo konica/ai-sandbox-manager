@@ -55,7 +55,9 @@ describe('CaptureCard', () => {
   it('always warns that the running agent is not captured, with a shell action', () => {
     const onOpenShell = vi.fn()
     render(<CaptureCard {...base} status={onStatus} onOpenShell={onOpenShell} />)
-    expect(screen.getByText(/running agent is not captured/i)).toBeInTheDocument()
+    // Matches the meaning, not the exact phrasing — the wording of this caveat has changed
+    // twice as the capture story firmed up, and the test should not break on copy edits.
+    expect(screen.getByText(/is not captured/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /open shell/i }))
     expect(onOpenShell).toHaveBeenCalled()
   })
