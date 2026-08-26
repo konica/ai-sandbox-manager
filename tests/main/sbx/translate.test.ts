@@ -137,14 +137,16 @@ describe('portIntentToPublishSpec', () => {
 describe('shell command builders', () => {
   it('quotes names and builds run/exec commands', () => {
     expect(shellQuote('a b')).toBe("'a b'")
-    expect(agentAttachCommand('my-project', 'claude')).toBe("sbx run --name 'my-project' -- --continue")
+    expect(agentAttachCommand('my-project', 'claude')).toBe("sbx run --name 'my-project' -- agents")
     expect(hostShellCommand('my-project')).toBe("sbx exec -it 'my-project' bash")
   })
   it('agentAttachCommand uses the given agent\'s resumeArgs', () => {
     expect(agentAttachCommand('my-project', 'opencode')).toBe("sbx run --name 'my-project' -- --continue")
+    expect(agentAttachCommand('my-project', 'codex')).toBe("sbx run --name 'my-project' -- resume --last")
+    expect(agentAttachCommand('my-project', 'copilot')).toBe("sbx run --name 'my-project' -- --resume")
   })
-  it('agentAttachCommand is byte-identical for claude (regression guard)', () => {
-    expect(agentAttachCommand('my-project', 'claude')).toBe("sbx run --name 'my-project' -- --continue")
+  it('agentAttachCommand opens the session dashboard for claude (regression guard)', () => {
+    expect(agentAttachCommand('my-project', 'claude')).toBe("sbx run --name 'my-project' -- agents")
   })
   it('agentAttachCommand quotes resumeArgs tokens that need it, like every other arg path', () => {
     const original = AGENT_PROFILES.codex.resumeArgs
