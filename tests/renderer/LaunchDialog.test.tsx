@@ -24,6 +24,13 @@ describe('LaunchDialog', () => {
     expect(onLaunch).toHaveBeenCalledWith('vscode', [])
   })
 
+  it('passes an explicitly chosen non-default opener to onLaunch', () => {
+    const { onLaunch } = setup() // hasVSCode: true → VS Code is the default opener
+    fireEvent.click(screen.getByLabelText('Terminal'))
+    fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
+    expect(onLaunch).toHaveBeenCalledWith('terminal', [])
+  })
+
   it('disables the VS Code option and defaults to Terminal when the code CLI is unavailable', () => {
     const { onLaunch } = setup({ hasVSCode: false })
     expect(screen.getByLabelText('VS Code')).toBeDisabled()
