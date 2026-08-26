@@ -55,6 +55,27 @@ describe('InstanceDetail', () => {
     // Rebuild remains available as the fallback.
     expect(screen.getAllByText(/Rebuild/).length).toBeGreaterThan(0)
   })
+  it('shows a folder-drift notice offering Rebuild when the definition gained a folder', async () => {
+    const onRebuild = vi.fn()
+    render(<InstanceDetail
+      instance={{ name: 'xray-0c6bea75', status: 'running', agent: 'claude', ports: [], workspace: '/p', definitionId: 'd1', definitionName: 'P', tier: 'open', tags: [], mountsDrift: true } as never}
+      onBack={() => {}} onStop={() => {}} onRemove={() => {}} onRebuild={onRebuild}
+      onAttach={() => {}} onShell={() => {}} onApplyCredentials={() => {}} onSetTags={() => {}}
+    />)
+    expect(await screen.findByText(/folders no longer match this sandbox/i)).toBeTruthy()
+    // Mounts have no live remedy, so the notice must NOT offer "Apply live".
+    expect(screen.queryByText('Apply live')).toBeNull()
+    fireEvent.click(screen.getAllByText(/Rebuild/)[0])
+    expect(onRebuild).toHaveBeenCalledWith('xray-0c6bea75')
+  })
+  it('shows no folder-drift notice when mounts are in sync', () => {
+    render(<InstanceDetail
+      instance={{ name: 'sbx-9', status: 'running', agent: 'claude', ports: [], workspace: '/p', definitionId: 'd1', definitionName: 'P', tier: 'open', tags: [], mountsDrift: false } as never}
+      onBack={() => {}} onStop={() => {}} onRemove={() => {}} onRebuild={() => {}}
+      onAttach={() => {}} onShell={() => {}} onApplyCredentials={() => {}} onSetTags={() => {}}
+    />)
+    expect(screen.queryByText(/folders no longer match this sandbox/i)).toBeNull()
+  })
   it('disables "Apply live" when the instance is stopped', () => {
     render(<InstanceDetail
       instance={{ name: 'sbx-2', status: 'stopped', agent: 'claude', ports: [], workspace: '/p', definitionId: 'd1', definitionName: 'P', tier: 'locked', tags: [], credsDrift: true } as never}

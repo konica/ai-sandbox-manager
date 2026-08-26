@@ -184,6 +184,15 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
         </div>
       )}
 
+      {instance.mountsDrift && (
+        <div role="status" className="card" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', padding: 'var(--space-3) var(--space-4)', borderColor: 'var(--warning, var(--accent))' }}>
+          <span style={{ fontSize: 13, flex: 1 }}>{t('detail.mountsDriftNotice')}</span>
+          {/* No "apply live" counterpart: sbx refuses to add a workspace to an existing
+              sandbox, so rebuilding is the only way to attach a newly added folder. */}
+          <button className="btn btn-primary btn-sm" title={t('detail.rebuildHint')} onClick={() => onRebuild(instance.name)}>↻ {t('detail.rebuild')}</button>
+        </div>
+      )}
+
       <div role="tablist" className="tabs detail-tabs" style={{ display: 'flex', gap: 'var(--space-2)', borderBottom: '1px solid var(--border)', marginBottom: 'var(--space-5)' }}>
         <button role="tab" aria-selected={tab === 'terminals'} style={tabStyle(tab === 'terminals')} onClick={() => setTab('terminals')}>{t('detail.tabTerminals')}</button>
         <button role="tab" aria-selected={tab === 'files'} style={tabStyle(tab === 'files')} onClick={() => setTab('files')}>{t('detail.tabFiles')}</button>

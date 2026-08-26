@@ -346,6 +346,7 @@ export const de: Dict = {
     applyLive: 'Live anwenden',
     applyLiveHint: 'Die hinzugefügten/entfernten Anmeldedaten jetzt auf diese laufende Sandbox anwenden, ohne Neuerstellung. Der Agent übernimmt sie beim nächsten Öffnen.',
     credsDriftNotice: "Die Anmeldedaten dieser Definition haben sich seit Erstellung dieser Instanz geändert. Wenden Sie sie auf die laufende Sandbox an oder erstellen Sie neu — ihre Umgebungsvariablen werden beim Bau der Sandbox eingefügt.",
+    mountsDriftNotice: 'Die Ordner dieser Definition stimmen nicht mehr mit dieser Sandbox überein. Ordner können nur beim Bau einer Sandbox eingebunden werden — ein erneutes Ausführen dieser Instanz übernimmt sie nicht. Erstellen Sie neu, um sie anzuwenden.',
     fromDefinition: 'aus Definition',
     tabTerminals: 'Terminals',
     tabPorts: 'Ports',
