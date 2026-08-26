@@ -269,17 +269,17 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
   for (const p of ports) {
     steps.push(shellCommand(['sbx', 'ports', name, '--publish', portIntentToPublishSpec(p)]))
   }
-  // `sbx run` attaches the agent; args after `--` go to the agent CLI. A session
-  // name maps to that agent's own session-naming flag for this new conversation.
-  // The static MCP flag must land before that separator, alongside sbx's own flags.
+  // `sbx run` attaches the agent; args after `--` go to the agent CLI — the agent's own
+  // session view on a fresh launch. The static MCP flag must land before that separator,
+  // alongside sbx's own flags.
   const runArgs = ['sbx', 'run', '--name', name, ...staticMcpArgs(mcpServers)]
-  if (sessionName && sessionName.trim()) {
-    const nameArgs = AGENT_PROFILES[spec.definition.agent].sessionNameArgs(sessionName.trim())
-    // Only add the `--` separator when there's something to put after it — an agent with
-    // no session-name flag (e.g. codex, copilot) returns [], and a bare trailing `--` would
-    // both dangle and silently swallow the session name the user typed.
-    if (nameArgs.length > 0) runArgs.push('--', ...nameArgs)
-  }
+  // A session name still wins while the field exists; without one the agent's own session
+  // view is opened instead (claude: `agents`). Only add `--` when something follows it — a
+  // bare trailing separator dangles and would swallow the next token.
+  const agentArgs = sessionName && sessionName.trim()
+    ? AGENT_PROFILES[spec.definition.agent].sessionNameArgs(sessionName.trim())
+    : AGENT_PROFILES[spec.definition.agent].launchArgs
+  if (agentArgs.length > 0) runArgs.push('--', ...agentArgs)
   steps.push(shellCommand(runArgs))
 
   // SSH: when the agent is forwarded, set up host-key trust (and optionally commit

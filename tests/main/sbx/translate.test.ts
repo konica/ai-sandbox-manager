@@ -167,23 +167,32 @@ describe('shell command builders', () => {
 describe('launchCommand', () => {
   it('chains create then run for a locked sandbox with no allowlist', () => {
     expect(launchCommand(spec())).toBe(
-      `sbx create claude /home/u/proj --name my-project --template docker.io/docker/sandbox-templates:claude-code && ${sshHostKeySetupCommand('my-project')} && sbx run --name my-project`
+      `sbx create claude /home/u/proj --name my-project --template docker.io/docker/sandbox-templates:claude-code && ${sshHostKeySetupCommand('my-project')} && sbx run --name my-project -- agents`
     )
   })
   it('inserts a policy step and quotes the wildcard for the open tier', () => {
     const cmd = launchCommand(spec({ definition: { ...spec().definition, tier: 'open' } }))
     expect(cmd).toContain("sbx policy allow network --sandbox my-project '**'")
-    expect(cmd).toMatch(/&& sbx run --name my-project$/)
+    expect(cmd).toMatch(/&& sbx run --name my-project -- agents$/)
   })
   it('adds a ports step per intent', () => {
     const cmd = launchCommand(spec({ ports: [{ hostPort: 3000, containerPort: 8080, protocol: 'tcp', label: 'web' }] }))
     expect(cmd).toContain('sbx ports my-project --publish 3000:8080/tcp')
-    expect(cmd).toMatch(/&& sbx run --name my-project$/)
+    expect(cmd).toMatch(/&& sbx run --name my-project -- agents$/)
   })
   it('uses an explicit name override throughout the chain', () => {
     const cmd = launchCommand(spec(), 'my-project-2')
     expect(cmd).toContain('--name my-project-2')
-    expect(cmd).toMatch(/&& sbx run --name my-project-2$/)
+    expect(cmd).toMatch(/&& sbx run --name my-project-2 -- agents$/)
+  })
+  it('opens the Claude session dashboard on a fresh launch', () => {
+    expect(launchCommand(spec(), 'my-project')).toMatch(/&& sbx run --name my-project -- agents$/)
+  })
+  it('launches non-claude agents bare, with no dangling separator', () => {
+    for (const agent of ['opencode', 'codex', 'copilot'] as const) {
+      const s = spec({ definition: { ...spec().definition, agent, baseImage: `docker.io/docker/sandbox-templates:${agent}` } })
+      expect(launchCommand(s, 'my-project')).toMatch(/&& sbx run --name my-project$/)
+    }
   })
   it('appends the session name as claude --name after the -- separator', () => {
     const cmd = launchCommand(spec(), 'my-project', 'Refactor auth')
@@ -195,7 +204,7 @@ describe('launchCommand', () => {
     expect(cmd).toMatch(/&& sbx run --name my-project -- --session 'Refactor auth'$/)
   })
   it('omits the session args when no session name is given', () => {
-    expect(launchCommand(spec(), 'my-project', '  ')).toMatch(/&& sbx run --name my-project$/)
+    expect(launchCommand(spec(), 'my-project', '  ')).toMatch(/&& sbx run --name my-project -- agents$/)
   })
   it('emits no dangling -- separator for an agent with no session-name flag (codex), even with a session name given', () => {
     const s = spec({ definition: { ...spec().definition, agent: 'codex', baseImage: 'docker.io/docker/sandbox-templates:codex' } })

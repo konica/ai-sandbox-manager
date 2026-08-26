@@ -49,7 +49,7 @@ describe('instance lifecycle IPC', () => {
     expect(r).toEqual({ ok: true, data: { name: 'my-project-3323dc52' } })
     const cmd = d.openTerminal.mock.calls[0][0] as string
     expect(cmd).toContain('sbx create claude')
-    expect(cmd).toMatch(/sbx run --name my-project-3323dc52$/)
+    expect(cmd).toMatch(/sbx run --name my-project-3323dc52 -- agents$/)
   })
 
   it('instance:attach and instance:shell open a terminal with the right command', async () => {

@@ -32,11 +32,11 @@ describe('launchCommand — MCP binding', () => {
   it('a static definition with no session name still gets the flag, with nothing after it', () => {
     const cmd = launchCommand(spec(), 'my-project', undefined, undefined, [], ['notion'])
     // "notion" alone needs no quoting (no comma), unlike the multi-name case above.
-    expect(cmd).toMatch(/&& sbx run --name my-project --static-mcp notion$/)
+    expect(cmd).toMatch(/&& sbx run --name my-project --static-mcp notion -- agents$/)
   })
   it('dynamic/off (no resolved servers) launches with no MCP flag at all', () => {
     const cmd = launchCommand(spec(), 'my-project')
-    expect(cmd).toMatch(/&& sbx run --name my-project$/)
+    expect(cmd).toMatch(/&& sbx run --name my-project -- agents$/)
     expect(cmd).not.toContain('--static-mcp')
   })
 })
