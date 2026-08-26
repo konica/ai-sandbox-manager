@@ -202,7 +202,7 @@ app.whenReady().then(() => {
     probe: (port) => tcpProbe(port),
     log: logger
   })
-  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, openVSCode, cleanupKit, saveFile, openFile, log: logger, storageStatus: () => storageStatus(process.platform, safeStorage), capture })
+  registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, openVSCode, cleanupKit, saveFile, openFile, log: logger, storageStatus: () => storageStatus(process.platform, safeStorage), capture, sessionArchiveBaseDir: app.getPath('userData') })
   // Capture never survives the app: quitting removes the sandbox's port file so new shells
   // fall back to the stock sbx proxy. There is no persistence and no auto-resume.
   // The quit is deferred until teardown finishes — see createBeforeQuitHandler for why a

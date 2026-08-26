@@ -15,6 +15,8 @@ import { normalizeTags } from '@shared/tags'
 import { registerCredentials } from './creds/register'
 import { applyCredentialsLive } from './creds/apply-live'
 import { agentAttachCommand, hostShellCommand, loginCommand, mcpAuthCommand, expandSandboxPath, expandHostPath } from './sbx/translate'
+import type { SessionRestore } from './sbx/translate'
+import { captureSessions, archivedSubdirs } from './session/archive'
 import { fetchResourceStats } from './sbx/resource-stats'
 import { claudeAuthStatus, claudeSignOut } from './auth/manager'
 import { sshAgentPresent } from './ssh/detect'
@@ -68,6 +70,8 @@ interface Deps {
   capture?: CaptureSession
   /** Override CA reading (tests only). */
   readCa?: (path: string) => CaInfo
+  /** Root for Claude session archives (the app's userData dir). Absent ⇒ rebuild preserves nothing. */
+  sessionArchiveBaseDir?: string
 }
 
 function requireCreds(deps: Deps): CredentialManager {
@@ -336,8 +340,12 @@ export function buildHandlers(deps: Deps): {
       if (!definitionId) throw new SbxError('not-found', `Instance "${name}" has no linked definition to rebuild from.`)
       const tags = deps.store.listInstanceTags().get(name) ?? []
       deps.log?.info(`Rebuilding instance "${name}" (recreate from definition ${definitionId} to apply current config/credentials).`)
+      // Capture the Claude sessions FIRST. cleanupInstance below removes the sandbox
+      // irreversibly, so a capture that failed afterwards would have nothing left to read —
+      // captureSessions throws on a genuine failure and that abort is the safety property.
+      const restoreFrom = await captureRebuildSessions(deps, name, definitionId)
       await cleanupInstance(deps, name)
-      return launchDefinition(launchDeps(), definitionId, undefined, undefined, opener ?? 'terminal', tags)
+      return launchDefinition(launchDeps(), definitionId, undefined, undefined, opener ?? 'terminal', tags, restoreFrom)
     }),
     'instance:applyCredentials': (name) => wrap(async () => {
       // Live-apply service/custom credential changes to a running sandbox (no recreate):
@@ -580,6 +588,25 @@ function persist(deps: Deps, edit: () => boolean, name: string): boolean {
  * (not auto-removed by sbx), the generated <workspace>/.sandbox dir, and its metadata row.
  * Shared by `instance:remove` and `def:remove`.
  */
+/**
+ * Archive an instance's Claude sessions ahead of a rebuild, returning what to restore into
+ * its replacement (or undefined when there is nothing to carry over).
+ *
+ * Deliberately does NOT swallow errors: the caller destroys the sandbox next, so a failed
+ * capture must abort the rebuild rather than silently cost the user their conversations.
+ */
+async function captureRebuildSessions(deps: Deps, name: string, definitionId: string): Promise<SessionRestore | undefined> {
+  if (!deps.sessionArchiveBaseDir) return undefined
+  const dir = await captureSessions({ adapter: deps.adapter }, { sbxName: name, definitionId, baseDir: deps.sessionArchiveBaseDir })
+  if (!dir) {
+    deps.log?.info(`No Claude sessions to preserve from "${name}".`)
+    return undefined
+  }
+  const subdirs = archivedSubdirs(dir)
+  deps.log?.info(`Preserved ${subdirs.join(', ')} from "${name}" to ${dir}.`)
+  return { dir, subdirs }
+}
+
 async function cleanupInstance(deps: Deps, name: string): Promise<void> {
   // Read meta/spec BEFORE removing the sandbox. The renderer polls instances:list every 4 s,
   // which triggers reconcile() and GC's the metadata row the moment the sandbox disappears
