@@ -3,6 +3,7 @@ import type { ResourceStats } from '@shared/resource-stats'
 import type { CopyDirection, ListResult, PlanResult, CopyResult } from '@shared/copy'
 import type { McpServer, McpServerDetail, McpAuthState, McpAddInput } from '@shared/mcp'
 import type { BurpSettings, CaptureStatus } from '@shared/capture'
+import type { ArchiveEntry } from '@shared/session'
 
 interface Api {
   prereqCheck(): Promise<Result<PrereqResult>>
@@ -72,6 +73,8 @@ interface Api {
   captureCaInspect(path: string): Promise<Result<{ pem: string; subject: string; commonName: string; expires: string }>>
   captureBurpConfig(): Promise<Result<string>>
   captureExportConfig(): Promise<Result<{ canceled?: boolean; path?: string }>>
+  sessionListArchives(name: string): Promise<Result<ArchiveEntry[]>>
+  sessionExportArchive(dir: string): Promise<Result<{ canceled?: boolean; path?: string }>>
   setTitleBarOverlay(light: boolean): void
 }
 
@@ -143,5 +146,7 @@ export const api: Api = (globalThis as unknown as { api?: Api }).api ?? {
   captureCaInspect: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   captureBurpConfig: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   captureExportConfig: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  sessionListArchives: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
+  sessionExportArchive: async () => ({ ok: false, error: { kind: 'generic', message: 'IPC unavailable' } }),
   setTitleBarOverlay: () => {}
 }

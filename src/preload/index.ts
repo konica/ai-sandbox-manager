@@ -71,6 +71,8 @@ const api = {
   captureCaInspect: (path: string) => ipcRenderer.invoke('capture:caInspect', path),
   captureBurpConfig: () => ipcRenderer.invoke('capture:burpConfig'),
   captureExportConfig: () => ipcRenderer.invoke('capture:exportConfig'),
+  sessionListArchives: (name: string) => ipcRenderer.invoke('session:listArchives', name),
+  sessionExportArchive: (dir: string) => ipcRenderer.invoke('session:exportArchive', dir),
   setTitleBarOverlay: (light: boolean) => ipcRenderer.send('theme:setOverlay', light)
 }
 

@@ -4,6 +4,7 @@ import { StatusBadge } from '../components/badges'
 import { api } from '../ipc/client'
 import { useT } from '../i18n'
 import { TerminalsTab } from './detail/TerminalsTab'
+import { SessionBackups } from './detail/SessionBackups'
 import { PortsTab } from './detail/PortsTab'
 import { MonitoringTab, type ResourceStatsState } from './detail/MonitoringTab'
 import { CaptureCard } from './detail/CaptureCard'
@@ -192,6 +193,8 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
           <button className="btn btn-primary btn-sm" title={t('detail.rebuildHint')} onClick={() => onRebuild(instance.name)}>↻ {t('detail.rebuild')}</button>
         </div>
       )}
+
+      <SessionBackups name={instance.name} />
 
       <div role="tablist" className="tabs detail-tabs" style={{ display: 'flex', gap: 'var(--space-2)', borderBottom: '1px solid var(--border)', marginBottom: 'var(--space-5)' }}>
         <button role="tab" aria-selected={tab === 'terminals'} style={tabStyle(tab === 'terminals')} onClick={() => setTab('terminals')}>{t('detail.tabTerminals')}</button>
