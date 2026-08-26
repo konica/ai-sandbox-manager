@@ -169,7 +169,7 @@ export function shellQuote(s: string): string {
 }
 
 // Attach reconnects to an existing sandbox and resumes the agent's most recent
-// session (Claude Code `--continue`), passed through `sbx run`'s `--` separator.
+// session (Claude Code `agents`), passed through `sbx run`'s `--` separator.
 // resumeArgs are routed through shellCommand like every other arg path in this file,
 // so a future profile with a space/metacharacter in its resumeArgs is quoted, not
 // silently mis-parsed.
@@ -177,9 +177,11 @@ export function agentAttachCommand(name: string, agent: AgentId, capturePort?: n
   // While capturing, launch through `sbx exec` instead of `sbx run`. `sbx run` has no --env
   // flag, so the agent would inherit the container's stock proxy and bypass Burp entirely —
   // the whole point of enabling capture. `sbx exec` accepts --env, starts the sandbox if it
-  // is stopped, and lands in the same workspace directory, and `--continue` was verified
-  // against a live sandbox to resume the *same* session there rather than starting a fresh
-  // one. With capture off this returns the original `sbx run` form untouched.
+  // is stopped, and lands in the same workspace directory, and each agent's `resumeArgs`
+  // re-enter the session there. The `--continue` form was verified live; the per-agent
+  // values introduced on 2026-08-26 (`claude agents`, `codex resume --last`) have not been
+  // re-verified through `sbx exec`. With capture off this returns the original `sbx run`
+  // form untouched.
   if (capturePort === undefined) {
     return `sbx run --name ${shellQuote(name)} -- ${shellCommand(AGENT_PROFILES[agent].resumeArgs)}`
   }
