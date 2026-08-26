@@ -139,9 +139,11 @@ export function agentAttachCommand(name: string, agent: AgentId, capturePort?: n
   // While capturing, launch through `sbx exec` instead of `sbx run`, so the proxy env can be
   // carried and the agent's traffic actually reaches Burp — the whole point of capture.
   //
-  // This began as a workaround: `sbx run` had no --env flag through v0.38.0. **sbx v0.39.0
-  // added `-e`/`--env` (and `--env-file`) to `sbx run` and `sbx create`**, so that constraint
-  // is gone and this could go back to `sbx run -e …`. It deliberately does not: staying on
+  // This began as a workaround: `sbx run` had no --env flag through v0.38.0 (measured here).
+  // **Per the v0.39.0 release notes**, `sbx run` and `sbx create` gained `-e`/`--env` and
+  // `--env-file` — documented, not yet run against, since this machine is on v0.38.0. If that
+  // holds, the original constraint is gone and this could go back to `sbx run -e …`. It
+  // deliberately does not, regardless of which way that lands: staying on
   // `exec` keeps ONE launch path that works identically on 0.38.x and 0.39.x, instead of a
   // version-gated fork for a command whose visible flag count would be unchanged either way.
   // Revisit only if `exec` and `run` diverge in a way that matters here.
@@ -184,9 +186,10 @@ const CAPTURE_NO_PROXY = 'localhost,127.0.0.1,::1,gateway.docker.internal'
  * - `sbx exec --env-file` is a NO-OP **as measured on v0.38.0**. It is listed in `--help`, but
  *   a variable set only in the file arrives unset in the sandbox, and pointing the flag at a
  *   nonexistent path does not even error.
- * - v0.39.0 adds `--env-file` to `sbx run` and `sbx create`. Its release notes say nothing
- *   about `sbx exec`, so whether the no-op above is fixed there is UNVERIFIED — measure it
- *   before relying on it, rather than assuming the run/create fix covers exec.
+ * - The v0.39.0 release notes state that `sbx run` and `sbx create` gain `--env-file`. They say
+ *   nothing about `sbx exec`, so whether the no-op above is fixed there is UNVERIFIED — and
+ *   the run/create claim itself is documented rather than measured. Run both before relying
+ *   on either, rather than assuming a run/create fix covers exec.
  * - Declarative environment files (`.sbxenv.yaml`, v0.39.0) are a different mechanism again,
  *   and their docs require the file live OUTSIDE every mounted workspace, because an agent
  *   with direct mounts can rewrite a file inside one. That rules out the `.sandbox/` dir this
