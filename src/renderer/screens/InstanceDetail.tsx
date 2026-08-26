@@ -89,8 +89,15 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
     if (r.ok) setCapture(r.data)
   }, [])
 
+  // The shell command embeds the capture port, so it MUST be re-fetched whenever capture
+  // starts or stops for THIS instance. Keying the fetch on the name alone froze the command
+  // at whatever it was when the instance was opened, so the copyable command kept its
+  // pre-capture form and any shell opened from it silently bypassed Burp. 0 means "not
+  // captured", which is also the right key when another sandbox holds the session.
+  const capturePort = capture.state === 'on' && capture.sandbox === instance.name ? capture.ports?.app ?? 0 : 0
+
   useEffect(() => { void reloadSpec() }, [reloadSpec])
-  useEffect(() => { void api.instanceCommands(instance.name).then((r) => { if (r.ok) setCommands(r.data) }) }, [instance.name])
+  useEffect(() => { void api.instanceCommands(instance.name).then((r) => { if (r.ok) setCommands(r.data) }) }, [instance.name, capturePort])
   useEffect(() => { if (tab === 'ports') void reloadPorts() }, [tab, reloadPorts])
   // Poll the policy log while the Monitoring tab is open (sbx policy log has no stream).
   useEffect(() => {
@@ -99,13 +106,16 @@ export function InstanceDetail({ instance, hasVSCode = false, onBack, onStop, on
     const id = setInterval(() => void reloadPolicy(), 5000)
     return () => clearInterval(id)
   }, [tab, reloadPolicy])
-  // Polled on the same interval as the policy log rather than via a new push channel.
+  // Polled rather than pushed, on the same interval as the policy log — but deliberately NOT
+  // gated on the Monitoring tab. The toggle lives on Monitoring while the command that embeds
+  // the capture port is copied from Terminals, so gating this left that command stale on the
+  // very tab the user copies it from. `capture:status` is an in-memory read in main with no
+  // subprocess behind it, so polling it from any tab is cheap.
   useEffect(() => {
-    if (tab !== 'monitoring') return
     void reloadCapture()
     const id = setInterval(() => void reloadCapture(), 5000)
     return () => clearInterval(id)
-  }, [tab, reloadCapture])
+  }, [reloadCapture])
 
   const running = instance.status === 'running'
   // "Apply live" is actionable whenever a running instance is linked to a definition that has
