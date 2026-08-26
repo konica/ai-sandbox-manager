@@ -136,12 +136,21 @@ export function shellQuote(s: string): string {
 // so a future profile with a space/metacharacter in its resumeArgs is quoted, not
 // silently mis-parsed.
 export function agentAttachCommand(name: string, agent: AgentId, capturePort?: number): string {
-  // While capturing, launch through `sbx exec` instead of `sbx run`. `sbx run` has no --env
-  // flag, so the agent would inherit the container's stock proxy and bypass Burp entirely —
-  // the whole point of enabling capture. `sbx exec` accepts --env, starts the sandbox if it
-  // is stopped, and lands in the same workspace directory, and `--continue` was verified
-  // against a live sandbox to resume the *same* session there rather than starting a fresh
-  // one. With capture off this returns the original `sbx run` form untouched.
+  // While capturing, launch through `sbx exec` instead of `sbx run`, so the proxy env can be
+  // carried and the agent's traffic actually reaches Burp — the whole point of capture.
+  //
+  // This began as a workaround: `sbx run` had no --env flag through v0.38.0. **sbx v0.39.0
+  // added `-e`/`--env` (and `--env-file`) to `sbx run` and `sbx create`**, so that constraint
+  // is gone and this could go back to `sbx run -e …`. It deliberately does not: staying on
+  // `exec` keeps ONE launch path that works identically on 0.38.x and 0.39.x, instead of a
+  // version-gated fork for a command whose visible flag count would be unchanged either way.
+  // Revisit only if `exec` and `run` diverge in a way that matters here.
+  //
+  // `sbx exec` was verified against a live sandbox: it accepts --env, starts the sandbox if it
+  // is stopped, lands in the same workspace directory `sbx run` would, and `--continue`
+  // resumes the *same* session rather than starting a fresh one (checked by planting a token
+  // in one session and recalling it through a second exec). With capture off this returns the
+  // original `sbx run` form untouched.
   if (capturePort === undefined) {
     return `sbx run --name ${shellQuote(name)} -- ${shellCommand(AGENT_PROFILES[agent].resumeArgs)}`
   }
@@ -169,12 +178,19 @@ const CAPTURE_NO_PROXY = 'localhost,127.0.0.1,::1,gateway.docker.internal'
  * capturing. Shared by the shell and the agent launch so the two can never drift — a shell
  * that is captured while the agent is not would be a confusing half-working state.
  *
- * Six repeated `-e` flags look like something an env file would tidy up. Two things to know
- * before trying that, both measured against sbx v0.38.0:
+ * Six repeated `-e` flags look like something an env file would tidy up. Three things to know
+ * before trying that:
  *
- * - `sbx exec --env-file` is a NO-OP. It is listed in `--help`, but a variable set only in
- *   the file arrives unset in the sandbox, and pointing the flag at a nonexistent path does
- *   not even error. It cannot carry these values today.
+ * - `sbx exec --env-file` is a NO-OP **as measured on v0.38.0**. It is listed in `--help`, but
+ *   a variable set only in the file arrives unset in the sandbox, and pointing the flag at a
+ *   nonexistent path does not even error.
+ * - v0.39.0 adds `--env-file` to `sbx run` and `sbx create`. Its release notes say nothing
+ *   about `sbx exec`, so whether the no-op above is fixed there is UNVERIFIED — measure it
+ *   before relying on it, rather than assuming the run/create fix covers exec.
+ * - Declarative environment files (`.sbxenv.yaml`, v0.39.0) are a different mechanism again,
+ *   and their docs require the file live OUTSIDE every mounted workspace, because an agent
+ *   with direct mounts can rewrite a file inside one. That rules out the `.sandbox/` dir this
+ *   app already writes kits into.
  * - The lighter alternative is a login shell (`bash -l`), which picks these up from
  *   /etc/profile.d/burp-proxy.sh with no flags at all — and degrades better, because that
  *   script checks the relay is actually listening. A copied `-e` command whose port has since
