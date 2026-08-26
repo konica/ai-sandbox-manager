@@ -20,15 +20,24 @@ afterEach(() => { rmSync(base, { recursive: true, force: true }) })
  * Records the order of the calls that matter to this ticket, so we can assert that capture
  * happens BEFORE the sandbox is destroyed rather than merely that both happened.
  */
-function harness(over: { copyFails?: boolean; hasSessions?: boolean } = {}) {
+function harness(over: {
+  copyFails?: boolean
+  hasSessions?: boolean
+  /** Where the OLD sandbox is really mounted, as `sbx ls` reports it. */
+  liveWorkspace?: string
+  /** The definition's mounts as they stand now (may differ from the live sandbox). */
+  mounts?: DefinitionSpec['mounts']
+} = {}) {
   const calls: string[] = []
+  const logs: string[] = []
+  const SPEC_NOW: DefinitionSpec = over.mounts ? { ...SPEC, mounts: over.mounts } : SPEC
   // An in-memory Store double rather than the real sqlite one: this ticket is about call
   // ordering in the rebuild handler, and the DB is an unrelated collaborator here.
   let meta: InstanceMeta[] = [{ sbxName: 'xray-old', definitionId: 'd1', createdByApp: true, createdAt: 't' }]
   const store = {
-    getDefinitionSpec: (id: string) => (id === 'd1' ? SPEC : null),
-    getDefinition: (id: string) => (id === 'd1' ? SPEC.definition : null),
-    listDefinitions: () => [SPEC.definition],
+    getDefinitionSpec: (id: string) => (id === 'd1' ? SPEC_NOW : null),
+    getDefinition: (id: string) => (id === 'd1' ? SPEC_NOW.definition : null),
+    listDefinitions: () => [SPEC_NOW.definition],
     listInstanceMeta: () => meta,
     upsertInstanceMeta: (m: InstanceMeta) => { meta = [...meta.filter((x) => x.sbxName !== m.sbxName), m] },
     deleteInstanceMeta: (n: string) => { meta = meta.filter((x) => x.sbxName !== n) },
@@ -39,7 +48,7 @@ function harness(over: { copyFails?: boolean; hasSessions?: boolean } = {}) {
 
   const hasSessions = over.hasSessions ?? true
   const adapter = {
-    listSandboxes: async () => [{ name: 'xray-old', status: 'running' as const, agent: 'claude', ports: [], workspace: '/w/xray' }],
+    listSandboxes: async () => [{ name: 'xray-old', status: 'running' as const, agent: 'claude', ports: [], workspace: over.liveWorkspace ?? '/w/xray' }],
     probeSandboxPath: async (_n: string, p: string) => (hasSessions && p.endsWith('/projects') ? 'dir' as const : 'missing' as const),
     copyFromSandbox: async (_n: string, src: string, dest: string) => {
       calls.push('copyFromSandbox')
@@ -62,10 +71,11 @@ function harness(over: { copyFails?: boolean; hasSessions?: boolean } = {}) {
     probes: {} as never,
     openTerminal: (cmd: string) => { calls.push('openTerminal'); launched = cmd },
     genHash: () => 'newhash',
-    sessionArchiveBaseDir: base
+    sessionArchiveBaseDir: base,
+    log: { info: (m: string) => logs.push(m), error: (m: string) => logs.push(m), command: () => {} }
   } as never)
 
-  return { handlers, calls, store, launchedCommand: () => launched }
+  return { handlers, calls, store, logs, launchedCommand: () => launched }
 }
 
 describe('instance:rebuild session preservation', () => {
@@ -109,5 +119,79 @@ describe('instance:rebuild session preservation', () => {
     expect(res.ok).toBe(true)
     expect(h.calls).toContain('removeSandbox')
     expect(h.launchedCommand()).not.toContain('sbx cp')
+  })
+})
+
+/**
+ * Claude names its project directory after the workspace path, so sessions restored under a
+ * DIFFERENT primary folder are present on disk but invisible to the agent. That silent
+ * outcome is the worst shape of failure — it reads as "the feature is broken" — so the
+ * rebuild says so out loud instead.
+ */
+describe('instance:rebuild changed primary folder', () => {
+  const warned = (logs: string[]) => logs.filter((l) => /folder|workspace path/i.test(l) && /session/i.test(l))
+
+  it('warns when the primary folder changed, naming both paths', async () => {
+    const h = harness({ liveWorkspace: '/w/xray', mounts: [{ hostPath: '/w/xray-renamed', mode: 'direct', isPrimary: true }] })
+
+    await h.handlers['instance:rebuild']('xray-old', 'terminal')
+
+    const [msg] = warned(h.logs)
+    expect(msg).toBeDefined()
+    expect(msg).toContain('/w/xray')
+    expect(msg).toContain('/w/xray-renamed')
+  })
+
+  it('stays silent when the primary folder is unchanged', async () => {
+    const h = harness({ liveWorkspace: '/w/xray' })
+
+    await h.handlers['instance:rebuild']('xray-old', 'terminal')
+
+    expect(warned(h.logs)).toEqual([])
+  })
+
+  it('does not warn over a cosmetic path difference', async () => {
+    // Same normalisation reconciler.ts uses: slash direction, trailing slash, case.
+    const h = harness({ liveWorkspace: 'C:\\W\\Xray', mounts: [{ hostPath: 'c:/w/xray/', mode: 'direct', isPrimary: true }] })
+
+    await h.handlers['instance:rebuild']('xray-old', 'terminal')
+
+    expect(warned(h.logs)).toEqual([])
+  })
+
+  it('does not warn when only a NON-primary folder was added', async () => {
+    // Adding an extra folder is the common mount-drift case and does not move the project
+    // directory — only the primary path governs its name.
+    const h = harness({
+      liveWorkspace: '/w/xray',
+      mounts: [
+        { hostPath: '/w/xray', mode: 'direct', isPrimary: true },
+        { hostPath: '/w/extra', mode: 'direct', isPrimary: false }
+      ]
+    })
+
+    await h.handlers['instance:rebuild']('xray-old', 'terminal')
+
+    expect(warned(h.logs)).toEqual([])
+  })
+
+  it('warns without failing the rebuild', async () => {
+    // Advisory only — it must never block the rebuild it is describing.
+    const h = harness({ liveWorkspace: '/w/xray', mounts: [{ hostPath: '/w/moved', mode: 'direct', isPrimary: true }] })
+
+    const res = await h.handlers['instance:rebuild']('xray-old', 'terminal')
+
+    expect(res.ok).toBe(true)
+    expect(h.calls).toContain('removeSandbox')
+    expect(h.calls).toContain('openTerminal')
+  })
+
+  it('stays silent when there were no sessions to restore', async () => {
+    // Nothing was carried over, so there is nothing for the changed path to hide.
+    const h = harness({ hasSessions: false, liveWorkspace: '/w/xray', mounts: [{ hostPath: '/w/moved', mode: 'direct', isPrimary: true }] })
+
+    await h.handlers['instance:rebuild']('xray-old', 'terminal')
+
+    expect(warned(h.logs)).toEqual([])
   })
 })

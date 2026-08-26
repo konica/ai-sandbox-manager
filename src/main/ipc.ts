@@ -8,7 +8,7 @@ import type { McpServer, McpServerDetail, McpAuthState, McpAddInput } from '@sha
 import type { SbxAdapter } from './sbx/adapter'
 import type { Store } from './store/db'
 import { checkPrereqs, type Probes } from './prereq'
-import { reconcile, matchDefinitionByWorkspace } from './reconciler'
+import { reconcile, matchDefinitionByWorkspace, normalizePath } from './reconciler'
 import { launchDefinition } from './launch'
 import { SbxError } from '@shared/errors'
 import { normalizeTags } from '@shared/tags'
@@ -604,7 +604,38 @@ async function captureRebuildSessions(deps: Deps, name: string, definitionId: st
   }
   const subdirs = archivedSubdirs(dir)
   deps.log?.info(`Preserved ${subdirs.join(', ')} from "${name}" to ${dir}.`)
+  await warnIfPrimaryFolderMoved(deps, name)
   return { dir, subdirs }
+}
+
+/**
+ * Warn when the definition's primary folder no longer matches where the old sandbox was
+ * actually mounted.
+ *
+ * Claude names its project directory after the workspace path, so sessions restored under a
+ * different primary folder are present on disk but invisible to the agent — the files are
+ * there and nothing appears, which reads as "the feature is broken". We warn rather than
+ * rename: Claude's encoding rule is undocumented, and guessing it wrong would hide the
+ * sessions silently instead of failing loudly.
+ *
+ * Comparing the LIVE workspace against the definition avoids reimplementing that encoding at
+ * all. Advisory only — never throws, and never blocks the rebuild it is describing.
+ */
+async function warnIfPrimaryFolderMoved(deps: Deps, name: string): Promise<void> {
+  try {
+    const meta = deps.store.listInstanceMeta().find((m) => m.sbxName === name)
+    const spec = meta?.definitionId ? deps.store.getDefinitionSpec(meta.definitionId) : null
+    const wanted = (spec?.mounts.find((m) => m.isPrimary) ?? spec?.mounts[0])?.hostPath
+    const live = (await deps.adapter.listSandboxes()).find((i) => i.name === name)?.workspace
+    // Only the PRIMARY path governs the project directory name; extra folders never move it.
+    if (!wanted || !live || normalizePath(wanted) === normalizePath(live)) return
+    deps.log?.error(
+      `Preserved sessions may not appear in the rebuilt sandbox: its working folder changes from "${live}" to "${wanted}". ` +
+      'Claude keys saved sessions to the workspace path, so it looks for them under the old folder.'
+    )
+  } catch (e) {
+    deps.log?.info(`Could not check whether the working folder changed for "${name}": ${(e as Error).message}`)
+  }
 }
 
 async function cleanupInstance(deps: Deps, name: string): Promise<void> {
