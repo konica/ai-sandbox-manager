@@ -18,7 +18,7 @@ const PROVISION_GRACE_MS = 10 * 60 * 1000
  * typed. Deliberately case-insensitive: two real workspaces differing only by
  * case is a non-issue in practice, and mislabelling is the failure we avoid.
  */
-function normalizePath(p: string): string {
+export function normalizePath(p: string): string {
   return p.trim().replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
 }
 
