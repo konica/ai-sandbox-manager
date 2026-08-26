@@ -36,7 +36,7 @@ describe('instance:launch tags', () => {
       mounts: [{ hostPath: '/w', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: []
     })
     const h = buildHandlers(baseDeps(store))
-    const res = await h['instance:launch']('d1', undefined, undefined, 'terminal', ['prod'])
+    const res = await h['instance:launch']('d1', undefined, 'terminal', ['prod'])
     expect(res.ok && res.data.name).toBe('proj-prod-cafebabe')
   })
 })
@@ -66,7 +66,7 @@ describe('instance:rebuild carries tags', () => {
       genHash: () => `hash${hashCounter++}`
     }
     const h = buildHandlers(deps)
-    const launched = await h['instance:launch']('d1', undefined, undefined, 'terminal', ['prod', 'eu'])
+    const launched = await h['instance:launch']('d1', undefined, 'terminal', ['prod', 'eu'])
     expect(launched.ok).toBe(true)
     const oldName = launched.ok ? launched.data.name : ''
     expect(store.listInstanceTags().get(oldName)).toEqual(['prod', 'eu'])

@@ -70,7 +70,6 @@ export async function launchDefinition(
   deps: LaunchDeps,
   definitionId: string,
   requestedName?: string,
-  sessionName?: string,
   opener: 'terminal' | 'vscode' = 'terminal',
   rawTags: string[] = [],
   /** Claude sessions captured from a previous instance, restored into this one at create time. */
@@ -117,8 +116,8 @@ export async function launchDefinition(
   const mcpServers = await resolveMcpServers(deps.adapter, spec, deps.log)
 
   const kitDir = deps.materializeKit(spec, name)
-  const command = launchCommand(spec, name, sessionName, kitDir, ports, mcpServers, restoreFrom)
-  deps.log?.info(`Launching sandbox "${name}"${sessionName ? ` (session "${sessionName}")` : ''} from definition ${definitionId} (tier: ${spec.definition.tier}, creds: ${spec.credentials.length}, ports: ${spec.ports.length})`)
+  const command = launchCommand(spec, name, kitDir, ports, mcpServers, restoreFrom)
+  deps.log?.info(`Launching sandbox "${name}" from definition ${definitionId} (tier: ${spec.definition.tier}, creds: ${spec.credentials.length}, ports: ${spec.ports.length})`)
   deps.log?.info(`Opening terminal to provision and run: ${command}`)
 
   deps.store.upsertInstanceMeta({

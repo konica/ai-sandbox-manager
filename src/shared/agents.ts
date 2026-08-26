@@ -13,8 +13,6 @@ export interface AgentProfile {
   launchArgs: string[]
   /** Args appended after `sbx run`'s `--` separator when re-attaching to an existing sandbox. */
   resumeArgs: string[]
-  /** Args appended after `sbx run`'s `--` separator to name a brand-new session. */
-  sessionNameArgs: (name: string) => string[]
   /** Whether this agent supports MCP (Docker Sandboxes gateway). Verified via the Phase 0
    *  spike (#16): claude/codex/opencode = true, copilot = false. */
   mcpSupported: boolean
@@ -35,7 +33,6 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     domains: CLAUDE_DOMAINS,
     launchArgs: ['agents'],
     resumeArgs: ['agents'],
-    sessionNameArgs: (name) => ['--name', name],
     mcpSupported: true
   },
   opencode: {
@@ -52,7 +49,6 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     domains: [],
     launchArgs: [],
     resumeArgs: ['--continue'],
-    sessionNameArgs: (name) => ['--session', name],
     mcpSupported: true
   },
   codex: {
@@ -68,7 +64,6 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     // 2026-08-20, and every docker/sandbox-templates image was built 2026-08-04 with
     // `npm install -g @openai/codex@latest` baked in. Re-check when the templates are republished.
     resumeArgs: ['resume', '--last'],
-    sessionNameArgs: () => [],
     mcpSupported: true
   },
   copilot: {
@@ -81,7 +76,6 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     domains: ['github.com', '*.githubusercontent.com', 'copilot-proxy.githubusercontent.com'],
     launchArgs: [],
     resumeArgs: ['--resume'],
-    sessionNameArgs: () => [],
     mcpSupported: false
   }
 }

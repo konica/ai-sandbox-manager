@@ -26,7 +26,7 @@ function spec(): DefinitionSpec {
 
 describe('launchCommand ports override', () => {
   it('publishes only the ports it is given', () => {
-    const cmd = launchCommand(spec(), 'proj-a1', undefined, undefined, portsForLaunch(ports, true))
+    const cmd = launchCommand(spec(), 'proj-a1', undefined, portsForLaunch(ports, true))
     expect(cmd).toContain('--publish 9229/tcp')
     expect(cmd).not.toContain('8080:3000')
   })

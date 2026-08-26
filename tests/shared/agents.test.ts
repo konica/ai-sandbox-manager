@@ -18,8 +18,12 @@ describe('AGENT_PROFILES', () => {
   it('carries the verified Claude values', () => {
     expect(AGENT_PROFILES.claude.keyword).toBe('claude')
     expect(AGENT_PROFILES.claude.resumeArgs).toEqual(['agents'])
-    expect(AGENT_PROFILES.claude.sessionNameArgs('Refactor auth')).toEqual(['--name', 'Refactor auth'])
     expect(AGENT_PROFILES.claude.domains).toContain('api.anthropic.com')
+  })
+  it('has no sessionNameArgs — this app no longer names sessions', () => {
+    for (const id of AGENT_IDS) {
+      expect('sessionNameArgs' in AGENT_PROFILES[id]).toBe(false)
+    }
   })
   it('opencode ships with no hardcoded domains (multi-provider — user adds their own)', () => {
     expect(AGENT_PROFILES.opencode.domains).toEqual([])

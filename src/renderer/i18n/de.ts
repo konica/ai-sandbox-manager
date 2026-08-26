@@ -172,9 +172,6 @@ export const de: Dict = {
   launch: {
     title: '„{name}“ starten',
     subtitle: 'Starten Sie eine neue Sandbox für diese Definition. Ein eindeutiger Sandbox-Name wird automatisch erzeugt.',
-    sessionLabel: 'Session-Name (optional)',
-    sessionPlaceholder: 'z. B. Auth überarbeiten',
-    sessionSub: 'Anzeigename für die Claude-Code-Session (claude --name).',
     openWith: 'Öffnen mit',
     openTerminal: 'Terminal',
     openVSCode: 'VS Code',

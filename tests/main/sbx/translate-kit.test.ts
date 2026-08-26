@@ -9,7 +9,7 @@ const spec: DefinitionSpec = {
 
 describe('launchCommand with a kit', () => {
   it('appends --kit to create and omits the standalone policy step', () => {
-    const cmd = launchCommand(spec, 'proj', undefined, '/base/kits/ai-sandbox-d1')
+    const cmd = launchCommand(spec, 'proj', '/base/kits/ai-sandbox-d1')
     expect(cmd).toContain('--kit /base/kits/ai-sandbox-d1')
     expect(cmd).not.toContain('policy allow network')
     expect(cmd).toContain('sbx run --name proj')

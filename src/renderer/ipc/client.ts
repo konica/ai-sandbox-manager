@@ -17,7 +17,7 @@ interface Api {
   defRemove(id: string): Promise<Result<{ removedInstances: number }>>
   pickFolder(): Promise<string | null>
   pickFile(): Promise<string | null>
-  instanceLaunch(definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', tags?: string[]): Promise<Result<{ name: string }>>
+  instanceLaunch(definitionId: string, name?: string, opener?: 'terminal' | 'vscode', tags?: string[]): Promise<Result<{ name: string }>>
   instanceAttach(name: string, opener?: 'terminal' | 'vscode'): Promise<Result<null>>
   instanceRebuild(name: string, opener?: 'terminal' | 'vscode', preserveSessions?: boolean): Promise<Result<{ name: string }>>
   instanceApplyCredentials(name: string): Promise<Result<{ applied: number; removed: number; skipped: number }>>

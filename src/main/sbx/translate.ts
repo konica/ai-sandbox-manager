@@ -257,7 +257,7 @@ export function shellCommand(argv: string[]): string {
  *   create (provision) → apply network tier → publish ports → run (attach agent).
  * Chained with `&&` so a failed step stops the sequence and stays visible.
  */
-export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string, ports: PortIntent[] = spec.ports, mcpServers: string[] = [], restore?: SessionRestore): string {
+export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), kitDir?: string, ports: PortIntent[] = spec.ports, mcpServers: string[] = [], restore?: SessionRestore): string {
   const steps: string[] = [shellCommand(['sbx', ...specToCreateArgs(spec, name, kitDir)])]
   if (!kitDir) {
     // A generated kit owns `allowedDomains`; only apply standalone policy without one.
@@ -273,12 +273,9 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
   // session view on a fresh launch. The static MCP flag must land before that separator,
   // alongside sbx's own flags.
   const runArgs = ['sbx', 'run', '--name', name, ...staticMcpArgs(mcpServers)]
-  // A session name still wins while the field exists; without one the agent's own session
-  // view is opened instead (claude: `agents`). Only add `--` when something follows it — a
-  // bare trailing separator dangles and would swallow the next token.
-  const agentArgs = sessionName && sessionName.trim()
-    ? AGENT_PROFILES[spec.definition.agent].sessionNameArgs(sessionName.trim())
-    : AGENT_PROFILES[spec.definition.agent].launchArgs
+  // Only add `--` when something follows it — a bare trailing separator dangles and would
+  // swallow the next token.
+  const agentArgs = AGENT_PROFILES[spec.definition.agent].launchArgs
   if (agentArgs.length > 0) runArgs.push('--', ...agentArgs)
   steps.push(shellCommand(runArgs))
 

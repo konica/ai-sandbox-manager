@@ -170,9 +170,6 @@ export const en = {
   launch: {
     title: 'Launch “{name}”',
     subtitle: 'Start a new sandbox for this definition. A unique sandbox name is generated automatically.',
-    sessionLabel: 'Session name (optional)',
-    sessionPlaceholder: 'e.g. Refactor auth',
-    sessionSub: 'Display name for the Claude Code session (claude --name).',
     openWith: 'Open with',
     openTerminal: 'Terminal',
     openVSCode: 'VS Code',
