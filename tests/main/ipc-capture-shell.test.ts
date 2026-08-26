@@ -83,7 +83,7 @@ describe('agent launch while capturing', () => {
     const h = buildHandlers(deps(ON))
     const r = await h['instance:commands']('demo')
     expect(r.ok && r.data.agent).toContain('-e http_proxy=http://127.0.0.1:18080')
-    expect(r.ok && r.data.agent).toContain("'demo' claude --continue")
+    expect(r.ok && r.data.agent).toContain("'demo' claude agents")
   })
 
   it('Open Agent in Terminal opens the injected command, not the sbx run form', async () => {
@@ -91,22 +91,22 @@ describe('agent launch while capturing', () => {
     const h = buildHandlers(deps(ON, openTerminal))
     await h['instance:attach']('demo', 'terminal')
     expect(openTerminal).toHaveBeenCalledWith(expect.stringContaining('-e http_proxy=http://127.0.0.1:18080'))
-    expect(openTerminal).toHaveBeenCalledWith(expect.stringContaining('claude --continue'))
+    expect(openTerminal).toHaveBeenCalledWith(expect.stringContaining('claude agents'))
   })
 
   it('leaves the agent launch untouched when capture is off', async () => {
     const openTerminal = vi.fn()
     const h = buildHandlers(deps(IDLE_STATUS, openTerminal))
     await h['instance:attach']('demo', 'terminal')
-    expect(openTerminal).toHaveBeenCalledWith("sbx run --name 'demo' -- --continue")
+    expect(openTerminal).toHaveBeenCalledWith("sbx run --name 'demo' -- agents")
     const r = await h['instance:commands']('demo')
-    expect(r.ok && r.data.agent).toBe("sbx run --name 'demo' -- --continue")
+    expect(r.ok && r.data.agent).toBe("sbx run --name 'demo' -- agents")
   })
 
   it('does not inject into an agent launch for a different sandbox', async () => {
     const openTerminal = vi.fn()
     const h = buildHandlers(deps(ON, openTerminal))
     await h['instance:attach']('other', 'terminal')
-    expect(openTerminal).toHaveBeenCalledWith("sbx run --name 'other' -- --continue")
+    expect(openTerminal).toHaveBeenCalledWith("sbx run --name 'other' -- agents")
   })
 })

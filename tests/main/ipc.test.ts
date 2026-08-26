@@ -156,17 +156,16 @@ describe('buildHandlers', () => {
     if (r.ok) {
       expect(r.data.agent).toContain('sbx run --name')
       expect(r.data.agent).toContain('box')
-      expect(r.data.agent).toContain('--continue')
+      expect(r.data.agent).toContain('agents')
       expect(r.data.shell).toContain('sbx exec -it')
       expect(r.data.shell).toContain('bash')
     }
   })
 
   // Regression guard: attaching to a NON-claude definition still produces a valid resume
-  // command. This does not by itself prove agent-awareness — every seed profile in
-  // AGENT_PROFILES currently shares resumeArgs ['--continue'], so the assertion is
-  // identical for all agents. It gains real teeth once opencode's actual resume flag is
-  // verified and (if it differs) this expectation is updated to match.
+  // command, using that agent's own (now agent-specific) resumeArgs — opencode's verified
+  // value is still `--continue`, distinct from claude's `agents`, codex's `resume --last`,
+  // and copilot's `--resume`.
   it('instance:attach resumes a non-claude (opencode) definition correctly', async () => {
     const store = openStore(':memory:')
     store.insertDefinitionSpec({
@@ -181,11 +180,11 @@ describe('buildHandlers', () => {
   })
 
   // Genuine agent-awareness check: instance:commands must use the LINKED DEFINITION's own
-  // agent, not a hardcoded 'claude'. Every seed profile shares resumeArgs ['--continue'], so
-  // no assertion on the real command string can tell agents apart on its own — this test
-  // temporarily gives opencode a distinctive resumeArgs value so a hardcoded 'claude'
-  // implementation is forced to diverge from a correctly agent-aware one. The original value
-  // is restored in `finally` so no other test observes the mutation.
+  // agent, not a hardcoded 'claude'. The seed profiles now carry distinct resumeArgs, but
+  // this test still temporarily gives opencode an unmistakably distinctive resumeArgs value
+  // so a hardcoded 'claude' implementation (which would emit claude's `agents`) is forced to
+  // diverge from a correctly agent-aware one. The original value is restored in `finally` so
+  // no other test observes the mutation.
   //
   // Uses a hand-built store double (not openStore's real SQLite backing) because db.ts does
   // not yet persist Definition.agent through insertDefinitionSpec/getDefinitionSpec — that

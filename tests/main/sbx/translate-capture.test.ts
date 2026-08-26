@@ -47,26 +47,27 @@ describe('hostShellCommand while capturing', () => {
 
 describe('agentAttachCommand without capture', () => {
   it('is byte-identical to the pre-capture command', () => {
-    expect(agentAttachCommand('my-project', 'claude')).toBe("sbx run --name 'my-project' -- --continue")
+    expect(agentAttachCommand('my-project', 'claude')).toBe("sbx run --name 'my-project' -- agents")
   })
 })
 
 describe('agentAttachCommand while capturing', () => {
   // `sbx run` has no --env flag, so the agent would inherit the container's stock proxy and
   // bypass Burp. `sbx exec` does support --env, lands in the same workspace directory, and
-  // `--continue` resumes the same session there (verified against a live sandbox) — so while
-  // capturing, the agent is launched through exec instead.
+  // each agent's resumeArgs (e.g. `agents` for claude) resumes the same session there
+  // (verified against a live sandbox) — so while capturing, the agent is launched through
+  // exec instead.
   it('launches the agent through exec so the proxy env can be carried', () => {
     const cmd = agentAttachCommand('my-project', 'claude', 18080)
     expect(cmd.startsWith('sbx exec -it ')).toBe(true)
     expect(cmd).toContain('-e http_proxy=http://127.0.0.1:18080')
     expect(cmd).toContain('-e HTTPS_PROXY=http://127.0.0.1:18080')
-    expect(cmd).toContain("'my-project' claude --continue")
+    expect(cmd).toContain("'my-project' claude agents")
   })
 
   it('uses each agent\'s own binary, not a hard-coded claude', () => {
     expect(agentAttachCommand('p', 'opencode', 18080)).toContain("'p' opencode --continue")
-    expect(agentAttachCommand('p', 'codex', 18080)).toContain("'p' codex --continue")
+    expect(agentAttachCommand('p', 'codex', 18080)).toContain("'p' codex resume --last")
   })
 
   it('keeps loopback destinations direct, like the shell command', () => {
