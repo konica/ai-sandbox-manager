@@ -57,7 +57,7 @@ describe('instance lifecycle IPC', () => {
     const h = buildHandlers(d as never)
     await h['instance:attach']('my-project')
     await h['instance:shell']('my-project')
-    expect(d.openTerminal).toHaveBeenNthCalledWith(1, "sbx run --name 'my-project' -- --continue")
+    expect(d.openTerminal).toHaveBeenNthCalledWith(1, "sbx run --name 'my-project' -- agents")
     expect(d.openTerminal).toHaveBeenNthCalledWith(2, "sbx exec -it 'my-project' bash")
   })
 
@@ -71,7 +71,7 @@ describe('instance lifecycle IPC', () => {
     const h = buildHandlers(d as never)
     await h['instance:attach']('my-project-x')
     expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['dockerregistry.mgm-tp.com'], 'DOCKER_REGISTRY_AUTH_TOKEN', 'secret-val', { sandbox: 'my-project-x' })
-    expect(d.openTerminal).toHaveBeenCalledWith("sbx run --name 'my-project-x' -- --continue")
+    expect(d.openTerminal).toHaveBeenCalledWith("sbx run --name 'my-project-x' -- agents")
   })
 
   it('instance:rebuild removes the old sandbox and relaunches a fresh one from the definition', async () => {
