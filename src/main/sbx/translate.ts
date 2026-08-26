@@ -10,6 +10,37 @@ export { toSbxName }
 // The agent user's home inside a sandbox (verified: HOME=/home/agent).
 export const SANDBOX_HOME = '/home/agent'
 
+/** Claude Code's state directory inside a sandbox. */
+export const SANDBOX_CLAUDE_DIR = `${SANDBOX_HOME}/.claude`
+
+/** A host archive of Claude session data to restore into a sandbox being created. */
+export interface SessionRestore {
+  /** Archive directory on the host (see main/session/archive.ts). */
+  dir: string
+  /** Which subdirectories the archive actually holds, e.g. ['projects', 'todos']. */
+  subdirs: readonly string[]
+}
+
+/**
+ * `sbx cp` steps that put an archive's session data back into a sandbox.
+ *
+ * Each step is wrapped like copyFileStep's — `{ … || echo ; }` — so a failed restore warns
+ * but returns 0 and the outer `&&` chain continues: a sandbox that comes up without its
+ * history is far better than one that fails to come up at all.
+ *
+ * The destination is the Claude dir itself, not the subdirectory: `sbx cp DIR DEST` places
+ * the directory at DEST, so copying `<archive>/projects` to `~/.claude/` merges into the
+ * existing `projects/` rather than nesting a `projects/projects/` (verified against a live
+ * sandbox).
+ */
+export function sessionRestoreSteps(name: string, restore: SessionRestore): string[] {
+  return restore.subdirs.map((sub) => {
+    const cp = shellCommand(['sbx', 'cp', `${restore.dir}/${sub}`, `${name}:${SANDBOX_CLAUDE_DIR}/`])
+    const warn = shellCommand(['echo', `⚠️ could not restore ${sub}`])
+    return `{ ${cp} || ${warn} ; }`
+  })
+}
+
 /** Expand a `~`/`~/…` sandbox destination to an absolute container path; other paths pass through. */
 export function expandSandboxPath(p: string): string {
   const t = p.trim()
@@ -219,7 +250,7 @@ export function shellCommand(argv: string[]): string {
  *   create (provision) → apply network tier → publish ports → run (attach agent).
  * Chained with `&&` so a failed step stops the sequence and stays visible.
  */
-export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string, ports: PortIntent[] = spec.ports, mcpServers: string[] = []): string {
+export function launchCommand(spec: DefinitionSpec, name: string = resolveSandboxName(spec), sessionName?: string, kitDir?: string, ports: PortIntent[] = spec.ports, mcpServers: string[] = [], restore?: SessionRestore): string {
   const steps: string[] = [shellCommand(['sbx', ...specToCreateArgs(spec, name, kitDir)])]
   if (!kitDir) {
     // A generated kit owns `allowedDomains`; only apply standalone policy without one.
@@ -254,6 +285,9 @@ export function launchCommand(spec: DefinitionSpec, name: string = resolveSandbo
     if (ssh.commitSigning) postCreate.push(commitSigningExecCommand(name))
   }
   for (const entry of spec.copyFiles ?? []) postCreate.push(copyFileStep(name, entry))
+  // Session restore joins the postCreate steps so it runs after `sbx create` and before
+  // `sbx run` — the transcripts must be on disk before the agent process starts.
+  if (restore) postCreate.push(...sessionRestoreSteps(name, restore))
   if (postCreate.length) steps.splice(1, 0, ...postCreate)
   const chain = steps.join(' && ')
   return ssh.forwardAgent ? chain : `unset SSH_AUTH_SOCK ; ${chain}`

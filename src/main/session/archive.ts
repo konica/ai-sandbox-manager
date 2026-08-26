@@ -1,10 +1,9 @@
 import { mkdirSync, readdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import type { SbxAdapter } from '../sbx/adapter'
-import { SANDBOX_HOME } from '../sbx/translate'
+import { SANDBOX_CLAUDE_DIR } from '../sbx/translate'
 
-/** Claude Code's state directory inside a sandbox. */
-export const SANDBOX_CLAUDE_DIR = `${SANDBOX_HOME}/.claude`
+export { SANDBOX_CLAUDE_DIR }
 
 /**
  * What a rebuild carries over, as an explicit ALLOWLIST — never a denylist.
