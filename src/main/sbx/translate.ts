@@ -135,8 +135,18 @@ export function shellQuote(s: string): string {
 // resumeArgs are routed through shellCommand like every other arg path in this file,
 // so a future profile with a space/metacharacter in its resumeArgs is quoted, not
 // silently mis-parsed.
-export function agentAttachCommand(name: string, agent: AgentId): string {
-  return `sbx run --name ${shellQuote(name)} -- ${shellCommand(AGENT_PROFILES[agent].resumeArgs)}`
+export function agentAttachCommand(name: string, agent: AgentId, capturePort?: number): string {
+  // While capturing, launch through `sbx exec` instead of `sbx run`. `sbx run` has no --env
+  // flag, so the agent would inherit the container's stock proxy and bypass Burp entirely —
+  // the whole point of enabling capture. `sbx exec` accepts --env, starts the sandbox if it
+  // is stopped, and lands in the same workspace directory, and `--continue` was verified
+  // against a live sandbox to resume the *same* session there rather than starting a fresh
+  // one. With capture off this returns the original `sbx run` form untouched.
+  if (capturePort === undefined) {
+    return `sbx run --name ${shellQuote(name)} -- ${shellCommand(AGENT_PROFILES[agent].resumeArgs)}`
+  }
+  const profile = AGENT_PROFILES[agent]
+  return `sbx exec -it ${captureEnvFlags(capturePort)}${shellQuote(name)} ${profile.keyword} ${shellCommand(profile.resumeArgs)}`
 }
 
 /** Destinations that stay direct while capturing — mirrors the capture profile script.
@@ -154,18 +164,25 @@ const CAPTURE_NO_PROXY = 'localhost,127.0.0.1,::1,gateway.docker.internal'
  * Burp entirely. Omitting it leaves the command byte-identical to the pre-capture form, so
  * nothing changes for sandboxes that are not being captured.
  */
+/**
+ * `sbx exec --env` flags routing a process at the in-sandbox capture relay, or '' when not
+ * capturing. Shared by the shell and the agent launch so the two can never drift — a shell
+ * that is captured while the agent is not would be a confusing half-working state.
+ */
+function captureEnvFlags(capturePort?: number): string {
+  if (capturePort === undefined) return ''
+  return [
+    `http_proxy=http://127.0.0.1:${capturePort}`,
+    `https_proxy=http://127.0.0.1:${capturePort}`,
+    `HTTP_PROXY=http://127.0.0.1:${capturePort}`,
+    `HTTPS_PROXY=http://127.0.0.1:${capturePort}`,
+    `no_proxy=${CAPTURE_NO_PROXY}`,
+    `NO_PROXY=${CAPTURE_NO_PROXY}`
+  ].map((e) => `-e ${e} `).join('')
+}
+
 export function hostShellCommand(name: string, capturePort?: number): string {
-  const env = capturePort === undefined
-    ? ''
-    : [
-        `http_proxy=http://127.0.0.1:${capturePort}`,
-        `https_proxy=http://127.0.0.1:${capturePort}`,
-        `HTTP_PROXY=http://127.0.0.1:${capturePort}`,
-        `HTTPS_PROXY=http://127.0.0.1:${capturePort}`,
-        `no_proxy=${CAPTURE_NO_PROXY}`,
-        `NO_PROXY=${CAPTURE_NO_PROXY}`
-      ].map((e) => `-e ${e} `).join('')
-  return `sbx exec -it ${env}${shellQuote(name)} bash`
+  return `sbx exec -it ${captureEnvFlags(capturePort)}${shellQuote(name)} bash`
 }
 
 // Ephemeral Claude session for a host-side OAuth `/login`. Chained with `;` so the

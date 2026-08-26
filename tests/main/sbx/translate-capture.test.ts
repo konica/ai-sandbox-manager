@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hostShellCommand } from '../../../src/main/sbx/translate'
+import { hostShellCommand, agentAttachCommand } from '../../../src/main/sbx/translate'
 
 describe('hostShellCommand without capture', () => {
   it('is byte-identical to the pre-capture command', () => {
@@ -42,5 +42,43 @@ describe('hostShellCommand while capturing', () => {
   it('puts every -e flag before the sandbox name, as docker exec requires', () => {
     const cmd = hostShellCommand('my-project', 18080)
     expect(cmd.lastIndexOf('-e ')).toBeLessThan(cmd.indexOf("'my-project'"))
+  })
+})
+
+describe('agentAttachCommand without capture', () => {
+  it('is byte-identical to the pre-capture command', () => {
+    expect(agentAttachCommand('my-project', 'claude')).toBe("sbx run --name 'my-project' -- --continue")
+  })
+})
+
+describe('agentAttachCommand while capturing', () => {
+  // `sbx run` has no --env flag, so the agent would inherit the container's stock proxy and
+  // bypass Burp. `sbx exec` does support --env, lands in the same workspace directory, and
+  // `--continue` resumes the same session there (verified against a live sandbox) — so while
+  // capturing, the agent is launched through exec instead.
+  it('launches the agent through exec so the proxy env can be carried', () => {
+    const cmd = agentAttachCommand('my-project', 'claude', 18080)
+    expect(cmd.startsWith('sbx exec -it ')).toBe(true)
+    expect(cmd).toContain('-e http_proxy=http://127.0.0.1:18080')
+    expect(cmd).toContain('-e HTTPS_PROXY=http://127.0.0.1:18080')
+    expect(cmd).toContain("'my-project' claude --continue")
+  })
+
+  it('uses each agent\'s own binary, not a hard-coded claude', () => {
+    expect(agentAttachCommand('p', 'opencode', 18080)).toContain("'p' opencode --continue")
+    expect(agentAttachCommand('p', 'codex', 18080)).toContain("'p' codex --continue")
+  })
+
+  it('keeps loopback destinations direct, like the shell command', () => {
+    expect(agentAttachCommand('p', 'claude', 18080)).toContain('-e no_proxy=localhost,127.0.0.1,::1,gateway.docker.internal')
+  })
+
+  it('puts every -e flag before the sandbox name', () => {
+    const cmd = agentAttachCommand('my-project', 'claude', 18080)
+    expect(cmd.lastIndexOf('-e ')).toBeLessThan(cmd.indexOf("'my-project'"))
+  })
+
+  it('honours a dynamically chosen capture port', () => {
+    expect(agentAttachCommand('p', 'claude', 18083)).toContain('-e http_proxy=http://127.0.0.1:18083')
   })
 })
