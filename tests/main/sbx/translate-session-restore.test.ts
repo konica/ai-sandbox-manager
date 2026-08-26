@@ -81,7 +81,7 @@ describe('launchCommand session restore', () => {
     expect(cmd).toBe(
       "sbx create claude /home/u/proj --name my-project --template docker.io/docker/sandbox-templates:claude-code" +
       " && " + `sbx exec my-project bash -lc 'mkdir -p ~/.ssh && chmod 700 ~/.ssh; grep -qs "StrictHostKeyChecking accept-new" ~/.ssh/config || printf "Host *\\n\\tStrictHostKeyChecking accept-new\\n" >> ~/.ssh/config; chmod 600 ~/.ssh/config'` +
-      " && sbx run --name my-project"
+      " && sbx run --name my-project -- agents"
     )
   })
 

@@ -48,7 +48,7 @@ describe('launchDefinition', () => {
     expect(cmd).toContain('--kit /p/.sandbox/kit') // kit owns network policy
     expect(cmd).not.toContain('policy allow network') // …so the standalone step is dropped
     expect(cmd).toContain('sbx ports my-project-3323dc52 --publish 3000:8080')
-    expect(cmd).toMatch(/&& sbx run --name my-project-3323dc52$/)
+    expect(cmd).toMatch(/&& sbx run --name my-project-3323dc52 -- agents$/)
 
     expect(d.metas[0]).toMatchObject({ sbxName: 'my-project-3323dc52', definitionId: 'd1', createdByApp: true })
   })

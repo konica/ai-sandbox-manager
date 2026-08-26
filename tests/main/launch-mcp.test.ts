@@ -85,7 +85,7 @@ describe('launchDefinition — MCP binding', () => {
     const d = deps(() => ({ ...spec, mcp: { mode: 'static', servers: ['notion', 'github'] } }), ['notion', 'github'])
     await launchDefinition(d as never, 'd1')
     const cmd = d.openTerminal.mock.calls[0][0] as string
-    expect(cmd).toMatch(/sbx run --name my-project-\w+ --static-mcp 'notion,github'$/)
+    expect(cmd).toMatch(/sbx run --name my-project-\w+ --static-mcp 'notion,github' -- agents$/)
   })
 
   it('drops a missing static server, logs it, and still launches with the rest', async () => {
