@@ -17,7 +17,7 @@ describe('AGENT_PROFILES', () => {
   })
   it('carries the verified Claude values', () => {
     expect(AGENT_PROFILES.claude.keyword).toBe('claude')
-    expect(AGENT_PROFILES.claude.resumeArgs).toEqual(['--continue'])
+    expect(AGENT_PROFILES.claude.resumeArgs).toEqual(['agents'])
     expect(AGENT_PROFILES.claude.sessionNameArgs('Refactor auth')).toEqual(['--name', 'Refactor auth'])
     expect(AGENT_PROFILES.claude.domains).toContain('api.anthropic.com')
   })
@@ -34,6 +34,27 @@ describe('AGENT_PROFILES', () => {
     expect(AGENT_PROFILES.opencode.mcpSupported).toBe(true)
     expect(AGENT_PROFILES.codex.mcpSupported).toBe(true)
     expect(AGENT_PROFILES.copilot.mcpSupported).toBe(false)
+  })
+  it('has a launchArgs array on every profile', () => {
+    for (const id of AGENT_IDS) {
+      expect(Array.isArray(AGENT_PROFILES[id].launchArgs)).toBe(true)
+    }
+  })
+  it('opens the Claude session dashboard on both launch and re-run', () => {
+    expect(AGENT_PROFILES.claude.launchArgs).toEqual(['agents'])
+    expect(AGENT_PROFILES.claude.resumeArgs).toEqual(['agents'])
+  })
+  it('resumes codex with the resume subcommand, not a --continue flag that does not exist', () => {
+    // codex has no --continue at any version; `codex agents` needs >= 0.149.0, which the
+    // 2026-08-04 sandbox image predates. See the 2026-08-26 CLI research doc.
+    expect(AGENT_PROFILES.codex.launchArgs).toEqual([])
+    expect(AGENT_PROFILES.codex.resumeArgs).toEqual(['resume', '--last'])
+  })
+  it('resumes opencode with --continue and copilot with the --resume picker', () => {
+    expect(AGENT_PROFILES.opencode.launchArgs).toEqual([])
+    expect(AGENT_PROFILES.opencode.resumeArgs).toEqual(['--continue'])
+    expect(AGENT_PROFILES.copilot.launchArgs).toEqual([])
+    expect(AGENT_PROFILES.copilot.resumeArgs).toEqual(['--resume'])
   })
 })
 

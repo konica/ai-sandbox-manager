@@ -9,7 +9,9 @@ export interface AgentProfile {
   label: string
   /** Network domains this agent needs reachable — folded into every generated kit's allowlist. */
   domains: string[]
-  /** Args appended after `sbx run`'s `--` separator to resume the last session. */
+  /** Args appended after `sbx run`'s `--` separator on a brand-new sandbox launch. Empty ⇒ bare agent. */
+  launchArgs: string[]
+  /** Args appended after `sbx run`'s `--` separator when re-attaching to an existing sandbox. */
   resumeArgs: string[]
   /** Args appended after `sbx run`'s `--` separator to name a brand-new session. */
   sessionNameArgs: (name: string) => string[]
@@ -31,7 +33,8 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     keyword: 'claude',
     label: 'Claude Code',
     domains: CLAUDE_DOMAINS,
-    resumeArgs: ['--continue'],
+    launchArgs: ['agents'],
+    resumeArgs: ['agents'],
     sessionNameArgs: (name) => ['--name', name],
     mcpSupported: true
   },
@@ -39,10 +42,15 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     id: 'opencode',
     keyword: 'opencode',
     label: 'OpenCode',
-    // TODO: verify against the opencode CLI. opencode is multi-provider (Anthropic, OpenAI,
-    // local models, …) — there's no single fixed domain list, so this ships empty and users
-    // add their configured provider's domain via the wizard's custom-domains field instead.
+    // opencode is multi-provider (Anthropic, OpenAI, local models, …) — there's no single
+    // fixed domain list, so this ships empty and users add their configured provider's
+    // domain via the wizard's custom-domains field instead.
+    //
+    // Session args verified 2026-08-26 against the CLI's own source/docs — see
+    // docs/superpowers/specs/2026-08-26-agent-session-cli-research.md. The `domains` list
+    // below is still an unverified placeholder.
     domains: [],
+    launchArgs: [],
     resumeArgs: ['--continue'],
     sessionNameArgs: (name) => ['--session', name],
     mcpSupported: true
@@ -51,9 +59,15 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     id: 'codex',
     keyword: 'codex',
     label: 'OpenAI Codex',
-    // TODO: verify against the Codex CLI.
+    // Session args verified 2026-08-26 against the CLI's own source/docs — see
+    // docs/superpowers/specs/2026-08-26-agent-session-cli-research.md. The `domains` list
+    // below is still an unverified placeholder.
     domains: ['api.openai.com', 'chatgpt.com'],
-    resumeArgs: ['--continue'],
+    launchArgs: [],
+    // NOT `['agents']`: `codex agents` (the claude-agents analog) landed in codex 0.149.0 on
+    // 2026-08-20, and every docker/sandbox-templates image was built 2026-08-04 with
+    // `npm install -g @openai/codex@latest` baked in. Re-check when the templates are republished.
+    resumeArgs: ['resume', '--last'],
     sessionNameArgs: () => [],
     mcpSupported: true
   },
@@ -61,9 +75,12 @@ export const AGENT_PROFILES: Record<AgentId, AgentProfile> = {
     id: 'copilot',
     keyword: 'copilot',
     label: 'GitHub Copilot',
-    // TODO: verify against the Copilot CLI.
+    // Session args verified 2026-08-26 against the CLI's own source/docs — see
+    // docs/superpowers/specs/2026-08-26-agent-session-cli-research.md. The `domains` list
+    // below is still an unverified placeholder.
     domains: ['github.com', '*.githubusercontent.com', 'copilot-proxy.githubusercontent.com'],
-    resumeArgs: ['--continue'],
+    launchArgs: [],
+    resumeArgs: ['--resume'],
     sessionNameArgs: () => [],
     mcpSupported: false
   }
