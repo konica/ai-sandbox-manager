@@ -123,6 +123,61 @@ describe('instance:rebuild session preservation', () => {
 })
 
 /**
+ * "Preserve Claude sessions" unchecked means *do not restore* — it does not mean *discard*.
+ * Capture still runs, so an accidental uncheck cannot destroy history irrecoverably: the
+ * archive is still listed under Session backups and can be exported. But it must not BLOCK a
+ * rebuild the user explicitly asked to be clean, so the abort applies only when the restore
+ * was actually requested.
+ */
+describe('instance:rebuild preserveSessions = false', () => {
+  it('emits no restore steps', async () => {
+    const h = harness()
+
+    await h.handlers['instance:rebuild']('xray-old', 'terminal', false)
+
+    expect(h.launchedCommand()).not.toContain('sbx cp')
+  })
+
+  it('still captures the archive', async () => {
+    // Not restoring is not the same as not backing up.
+    const h = harness()
+
+    await h.handlers['instance:rebuild']('xray-old', 'terminal', false)
+
+    expect(h.calls).toContain('copyFromSandbox')
+  })
+
+  it('proceeds despite a capture failure instead of aborting', async () => {
+    // Nothing is being restored, so a failed backup must not block the rebuild.
+    const h = harness({ copyFails: true })
+
+    const res = await h.handlers['instance:rebuild']('xray-old', 'terminal', false)
+
+    expect(res.ok).toBe(true)
+    expect(h.calls).toContain('removeSandbox')
+    expect(h.calls).toContain('openTerminal')
+  })
+
+  it('defaults to preserving when the flag is omitted', async () => {
+    // Back-compat: every existing caller omits it and must keep today's behaviour.
+    const h = harness()
+
+    await h.handlers['instance:rebuild']('xray-old', 'terminal')
+
+    expect(h.launchedCommand()).toContain('sbx cp')
+  })
+
+  it('still aborts on a capture failure when preserving IS requested', async () => {
+    const h = harness({ copyFails: true })
+
+    const res = await h.handlers['instance:rebuild']('xray-old', 'terminal', true)
+
+    expect(res.ok).toBe(false)
+    expect(h.calls).not.toContain('removeSandbox')
+  })
+})
+
+/**
  * Claude names its project directory after the workspace path, so sessions restored under a
  * DIFFERENT primary folder are present on disk but invisible to the agent. That silent
  * outcome is the worst shape of failure — it reads as "the feature is broken" — so the

@@ -37,6 +37,9 @@ export default function App(): JSX.Element {
   const [instances, setInstances] = useState<InstanceView[]>([])
   const [mcpCount, setMcpCount] = useState(0)
   const [pending, setPending] = useState<{ kind: 'stop' | 'remove' | 'rebuild'; name: string } | null>(null)
+  // Per-rebuild choice, never sticky: it resets to true every time the dialog opens so an
+  // unchecked run cannot silently make every later rebuild discard its history.
+  const [preserveSessions, setPreserveSessions] = useState(true)
   const [launchFor, setLaunchFor] = useState<Definition | null>(null)
   const [attachFor, setAttachFor] = useState<string | null>(null)
   const [detailName, setDetailName] = useState<string | null>(null)
@@ -204,7 +207,7 @@ export default function App(): JSX.Element {
       setDetailName(null)
       // Reopen in VS Code by default (fall back to Terminal when the code CLI isn't present),
       // matching launch/attach behaviour.
-      void runAction(api.instanceRebuild(p.name, hasVSCode ? 'vscode' : 'terminal'))
+      void runAction(api.instanceRebuild(p.name, hasVSCode ? 'vscode' : 'terminal', preserveSessions))
       return
     }
     void runAction(p.kind === 'stop' ? api.instanceStop(p.name) : api.instanceRemove(p.name))
@@ -250,7 +253,7 @@ export default function App(): JSX.Element {
             onShell={onShell}
             onStop={(name) => setPending({ kind: 'stop', name })}
             onRemove={(name) => setPending({ kind: 'remove', name })}
-            onRebuild={(name) => setPending({ kind: 'rebuild', name })}
+            onRebuild={(name) => { setPreserveSessions(true); setPending({ kind: 'rebuild', name }) }}
             onApplyCredentials={(name) => void onApplyCredentials(name)}
             onSetTags={(name, tags) => void onSetTags(name, tags)}
           />
@@ -280,6 +283,15 @@ export default function App(): JSX.Element {
         confirmLabel={pending?.kind === 'stop' ? t('instances.confirmStop') : pending?.kind === 'rebuild' ? t('instances.confirmRebuild') : t('instances.confirmRemove')}
         cancelLabel={t('instances.cancel')}
         destructive={pending?.kind !== 'stop'}
+        extra={pending?.kind === 'rebuild' ? (
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', fontSize: 13, marginTop: 'var(--space-3)' }}>
+            <input type="checkbox" checked={preserveSessions} onChange={(e) => setPreserveSessions(e.target.checked)} />
+            <span>
+              {t('instances.preserveSessions')}
+              <span style={{ display: 'block', color: 'var(--muted)', fontSize: 12 }}>{t('instances.preserveSessionsHint')}</span>
+            </span>
+          </label>
+        ) : undefined}
         onConfirm={onConfirmPending}
         onCancel={() => setPending(null)}
       />
