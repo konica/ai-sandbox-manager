@@ -194,24 +194,4 @@ describe('launchCommand', () => {
       expect(launchCommand(s, 'my-project')).toMatch(/&& sbx run --name my-project$/)
     }
   })
-  it('appends the session name as claude --name after the -- separator', () => {
-    const cmd = launchCommand(spec(), 'my-project', 'Refactor auth')
-    expect(cmd).toMatch(/&& sbx run --name my-project -- --name 'Refactor auth'$/)
-  })
-  it('appends the session name using the opencode --session flag for an opencode definition', () => {
-    const s = spec({ definition: { ...spec().definition, agent: 'opencode', baseImage: 'docker.io/docker/sandbox-templates:opencode' } })
-    const cmd = launchCommand(s, 'my-project', 'Refactor auth')
-    expect(cmd).toMatch(/&& sbx run --name my-project -- --session 'Refactor auth'$/)
-  })
-  it('omits the session args when no session name is given', () => {
-    expect(launchCommand(spec(), 'my-project', '  ')).toMatch(/&& sbx run --name my-project -- agents$/)
-  })
-  it('emits no dangling -- separator for an agent with no session-name flag (codex), even with a session name given', () => {
-    const s = spec({ definition: { ...spec().definition, agent: 'codex', baseImage: 'docker.io/docker/sandbox-templates:codex' } })
-    const cmd = launchCommand(s, 'my-project', 'Refactor auth')
-    // The command must end exactly at "--name my-project" with nothing after — no trailing
-    // "--" separator and no sign of the (silently dropped) session name.
-    expect(cmd).toMatch(/&& sbx run --name my-project$/)
-    expect(cmd).not.toMatch(/\s--(\s|$)/)
-  })
 })

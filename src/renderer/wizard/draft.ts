@@ -42,9 +42,9 @@ export const TEMPLATE_REPO = 'docker.io/docker/sandbox-templates'
 
 // Built-in base image templates offered in the wizard. These mirror the variants Docker
 // publishes; every variant is wired to actually launch via its AGENT_PROFILES entry
-// (src/shared/agents.ts). Only Claude's per-agent CLI values (keyword, resumeArgs,
-// sessionNameArgs, domains) are verified against the real CLI — the other agents' values are
-// unverified placeholders (see the TODO comments on each profile in agents.ts) until confirmed.
+// (src/shared/agents.ts). Each agent's launchArgs/resumeArgs were verified 2026-08-26 against
+// the CLI's own source or docs; the per-agent `domains` lists remain unverified placeholders
+// (see the TODO comments on each profile in agents.ts).
 export interface VariantInfo { value: BuiltinVariant; label: string }
 export const BUILTIN_VARIANTS: VariantInfo[] = [
   { value: 'claude-code', label: 'Claude Code' },

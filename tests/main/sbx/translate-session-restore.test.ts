@@ -86,7 +86,7 @@ describe('launchCommand session restore', () => {
   })
 
   it('injects the restore steps when an archive is supplied', () => {
-    const cmd = launchCommand(spec(), 'my-project', undefined, undefined, undefined, undefined, ARCHIVE)
+    const cmd = launchCommand(spec(), 'my-project', undefined, undefined, undefined, ARCHIVE)
 
     expect(cmd).toContain('sbx cp /home/u/archives/xray-2026/claude-backup.tgz my-project:/tmp/claude-backup.tgz')
     expect(cmd).toContain('tar xzf /tmp/claude-backup.tgz -C /home/agent/.claude')
@@ -95,7 +95,7 @@ describe('launchCommand session restore', () => {
   it('restores every subdirectory BEFORE the agent starts', () => {
     // The whole point of restoring in the chain: transcripts must be on disk before
     // `sbx run` attaches the agent, or Claude will not see them and may overwrite them.
-    const cmd = launchCommand(spec(), 'my-project', undefined, undefined, undefined, undefined, ARCHIVE)
+    const cmd = launchCommand(spec(), 'my-project', undefined, undefined, undefined, ARCHIVE)
 
     const runAt = cmd.indexOf('sbx run')
     expect(runAt).toBeGreaterThan(-1)
@@ -103,7 +103,7 @@ describe('launchCommand session restore', () => {
   })
 
   it('restores after the sandbox exists', () => {
-    const cmd = launchCommand(spec(), 'my-project', undefined, undefined, undefined, undefined, ARCHIVE)
+    const cmd = launchCommand(spec(), 'my-project', undefined, undefined, undefined, ARCHIVE)
 
     expect(cmd.indexOf('sbx create')).toBeLessThan(cmd.indexOf('sbx cp '))
   })

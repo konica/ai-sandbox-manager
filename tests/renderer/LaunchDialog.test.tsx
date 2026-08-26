@@ -12,26 +12,16 @@ function setup(over: { hasVSCode?: boolean; cloneMode?: boolean; willSkipFixedPo
 }
 
 describe('LaunchDialog', () => {
-  it('has an empty, optional session name with a placeholder', () => {
+  it('has no session name field — sessions are named in the agent, not here', () => {
     setup()
-    const input = screen.getByLabelText('Session name')
-    expect(input).toHaveValue('')
-    expect(input).toHaveAttribute('placeholder')
+    expect(screen.queryByLabelText('Session name')).toBeNull()
   })
 
-  it('launches with an empty session name and the VS Code opener by default when available', () => {
+  it('launches with the VS Code opener by default when available', () => {
     const { onLaunch } = setup()
     expect(screen.getByLabelText('VS Code')).toBeChecked()
     fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    expect(onLaunch).toHaveBeenCalledWith('', 'vscode', [])
-  })
-
-  it('passes the typed session name (trimmed) and chosen opener', () => {
-    const { onLaunch } = setup()
-    fireEvent.change(screen.getByLabelText('Session name'), { target: { value: '  Refactor auth  ' } })
-    fireEvent.click(screen.getByLabelText('Terminal'))
-    fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    expect(onLaunch).toHaveBeenCalledWith('Refactor auth', 'terminal', [])
+    expect(onLaunch).toHaveBeenCalledWith('vscode', [])
   })
 
   it('disables the VS Code option and defaults to Terminal when the code CLI is unavailable', () => {
@@ -39,7 +29,7 @@ describe('LaunchDialog', () => {
     expect(screen.getByLabelText('VS Code')).toBeDisabled()
     expect(screen.getByLabelText('Terminal')).toBeChecked()
     fireEvent.click(screen.getByRole('button', { name: 'Launch' }))
-    expect(onLaunch).toHaveBeenCalledWith('', 'terminal', [])
+    expect(onLaunch).toHaveBeenCalledWith('terminal', [])
   })
 
   it('shows the clone-mode note only when VS Code is selected in clone mode', () => {
@@ -65,7 +55,7 @@ describe('LaunchDialog tags + skip note', () => {
     fireEvent.change(tagInput, { target: { value: 'prod' } })
     fireEvent.keyDown(tagInput, { key: 'Enter' })
     fireEvent.click(screen.getByText('Launch'))
-    expect(onLaunch).toHaveBeenCalledWith('', 'terminal', ['prod'])
+    expect(onLaunch).toHaveBeenCalledWith('terminal', ['prod'])
   })
   it('shows the port-skip note when willSkipFixedPorts is true', () => {
     render(<LaunchDialog definition={def} hasVSCode={false} cloneMode={false} willSkipFixedPorts={true} instanceNumber={2} onLaunch={() => {}} onCancel={() => {}} />)

@@ -26,11 +26,11 @@ describe('staticMcpArgs', () => {
 
 describe('launchCommand — MCP binding', () => {
   it('a static definition launches with --static-mcp before the -- separator', () => {
-    const cmd = launchCommand(spec(), 'my-project', 'Refactor auth', undefined, [], ['notion', 'github'])
-    expect(cmd).toMatch(/&& sbx run --name my-project --static-mcp 'notion,github' -- --name 'Refactor auth'$/)
+    const cmd = launchCommand(spec(), 'my-project', undefined, [], ['notion', 'github'])
+    expect(cmd).toMatch(/&& sbx run --name my-project --static-mcp 'notion,github' -- agents$/)
   })
   it('a static definition with no session name still gets the flag, with nothing after it', () => {
-    const cmd = launchCommand(spec(), 'my-project', undefined, undefined, [], ['notion'])
+    const cmd = launchCommand(spec(), 'my-project', undefined, [], ['notion'])
     // "notion" alone needs no quoting (no comma), unlike the multi-name case above.
     expect(cmd).toMatch(/&& sbx run --name my-project --static-mcp notion -- agents$/)
   })

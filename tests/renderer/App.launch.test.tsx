@@ -18,7 +18,7 @@ vi.mock('../../src/renderer/ipc/client', () => ({
     defList: () => defList(),
     defCreate: async () => ({ ok: true, data: { id: 'id1' } }),
     defGetSpec: async () => ({ ok: true, data: { definition: { id: 'd1', name: 'My Project', description: '', agent: 'claude', baseImage: 'img:tag', tier: 'locked', createdAt: 't' }, mounts: [{ hostPath: '/p', mode: 'direct', isPrimary: true }], domains: [], ports: [], hostServices: [], credentials: [] } }),
-    instanceLaunch: (id: string, name?: string, session?: string, opener?: string) => instanceLaunch(id, name, session, opener),
+    instanceLaunch: (id: string, name?: string, opener?: string, tags?: string[]) => instanceLaunch(id, name, opener, tags),
     instanceAttach: (n: string, opener?: string) => instanceAttach(n, opener),
     instanceShell: (n: string) => instanceShell(n),
     instanceStop: (n: string) => instanceStop(n),
@@ -49,13 +49,12 @@ beforeEach(() => {
 })
 
 describe('App launch & lifecycle wiring', () => {
-  it('Launch opens a dialog; submitting calls instanceLaunch with the session name (sandbox auto)', async () => {
+  it('Launch opens a dialog; submitting calls instanceLaunch with no session name (sandbox auto)', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Session name'), { target: { value: 'Refactor auth' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Launch' }))
-    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', undefined, 'Refactor auth', 'vscode'))
+    await waitFor(() => expect(instanceLaunch).toHaveBeenCalledWith('d1', undefined, 'vscode', []))
   })
 
   it('launches directly (no sign-in nudge) even when Claude has no credential', async () => {
@@ -64,7 +63,7 @@ describe('App launch & lifecycle wiring', () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Launch' }))
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByLabelText('Session name')).toBeInTheDocument()
+    expect(dialog).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /sign in when it opens/i })).not.toBeInTheDocument()
   })
 

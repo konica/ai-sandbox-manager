@@ -138,13 +138,6 @@ describe('launchDefinition', () => {
     expect(cmd).toContain('--name my-custom-session-3323dc52')
   })
 
-  it('passes the session name to claude via the run step', async () => {
-    const d = deps(() => spec)
-    await launchDefinition(d as never, 'd1', undefined, 'My Session')
-    const cmd = d.openTerminal.mock.calls[0][0] as string
-    expect(cmd).toMatch(/sbx run --name my-project-3323dc52 -- --name 'My Session'$/)
-  })
-
   it('avoids names already recorded in metadata (regenerates the suffix)', async () => {
     const hashes = ['3323dc52', 'ffff9999']
     let i = 0
@@ -155,7 +148,7 @@ describe('launchDefinition', () => {
 
   it('opens VS Code (not the terminal) when opener is vscode and a workspace dir exists', async () => {
     const d = deps(() => spec)
-    await launchDefinition(d as never, 'd1', undefined, undefined, 'vscode')
+    await launchDefinition(d as never, 'd1', undefined, 'vscode')
     expect(d.openVSCode).toHaveBeenCalledTimes(1)
     const [command, workspaceDir, name] = d.openVSCode.mock.calls[0]
     expect(workspaceDir).toBe('/p')
@@ -165,7 +158,7 @@ describe('launchDefinition', () => {
   })
   it('falls back to the terminal when opener is vscode but openVSCode dep is absent', async () => {
     const d = deps(() => spec); (d as { openVSCode?: unknown }).openVSCode = undefined
-    await launchDefinition(d as never, 'd1', undefined, undefined, 'vscode')
+    await launchDefinition(d as never, 'd1', undefined, 'vscode')
     expect(d.openTerminal).toHaveBeenCalledTimes(1)
   })
   it('uses the terminal for the default opener', async () => {
@@ -240,7 +233,7 @@ describe('launchDefinition — tags + port skip', () => {
     const store = openStore(':memory:')
     insertDef(store, 'd1', 'My Proj')
     const opened: string[] = []
-    const { name } = await launchDefinition(tagDeps(store, opened) as never, 'd1', undefined, undefined, 'terminal', ['prod', 'eu'])
+    const { name } = await launchDefinition(tagDeps(store, opened) as never, 'd1', undefined, 'terminal', ['prod', 'eu'])
     expect(name).toBe('my-proj-prod-eu-deadbeef')
     expect(store.listInstanceTags().get('my-proj-prod-eu-deadbeef')).toEqual(['prod', 'eu'])
   })
@@ -249,7 +242,7 @@ describe('launchDefinition — tags + port skip', () => {
     const store = openStore(':memory:')
     insertDef(store, 'd1', 'proj')
     const opened: string[] = []
-    await launchDefinition(tagDeps(store, opened) as never, 'd1', undefined, undefined, 'terminal', [])
+    await launchDefinition(tagDeps(store, opened) as never, 'd1', undefined, 'terminal', [])
     expect(opened[0]).toContain('8080:3000')
     expect(opened[0]).toContain('9229/tcp')
   })
@@ -260,8 +253,8 @@ describe('launchDefinition — tags + port skip', () => {
     const opened: string[] = []
     const hashes = ['h1', 'h2']; let i = 0
     const d = tagDeps(store, opened, () => hashes[i++])
-    await launchDefinition(d as never, 'd1', undefined, undefined, 'terminal', [])   // first
-    await launchDefinition(d as never, 'd1', undefined, undefined, 'terminal', [])   // second
+    await launchDefinition(d as never, 'd1', undefined, 'terminal', [])   // first
+    await launchDefinition(d as never, 'd1', undefined, 'terminal', [])   // second
     expect(opened[1]).not.toContain('8080:3000')
     expect(opened[1]).toContain('9229/tcp')
   })
