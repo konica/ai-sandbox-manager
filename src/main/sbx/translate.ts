@@ -168,6 +168,18 @@ const CAPTURE_NO_PROXY = 'localhost,127.0.0.1,::1,gateway.docker.internal'
  * `sbx exec --env` flags routing a process at the in-sandbox capture relay, or '' when not
  * capturing. Shared by the shell and the agent launch so the two can never drift — a shell
  * that is captured while the agent is not would be a confusing half-working state.
+ *
+ * Six repeated `-e` flags look like something an env file would tidy up. Two things to know
+ * before trying that, both measured against sbx v0.38.0:
+ *
+ * - `sbx exec --env-file` is a NO-OP. It is listed in `--help`, but a variable set only in
+ *   the file arrives unset in the sandbox, and pointing the flag at a nonexistent path does
+ *   not even error. It cannot carry these values today.
+ * - The lighter alternative is a login shell (`bash -l`), which picks these up from
+ *   /etc/profile.d/burp-proxy.sh with no flags at all — and degrades better, because that
+ *   script checks the relay is actually listening. A copied `-e` command whose port has since
+ *   died leaves the shell with no egress at all (measured: HTTP 000); a login shell falls
+ *   back to the stock sbx proxy (HTTP 200). Deliberately deferred, not overlooked.
  */
 function captureEnvFlags(capturePort?: number): string {
   if (capturePort === undefined) return ''
