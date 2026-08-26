@@ -8,6 +8,13 @@ export interface SbxInstance {
   status: SbxStatus
   agent: string
   workspace: string | null
+  /**
+   * EVERY host folder mounted into the sandbox, as `sbx ls --json` reports it (`workspace`
+   * is just the first). Undefined = unknown, not empty: the text-table fallback can't split
+   * a comma-joined path list reliably, so callers must treat undefined as "no information"
+   * rather than "no mounts" (see mountsDrift in reconcile()).
+   */
+  workspaces?: string[]
   ports: string[]
 }
 
@@ -184,6 +191,13 @@ export interface InstanceView extends SbxInstance {
   tier: Tier | 'custom'
   /** The definition's credentials changed since this instance was created — rebuild to apply. */
   credsDrift?: boolean
+  /**
+   * The definition's mounted folders no longer match this sandbox's. Mounts are fixed at
+   * create time — `sbx run --name <x> <path>` is refused with "already exists and can't be
+   * given new workspaces" — so only a rebuild can apply the change. Undefined/false when the
+   * live mount list is unknown (text fallback) or there is no linked definition.
+   */
+  mountsDrift?: boolean
   /** App-side tags assigned to this instance (empty when untagged). */
   tags: string[]
   /** ISO timestamp the app recorded (launch time; "first observed" for adopted/CLI instances;

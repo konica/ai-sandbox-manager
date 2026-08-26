@@ -54,6 +54,27 @@ export function matchDefinitionByWorkspace(store: Store, workspace: string): Def
   return buildWorkspaceIndex(store).get(normalizePath(workspace)) ?? null
 }
 
+/**
+ * Whether a definition's mounted folders differ from the ones the sandbox really has.
+ *
+ * `live` is undefined when the mount list is unknown (the `sbx ls` text-table fallback can't
+ * split a comma-joined path list safely). Unknown must NOT read as "no mounts" — that would
+ * flag every instance — so it returns false. Compared as normalised SETS: order and slash
+ * direction are meaningless here, and a folder REMOVED from the definition is drift too, since
+ * the sandbox still has it mounted until rebuilt.
+ */
+function computeMountsDrift(store: Store, definitionId: string, live: string[] | undefined): boolean {
+  if (!live) return false
+  const spec = store.getDefinitionSpec(definitionId)
+  if (!spec) return false
+  const wanted = new Set(spec.mounts.map((m) => normalizePath(m.hostPath)).filter((p) => p !== ''))
+  if (wanted.size === 0) return false // definition carries no mounts → nothing to compare against
+  const actual = new Set(live.map(normalizePath).filter((p) => p !== ''))
+  if (wanted.size !== actual.size) return true
+  for (const p of wanted) if (!actual.has(p)) return true
+  return false
+}
+
 export async function reconcile(
   adapter: SbxAdapter,
   store: Store,
@@ -114,19 +135,29 @@ export async function reconcile(
     }
 
     // Credential drift: the definition's credentials changed since this instance was created,
-    // so its baked-in env vars are stale (→ rebuild / apply live). Only credentials count —
-    // network/ports apply live. Null fingerprint (just-adopted this pass) → unknown, not flagged yet.
+    // so its baked-in env vars are stale (→ rebuild / apply live). Network/ports apply live and
+    // never count. Null fingerprint (just-adopted this pass) → unknown, not flagged yet.
     let credsDrift = false
     if (meta?.credFingerprint != null && meta.definitionId) {
       const spec = store.getDefinitionSpec(meta.definitionId)
       if (spec) credsDrift = credFingerprint(spec.credentials) !== meta.credFingerprint
     }
+
+    // Mount drift: the definition's folder list no longer matches what this sandbox actually
+    // has mounted. Unlike credentials there is no live remedy — mounts are fixed at create
+    // time and `sbx run --name <x> <path>` is refused outright ("already exists and can't be
+    // given new workspaces") — so a folder added to the definition silently never appears in
+    // an existing instance. Detected against the definition (not a create-time fingerprint) so
+    // workspace-linked and adopted CLI instances are covered too.
+    const mountsDrift = def ? computeMountsDrift(store, def.id, inst.workspaces) : false
+
     return {
       ...inst,
       definitionId: def?.id ?? null,
       definitionName: def?.name ?? null,
       tier: def?.tier ?? 'custom',
       credsDrift,
+      mountsDrift,
       tags: tagsByName.get(inst.name) ?? [],
       createdAt
     }

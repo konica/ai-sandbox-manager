@@ -32,7 +32,7 @@ describe('parseSbxLsJson', () => {
       ]
     })
     expect(parseSbxLsJson(json)).toEqual([
-      { name: 'claude-mgm-rag-ingest-console', status: 'stopped', agent: 'claude', ports: [], workspace: '/Users/ttdinh/Projects/mgm-rag-ingest-console' }
+      { name: 'claude-mgm-rag-ingest-console', status: 'stopped', agent: 'claude', ports: [], workspace: '/Users/ttdinh/Projects/mgm-rag-ingest-console', workspaces: ['/Users/ttdinh/Projects/mgm-rag-ingest-console'] }
     ])
   })
   it('formats object ports and dedups the IPv4/IPv6 pairs', () => {
@@ -56,8 +56,23 @@ describe('parseSbxLsJson', () => {
       { name: 'my-sandbox', agent: 'claude', status: 'running', ports: ['127.0.0.1:8080->3000/tcp'], workspace: '/home/user/proj' }
     ])
     expect(parseSbxLsJson(json)).toEqual([
-      { name: 'my-sandbox', status: 'running', agent: 'claude', ports: ['127.0.0.1:8080->3000/tcp'], workspace: '/home/user/proj' }
+      { name: 'my-sandbox', status: 'running', agent: 'claude', ports: ['127.0.0.1:8080->3000/tcp'], workspace: '/home/user/proj', workspaces: ['/home/user/proj'] }
     ])
+  })
+  it('keeps EVERY mounted workspace, not just the first', () => {
+    // Regression: only workspaces[0] was kept, so a folder added to a definition could not be
+    // compared against what the sandbox actually had mounted — the drift went undetected.
+    const json = JSON.stringify({
+      sandboxes: [{ name: 'xray-0c6bea75', agent: 'claude', status: 'running', workspaces: ['C:/Experiments/xray', 'C:/Data/Projects/utils'] }]
+    })
+    const [row] = parseSbxLsJson(json)
+    expect(row.workspaces).toEqual(['C:/Experiments/xray', 'C:/Data/Projects/utils'])
+    expect(row.workspace).toBe('C:/Experiments/xray')
+  })
+  it('reports an unknown mount list as undefined, never as an empty list', () => {
+    // Mount-drift detection must be able to tell "no information" from "no mounts".
+    const [row] = parseSbxLsJson(JSON.stringify({ sandboxes: [{ name: 'x', agent: 'claude', status: 'running' }] }))
+    expect(row.workspaces).toBeUndefined()
   })
   it('returns [] for an empty or shapeless JSON object', () => {
     expect(parseSbxLsJson('{"sandboxes": []}')).toEqual([])

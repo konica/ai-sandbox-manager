@@ -42,6 +42,22 @@ function fakeAdapter(names: string[]): SbxAdapter {
   }
 }
 
+/** Adapter that reports instances with an explicit FULL mount list (for mount-drift tests). */
+function fakeAdapterMounts(instances: Array<{ name: string; workspaces?: string[] }>): SbxAdapter {
+  return {
+    ...fakeAdapter([]),
+    listSandboxes: async () =>
+      instances.map((i) => ({
+        name: i.name,
+        status: 'running' as const,
+        agent: 'claude',
+        ports: [],
+        workspace: i.workspaces?.[0] ?? null,
+        workspaces: i.workspaces
+      }))
+  }
+}
+
 /** Adapter that reports instances with explicit workspace paths (for auto-link tests). */
 function fakeAdapterWorkspaces(instances: Array<{ name: string; workspace: string | null }>): SbxAdapter {
   return {
@@ -193,5 +209,64 @@ describe('reconcile', () => {
     store.upsertInstanceMeta({ sbxName: 'stale', definitionId: null, createdByApp: true, createdAt: '2026-07-18T11:40:00.000Z' })
     await reconcile(fakeAdapter([]), store, () => nowMs)
     expect(store.listInstanceMeta()).toHaveLength(0)
+  })
+})
+
+describe('reconcile mount drift', () => {
+  const base = { id: 'dm', name: 'xray', description: '', agent: 'claude' as const, baseImage: 'img', tier: 'open' as const, createdAt: 't' }
+  const oneMount = [{ hostPath: 'C:\\Experiments\\xray', mode: 'direct' as const, isPrimary: true }]
+  const twoMounts = [...oneMount, { hostPath: 'C:\\Data\\Projects\\utils', mode: 'direct' as const, isPrimary: false }]
+  const spec = (mounts: typeof oneMount) => ({ definition: base, mounts, domains: [], ports: [], hostServices: [], credentials: [] })
+
+  function seed(mounts: typeof oneMount) {
+    const store = openStore(':memory:')
+    store.insertDefinitionSpec(spec(mounts))
+    store.upsertInstanceMeta({ sbxName: 'xray-0c6bea75', definitionId: 'dm', createdByApp: true, createdAt: 't', credFingerprint: credFingerprint([]) })
+    return store
+  }
+
+  it('flags drift when the definition gained a folder the sandbox never got', async () => {
+    // The reported bug: extra folder added to the definition, existing instance re-run.
+    const store = seed(twoMounts)
+    const views = await reconcile(fakeAdapterMounts([{ name: 'xray-0c6bea75', workspaces: ['C:\\Experiments\\xray'] }]), store)
+    expect(views[0].mountsDrift).toBe(true)
+  })
+
+  it('does not flag drift when the sandbox has exactly the definition folders', async () => {
+    const store = seed(twoMounts)
+    const views = await reconcile(fakeAdapterMounts([
+      { name: 'xray-0c6bea75', workspaces: ['C:\\Experiments\\xray', 'C:\\Data\\Projects\\utils'] }
+    ]), store)
+    expect(views[0].mountsDrift).toBe(false)
+  })
+
+  it('compares paths as a set — order and slash direction do not matter', async () => {
+    const store = seed(twoMounts)
+    const views = await reconcile(fakeAdapterMounts([
+      { name: 'xray-0c6bea75', workspaces: ['C:/Data/Projects/utils/', 'C:/Experiments/xray'] }
+    ]), store)
+    expect(views[0].mountsDrift).toBe(false)
+  })
+
+  it('flags drift when a folder was REMOVED from the definition but is still mounted', async () => {
+    const store = seed(oneMount)
+    const views = await reconcile(fakeAdapterMounts([
+      { name: 'xray-0c6bea75', workspaces: ['C:\\Experiments\\xray', 'C:\\Data\\Projects\\utils'] }
+    ]), store)
+    expect(views[0].mountsDrift).toBe(true)
+  })
+
+  it('never flags drift when the live mount list is unknown (sbx ls text fallback)', async () => {
+    // undefined workspaces must read as "no information", not "no mounts" — otherwise every
+    // instance would be flagged the moment `sbx ls --json` is unavailable.
+    const store = seed(twoMounts)
+    const views = await reconcile(fakeAdapterMounts([{ name: 'xray-0c6bea75', workspaces: undefined }]), store)
+    expect(views[0].mountsDrift).toBe(false)
+  })
+
+  it('never flags drift for an instance with no linked definition', async () => {
+    const store = openStore(':memory:')
+    const views = await reconcile(fakeAdapterMounts([{ name: 'ext-box', workspaces: ['/somewhere'] }]), store)
+    expect(views[0].mountsDrift).toBe(false)
   })
 })

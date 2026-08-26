@@ -51,6 +51,7 @@ export function parseSbxLsJson(stdout: string): SbxInstance[] {
     status: toStatus(String(r.status ?? '')),
     agent: String(r.agent ?? ''),
     workspace: pickWorkspace(r),
+    workspaces: allWorkspaces(r),
     ports: normalizePorts(r.ports)
   }))
 }
@@ -63,6 +64,18 @@ function extractRows(parsed: unknown): Array<Record<string, unknown>> {
     if (Array.isArray(obj.sandboxes)) return obj.sandboxes as Array<Record<string, unknown>>
   }
   return []
+}
+
+/**
+ * The complete mount list for a sandbox. `workspaces[]` is authoritative; a scalar
+ * `workspace` yields a single-entry list. Returns undefined when the row carries neither,
+ * so "unknown" stays distinguishable from "no mounts" — mount-drift detection must not
+ * treat a missing field as an empty mount set.
+ */
+function allWorkspaces(r: Record<string, unknown>): string[] | undefined {
+  if (Array.isArray(r.workspaces)) return r.workspaces.map((w) => String(w))
+  if (typeof r.workspace === 'string' && r.workspace !== '') return [r.workspace]
+  return undefined
 }
 
 /** Prefer the first entry of `workspaces[]`; fall back to a scalar `workspace`. */

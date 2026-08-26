@@ -344,6 +344,7 @@ export const en = {
     applyLive: 'Apply live',
     applyLiveHint: 'Apply the added/removed credentials to this running sandbox now, without a rebuild. The agent picks them up the next time you open it.',
     credsDriftNotice: "This definition's credentials changed since this instance was created. Apply them to the running sandbox, or rebuild — their env vars are injected when the sandbox is built.",
+    mountsDriftNotice: "This definition's folders no longer match this sandbox. Folders can only be attached when a sandbox is built, so re-running this instance will not pick them up — rebuild to apply them.",
     fromDefinition: 'from definition',
     tabTerminals: 'Terminals',
     tabPorts: 'Ports',
