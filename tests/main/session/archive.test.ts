@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { captureSessions } from '@main/session/archive'
+import { captureSessions, archivedSubdirs } from '@main/session/archive'
 import { SbxError } from '@shared/errors'
 
 /**
@@ -120,6 +120,31 @@ describe('captureSessions', () => {
     expect(one).not.toBe(two)
     expect(existsSync(one as string)).toBe(true)
     expect(existsSync(two as string)).toBe(true)
+  })
+})
+
+describe('archivedSubdirs', () => {
+  it('reports only the preserved subdirectories the archive actually holds', async () => {
+    // Restore emits one `sbx cp` per entry, so naming a directory that is not there would
+    // produce a warning on every launch for something that was never captured.
+    const adapter = fakeAdapter({ [`${PROJECT_DIR}/a1b2.jsonl`]: '{}\n' })
+    const dir = await captureSessions({ adapter }, { sbxName: 'x', definitionId: 'def-1', baseDir: base })
+
+    expect(archivedSubdirs(dir as string)).toEqual(['projects'])
+  })
+
+  it('reports both subdirectories when both were captured', async () => {
+    const adapter = fakeAdapter({
+      [`${PROJECT_DIR}/a1b2.jsonl`]: '{}\n',
+      [`${CLAUDE}/todos/a1b2.json`]: '[]'
+    })
+    const dir = await captureSessions({ adapter }, { sbxName: 'y', definitionId: 'def-1', baseDir: base })
+
+    expect(archivedSubdirs(dir as string)).toEqual(['projects', 'todos'])
+  })
+
+  it('returns [] for a directory that does not exist', () => {
+    expect(archivedSubdirs(join(base, 'nope'))).toEqual([])
   })
 })
 

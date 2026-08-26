@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, rmSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import type { SbxAdapter } from '../sbx/adapter'
 import { SANDBOX_CLAUDE_DIR } from '../sbx/translate'
@@ -35,6 +35,17 @@ export interface CaptureOptions {
 
 /** How many archives a definition keeps before the oldest is pruned. */
 export const DEFAULT_KEEP = 3
+
+/**
+ * Which preserved subdirectories an archive actually contains, in PRESERVED order.
+ *
+ * Restore emits one `sbx cp` per entry, so listing a directory that was never captured
+ * would print a warning on every launch for something that does not exist. Returns [] for
+ * a missing archive rather than throwing — the caller treats "nothing to restore" as normal.
+ */
+export function archivedSubdirs(archiveDir: string): string[] {
+  return PRESERVED.filter((sub) => existsSync(join(archiveDir, sub)))
+}
 
 /**
  * Timestamp suffix making each capture distinct and lexically sortable. Colons are stripped

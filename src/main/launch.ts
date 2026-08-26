@@ -5,6 +5,7 @@ import type { Logger } from './log'
 import type { DefinitionSpec } from '@shared/types'
 import { randomBytes } from 'crypto'
 import { hashedSandboxName, launchCommand, portsForLaunch } from './sbx/translate'
+import type { SessionRestore } from './sbx/translate'
 import { registerCredentials, credFingerprint } from './creds/register'
 import { toSbxName, composeInstanceBaseName } from '@shared/names'
 import { normalizeTags } from '@shared/tags'
@@ -71,7 +72,9 @@ export async function launchDefinition(
   requestedName?: string,
   sessionName?: string,
   opener: 'terminal' | 'vscode' = 'terminal',
-  rawTags: string[] = []
+  rawTags: string[] = [],
+  /** Claude sessions captured from a previous instance, restored into this one at create time. */
+  restoreFrom?: SessionRestore
 ): Promise<{ name: string }> {
   const spec = deps.store.getDefinitionSpec(definitionId)
   if (!spec) throw new SbxError('not-found', `Definition ${definitionId} not found`)
@@ -114,7 +117,7 @@ export async function launchDefinition(
   const mcpServers = await resolveMcpServers(deps.adapter, spec, deps.log)
 
   const kitDir = deps.materializeKit(spec, name)
-  const command = launchCommand(spec, name, sessionName, kitDir, ports, mcpServers)
+  const command = launchCommand(spec, name, sessionName, kitDir, ports, mcpServers, restoreFrom)
   deps.log?.info(`Launching sandbox "${name}"${sessionName ? ` (session "${sessionName}")` : ''} from definition ${definitionId} (tier: ${spec.definition.tier}, creds: ${spec.credentials.length}, ports: ${spec.ports.length})`)
   deps.log?.info(`Opening terminal to provision and run: ${command}`)
 
