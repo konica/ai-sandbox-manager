@@ -16,6 +16,7 @@ import { writeKit } from './kit/write'
 import { runSmoke } from './smoke'
 import { mergePaths } from './env-path'
 import { createCaptureSession } from './capture/session'
+import { createBeforeQuitHandler } from './capture/quit'
 import { spawnSshChild } from './capture/spawn'
 import { readBurpSettings } from './capture/settings'
 import { readCaFile } from './capture/ca'
@@ -204,7 +205,9 @@ app.whenReady().then(() => {
   registerIpc({ adapter, store, probes: systemProbes, openTerminal: (c) => openHostTerminal(c), creds, materializeKit, readLoginEnv, loginKitDir, openVSCode, cleanupKit, saveFile, openFile, log: logger, storageStatus: () => storageStatus(process.platform, safeStorage), capture })
   // Capture never survives the app: quitting removes the sandbox's port file so new shells
   // fall back to the stock sbx proxy. There is no persistence and no auto-resume.
-  app.on('before-quit', () => { void capture.disable() })
+  // The quit is deferred until teardown finishes — see createBeforeQuitHandler for why a
+  // fire-and-forget disable() silently orphaned an in-sandbox relay on every quit.
+  app.on('before-quit', createBeforeQuitHandler({ disable: () => capture.disable(), quit: () => app.quit() }))
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
