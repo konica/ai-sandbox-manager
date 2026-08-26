@@ -1,4 +1,4 @@
-/** Normalise an arbitrary definition/session name into a safe sbx sandbox name. */
+/** Normalise an arbitrary definition name into a safe sbx sandbox name. */
 export function toSbxName(raw: string): string {
   const slug = raw
     .toLowerCase()
