@@ -25,7 +25,9 @@ const api = vi.hoisted(() => ({
   instancePolicyLog: vi.fn(async () => ({ ok: true, data: { allowed: 0, blocked: 0, events: [] } })),
   instanceStats: vi.fn(async () => ({ ok: false, error: { kind: 'generic', message: 'x' } })),
   prefsGet: vi.fn(async () => ({ ok: true, data: null })),
-  prefsSet: vi.fn(async () => ({ ok: true, data: null }))
+  prefsSet: vi.fn(async () => ({ ok: true, data: null })),
+  // InstanceDetail renders the Session backups block; no archives keeps it out of the way.
+  sessionListArchives: vi.fn(async () => ({ ok: true, data: [] }))
 }))
 vi.mock('../../../src/renderer/ipc/client', () => ({ api }))
 

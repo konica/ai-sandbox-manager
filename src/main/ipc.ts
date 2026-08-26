@@ -16,7 +16,8 @@ import { registerCredentials } from './creds/register'
 import { applyCredentialsLive } from './creds/apply-live'
 import { agentAttachCommand, hostShellCommand, loginCommand, mcpAuthCommand, expandSandboxPath, expandHostPath } from './sbx/translate'
 import type { SessionRestore } from './sbx/translate'
-import { captureSessions, archivedSubdirs } from './session/archive'
+import { captureSessions, archivedSubdirs, listArchives, exportArchive } from './session/archive'
+import type { ArchiveEntry } from './session/archive'
 import { fetchResourceStats } from './sbx/resource-stats'
 import { claudeAuthStatus, claudeSignOut } from './auth/manager'
 import { sshAgentPresent } from './ssh/detect'
@@ -72,6 +73,8 @@ interface Deps {
   readCa?: (path: string) => CaInfo
   /** Root for Claude session archives (the app's userData dir). Absent ⇒ rebuild preserves nothing. */
   sessionArchiveBaseDir?: string
+  /** Folder chooser for exporting a session archive. Absent ⇒ export is unavailable. */
+  pickFolder?: () => Promise<string | null>
 }
 
 function requireCreds(deps: Deps): CredentialManager {
@@ -165,6 +168,8 @@ export function buildHandlers(deps: Deps): {
   'instance:setTags': (name: string, tags: string[]) => Promise<Result<null>>
   'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
   'instance:rebuild': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
+  'session:listArchives': (name: string) => Promise<Result<ArchiveEntry[]>>
+  'session:exportArchive': (dir: string) => Promise<Result<{ canceled?: boolean; path?: string }>>
   'instance:applyCredentials': (name: string) => Promise<Result<{ applied: number; removed: number; skipped: number }>>
   'instance:commands': (name: string) => Promise<Result<{ agent: string; shell: string }>>
   'instance:shell': (name: string) => Promise<Result<null>>
@@ -346,6 +351,22 @@ export function buildHandlers(deps: Deps): {
       const restoreFrom = await captureRebuildSessions(deps, name, definitionId)
       await cleanupInstance(deps, name)
       return launchDefinition(launchDeps(), definitionId, undefined, undefined, opener ?? 'terminal', tags, restoreFrom)
+    }),
+    // Session archives are written by rebuild (see captureRebuildSessions). These two let the
+    // user see what was kept and take a copy out of the app's private userData dir.
+    'session:listArchives': (name) => wrap(async () => {
+      if (!deps.sessionArchiveBaseDir) return []
+      const { definitionId } = await resolveInstanceDefinition(deps, name)
+      // No linked definition ⇒ nothing was ever archived for it; an empty list, not an error.
+      return definitionId ? listArchives(deps.sessionArchiveBaseDir, definitionId) : []
+    }),
+    'session:exportArchive': (dir) => wrap(async () => {
+      if (!deps.pickFolder) throw new SbxError('generic', 'Exporting is not available in this session.')
+      const dest = await deps.pickFolder()
+      if (dest === null) return { canceled: true }
+      const path = exportArchive(dir, dest)
+      deps.log?.info(`Exported session backup ${dir} to ${path}.`)
+      return { path }
     }),
     'instance:applyCredentials': (name) => wrap(async () => {
       // Live-apply service/custom credential changes to a running sandbox (no recreate):
@@ -677,6 +698,8 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instance:setTags', (_e, name: string, tags: string[]) => handlers['instance:setTags'](name, tags))
   ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:attach'](name, opener))
   ipcMain.handle('instance:rebuild', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:rebuild'](name, opener))
+  ipcMain.handle('session:listArchives', (_e, name: string) => handlers['session:listArchives'](name))
+  ipcMain.handle('session:exportArchive', (_e, dir: string) => handlers['session:exportArchive'](dir))
   ipcMain.handle('instance:applyCredentials', (_e, name: string) => handlers['instance:applyCredentials'](name))
   ipcMain.handle('instance:commands', (_e, name: string) => handlers['instance:commands'](name))
   ipcMain.handle('instance:shell', (_e, name: string) => handlers['instance:shell'](name))
