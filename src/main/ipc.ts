@@ -167,7 +167,7 @@ export function buildHandlers(deps: Deps): {
   'instance:launch': (definitionId: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', tags?: string[]) => Promise<Result<{ name: string }>>
   'instance:setTags': (name: string, tags: string[]) => Promise<Result<null>>
   'instance:attach': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<null>>
-  'instance:rebuild': (name: string, opener?: 'terminal' | 'vscode') => Promise<Result<{ name: string }>>
+  'instance:rebuild': (name: string, opener?: 'terminal' | 'vscode', preserveSessions?: boolean) => Promise<Result<{ name: string }>>
   'session:listArchives': (name: string) => Promise<Result<ArchiveEntry[]>>
   'session:exportArchive': (dir: string) => Promise<Result<{ canceled?: boolean; path?: string }>>
   'instance:applyCredentials': (name: string) => Promise<Result<{ applied: number; removed: number; skipped: number }>>
@@ -337,7 +337,7 @@ export function buildHandlers(deps: Deps): {
       }
       return null
     }),
-    'instance:rebuild': (name, opener) => wrap(async () => {
+    'instance:rebuild': (name, opener, preserveSessions = true) => wrap(async () => {
       // Recreate the sandbox from its definition so config/credential changes (e.g. new
       // custom-secret env vars, only injected at create time) take effect. Removes the old
       // sandbox + its scoped secrets/.sandbox, then launches a fresh instance.
@@ -348,7 +348,20 @@ export function buildHandlers(deps: Deps): {
       // Capture the Claude sessions FIRST. cleanupInstance below removes the sandbox
       // irreversibly, so a capture that failed afterwards would have nothing left to read —
       // captureSessions throws on a genuine failure and that abort is the safety property.
-      const restoreFrom = await captureRebuildSessions(deps, name, definitionId)
+      // Unchecked means "do not restore", not "do not back up": capture still runs so an
+      // accidental uncheck cannot lose the conversations, but a failed capture no longer
+      // aborts — nothing is being restored, so it must not block a deliberately clean rebuild.
+      let restoreFrom: SessionRestore | undefined
+      try {
+        restoreFrom = await captureRebuildSessions(deps, name, definitionId)
+      } catch (e) {
+        if (preserveSessions) throw e
+        deps.log?.error(`Could not back up sessions for "${name}" before rebuilding: ${(e as Error).message}`)
+      }
+      if (!preserveSessions) {
+        if (restoreFrom) deps.log?.info(`Sessions backed up but not restored (preserve unchecked) for "${name}".`)
+        restoreFrom = undefined
+      }
       await cleanupInstance(deps, name)
       return launchDefinition(launchDeps(), definitionId, undefined, undefined, opener ?? 'terminal', tags, restoreFrom)
     }),
@@ -697,7 +710,7 @@ export function registerIpc(deps: Deps): void {
   ipcMain.handle('instance:launch', (_e, id: string, name?: string, sessionName?: string, opener?: 'terminal' | 'vscode', tags?: string[]) => handlers['instance:launch'](id, name, sessionName, opener, tags))
   ipcMain.handle('instance:setTags', (_e, name: string, tags: string[]) => handlers['instance:setTags'](name, tags))
   ipcMain.handle('instance:attach', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:attach'](name, opener))
-  ipcMain.handle('instance:rebuild', (_e, name: string, opener?: 'terminal' | 'vscode') => handlers['instance:rebuild'](name, opener))
+  ipcMain.handle('instance:rebuild', (_e, name: string, opener?: 'terminal' | 'vscode', preserveSessions?: boolean) => handlers['instance:rebuild'](name, opener, preserveSessions))
   ipcMain.handle('session:listArchives', (_e, name: string) => handlers['session:listArchives'](name))
   ipcMain.handle('session:exportArchive', (_e, dir: string) => handlers['session:exportArchive'](dir))
   ipcMain.handle('instance:applyCredentials', (_e, name: string) => handlers['instance:applyCredentials'](name))

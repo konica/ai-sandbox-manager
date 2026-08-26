@@ -66,6 +66,8 @@ export const de: Dict = {
     importError: 'Keine gültige .sbx.json-Definitionsdatei.'
   },
   instances: {
+    preserveSessions: 'Claude-Sitzungen übernehmen',
+    preserveSessionsHint: 'Die Unterhaltungen dieser Instanz in die neu erstellte Sandbox zurückspielen. Ohne Häkchen werden sie trotzdem gesichert — nur nicht wiederhergestellt — und bleiben unter „Sitzungs-Backups“ verfügbar.',
     title: 'Instanzen',
     subtitle: 'Laufzeit-Instanzen, die aus Sandbox-Definitionen erstellt wurden. Jede Instanz läuft als isolierte Docker-Sandbox.',
     empty: 'Noch keine Sandboxes. Erstellen Sie eine Definition und starten Sie eine Instanz, um zu beginnen.',

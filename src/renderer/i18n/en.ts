@@ -64,6 +64,8 @@ export const en = {
     importError: 'Not a valid .sbx.json definition file.'
   },
   instances: {
+    preserveSessions: 'Preserve Claude sessions',
+    preserveSessionsHint: 'Restore this instance’s conversations into the rebuilt sandbox. Unchecked, they are still backed up — just not restored — and stay available under Session backups.',
     title: 'Instances',
     subtitle: 'Runtime instances created from sandbox definitions. Each instance runs as an isolated Docker Sandbox.',
     empty: 'No sandboxes yet. Create a definition and launch an instance to get started.',
