@@ -16,7 +16,7 @@ import { registerCredentials } from './creds/register'
 import { applyCredentialsLive } from './creds/apply-live'
 import { agentAttachCommand, hostShellCommand, loginCommand, mcpAuthCommand, expandSandboxPath, expandHostPath } from './sbx/translate'
 import type { SessionRestore } from './sbx/translate'
-import { captureSessions, archivedSubdirs, listArchives, exportArchive } from './session/archive'
+import { captureSessions, listArchives, exportArchive, ARCHIVE_FILE } from './session/archive'
 import type { ArchiveEntry } from './session/archive'
 import { fetchResourceStats } from './sbx/resource-stats'
 import { claudeAuthStatus, claudeSignOut } from './auth/manager'
@@ -631,15 +631,14 @@ function persist(deps: Deps, edit: () => boolean, name: string): boolean {
  */
 async function captureRebuildSessions(deps: Deps, name: string, definitionId: string): Promise<SessionRestore | undefined> {
   if (!deps.sessionArchiveBaseDir) return undefined
-  const dir = await captureSessions({ adapter: deps.adapter }, { sbxName: name, definitionId, baseDir: deps.sessionArchiveBaseDir })
+  const dir = await captureSessions({ adapter: deps.adapter }, { sbxName: name, definitionId, baseDir: deps.sessionArchiveBaseDir, log: deps.log })
   if (!dir) {
     deps.log?.info(`No Claude sessions to preserve from "${name}".`)
     return undefined
   }
-  const subdirs = archivedSubdirs(dir)
-  deps.log?.info(`Preserved ${subdirs.join(', ')} from "${name}" to ${dir}.`)
+  deps.log?.info(`Backed up ~/.claude from "${name}" to ${dir}.`)
   await warnIfPrimaryFolderMoved(deps, name)
-  return { dir, subdirs }
+  return { archivePath: join(dir, ARCHIVE_FILE) }
 }
 
 /**

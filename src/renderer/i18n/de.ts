@@ -350,7 +350,7 @@ export const de: Dict = {
     credsDriftNotice: "Die Anmeldedaten dieser Definition haben sich seit Erstellung dieser Instanz geändert. Wenden Sie sie auf die laufende Sandbox an oder erstellen Sie neu — ihre Umgebungsvariablen werden beim Bau der Sandbox eingefügt.",
     mountsDriftNotice: 'Die Ordner dieser Definition stimmen nicht mehr mit dieser Sandbox überein. Ordner können nur beim Bau einer Sandbox eingebunden werden — ein erneutes Ausführen dieser Instanz übernimmt sie nicht. Erstellen Sie neu, um sie anzuwenden.',
     sessionBackups: 'Sitzungs-Backups',
-    sessionBackupsHint: 'Claude-Unterhaltungen, die beim Neuerstellen dieser Instanz gesichert wurden. Exportieren Sie eine Kopie, um sie außerhalb der App aufzubewahren — Transkripte können alles enthalten, was in dieser Sitzung besprochen wurde.',
+    sessionBackupsHint: 'Eine vollständige Kopie des Claude-Ordners dieser Instanz, gesichert beim Neuerstellen — Unterhaltungen, Einstellungen und das Authentifizierungs-Token. Behandeln Sie eine exportierte Kopie wie ein Geheimnis.',
     sessionBackupExport: 'Exportieren…',
     sessionBackupSaved: 'Gespeichert unter',
     fromDefinition: 'aus Definition',

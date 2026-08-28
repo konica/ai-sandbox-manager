@@ -15,30 +15,30 @@ export const SANDBOX_CLAUDE_DIR = `${SANDBOX_HOME}/.claude`
 
 /** A host archive of Claude session data to restore into a sandbox being created. */
 export interface SessionRestore {
-  /** Archive directory on the host (see main/session/archive.ts). */
-  dir: string
-  /** Which subdirectories the archive actually holds, e.g. ['projects', 'todos']. */
-  subdirs: readonly string[]
+  /** Absolute path to the .tgz on the host (see main/session/archive.ts). */
+  archivePath: string
 }
 
 /**
- * `sbx cp` steps that put an archive's session data back into a sandbox.
+ * The two steps that put an archived ~/.claude back into a sandbox: copy the tarball in,
+ * then unpack it over the Claude dir.
  *
- * Each step is wrapped like copyFileStep's — `{ … || echo ; }` — so a failed restore warns
- * but returns 0 and the outer `&&` chain continues: a sandbox that comes up without its
- * history is far better than one that fails to come up at all.
+ * Each is wrapped like copyFileStep's — `{ … || echo ; }` — so a failed restore warns but
+ * returns 0 and the outer `&&` chain continues: a sandbox that comes up without its history
+ * is far better than one that fails to come up at all.
  *
- * The destination is the Claude dir itself, not the subdirectory: `sbx cp DIR DEST` places
- * the directory at DEST, so copying `<archive>/projects` to `~/.claude/` merges into the
- * existing `projects/` rather than nesting a `projects/projects/` (verified against a live
- * sandbox).
+ * Unpacking with tar (rather than copying a directory in) is what lets symlinked content
+ * survive the round trip — a host-side copy has to materialise links, which fails outright
+ * on Windows without elevation.
  */
 export function sessionRestoreSteps(name: string, restore: SessionRestore): string[] {
-  return restore.subdirs.map((sub) => {
-    const cp = shellCommand(['sbx', 'cp', `${restore.dir}/${sub}`, `${name}:${SANDBOX_CLAUDE_DIR}/`])
-    const warn = shellCommand(['echo', `⚠️ could not restore ${sub}`])
-    return `{ ${cp} || ${warn} ; }`
-  })
+  const tmp = '/tmp/claude-backup.tgz'
+  const cp = shellCommand(['sbx', 'cp', restore.archivePath, `${name}:${tmp}`])
+  const untar = shellCommand(['sbx', 'exec', name, 'tar', 'xzf', tmp, '-C', SANDBOX_CLAUDE_DIR])
+  return [
+    `{ ${cp} || ${shellCommand(['echo', '⚠️ could not copy the session backup in'])} ; }`,
+    `{ ${untar} || ${shellCommand(['echo', '⚠️ could not restore the session backup'])} ; }`
+  ]
 }
 
 /** Expand a `~`/`~/…` sandbox destination to an absolute container path; other paths pass through. */
