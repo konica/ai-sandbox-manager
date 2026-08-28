@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { buildHandlers } from '@main/ipc'
@@ -50,12 +50,12 @@ function harness(over: {
   const adapter = {
     listSandboxes: async () => [{ name: 'xray-old', status: 'running' as const, agent: 'claude', ports: [], workspace: over.liveWorkspace ?? '/w/xray' }],
     probeSandboxPath: async (_n: string, p: string) => (hasSessions && p.endsWith('/projects') ? 'dir' as const : 'missing' as const),
+    // Capture now builds one tarball inside the sandbox, then copies that single file out.
+    execScript: async () => { calls.push('execScript') },
     copyFromSandbox: async (_n: string, src: string, dest: string) => {
       calls.push('copyFromSandbox')
       if (over.copyFails) throw new SbxError('generic', 'simulated copy failure')
-      const leaf = src.split('/').pop() as string
-      mkdirSync(join(dest, leaf, '-w-xray'), { recursive: true })
-      writeFileSync(join(dest, leaf, '-w-xray', 'a1b2.jsonl'), '{}\n')
+      writeFileSync(join(dest, src.split('/').pop() as string), 'TGZ')
     },
     removeSandbox: async () => { calls.push('removeSandbox') },
     removeSecret: async () => {}, removeCustomSecret: async () => {}, removeRegistrySecret: async () => {},
@@ -96,7 +96,8 @@ describe('instance:rebuild session preservation', () => {
     await h.handlers['instance:rebuild']('xray-old', 'terminal')
 
     expect(h.launchedCommand()).toContain('sbx cp')
-    expect(h.launchedCommand()).toContain(':/home/agent/.claude/')
+    expect(h.launchedCommand()).toContain('claude-backup.tgz')
+    expect(h.launchedCommand()).toContain('tar xzf /tmp/claude-backup.tgz -C /home/agent/.claude')
   })
 
   it('aborts without destroying the sandbox when the capture fails', async () => {

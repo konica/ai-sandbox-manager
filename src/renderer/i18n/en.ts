@@ -348,7 +348,7 @@ export const en = {
     credsDriftNotice: "This definition's credentials changed since this instance was created. Apply them to the running sandbox, or rebuild — their env vars are injected when the sandbox is built.",
     mountsDriftNotice: "This definition's folders no longer match this sandbox. Folders can only be attached when a sandbox is built, so re-running this instance will not pick them up — rebuild to apply them.",
     sessionBackups: 'Session backups',
-    sessionBackupsHint: 'Claude conversations kept when this instance was rebuilt. Export a copy to keep one outside the app — transcripts can contain anything discussed in that session.',
+    sessionBackupsHint: 'A full copy of this instance’s Claude folder, kept when it was rebuilt — conversations, settings, and its authentication token. Treat an exported copy like a credential.',
     sessionBackupExport: 'Export…',
     sessionBackupSaved: 'Saved to',
     fromDefinition: 'from definition',
