@@ -144,18 +144,6 @@ function createWindow(): void {
   }
 }
 
-// Chromium's session data (GPUCache, DawnGraphiteCache, DawnWebGPUCache, Local State,
-// Session Storage, blob_storage) defaults to the same dir as userData, so a `npm run dev`
-// instance and the installed app fight over one profile: whichever starts second finds the
-// cache dirs locked by the first and logs "Unable to move the cache: Access is denied".
-// Point the unpackaged build at its own subdir. userData itself is left alone so dev keeps
-// reading the same sandbox-manager.db, vault/ and sandbox-manager.log.
-if (!app.isPackaged) {
-  const devSession = join(app.getPath('userData'), 'dev-session')
-  nodeFs.mkdirSync(devSession, { recursive: true })
-  app.setPath('sessionData', devSession)
-}
-
 app.whenReady().then(() => {
   // Packaged-app smoke test: when SBX_SMOKE_TEST is set, exercise the native
   // module and exit before opening a window. Used by scripts/smoke.mjs in CI.
