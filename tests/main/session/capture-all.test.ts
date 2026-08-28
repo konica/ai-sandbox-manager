@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync, existsSync, readdirSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { captureSessions, ARCHIVE_FILE, SANDBOX_TMP_ARCHIVE } from '@main/session/archive'
+import { captureSessions, ARCHIVE_FILE } from '@main/session/archive'
 import { SbxError } from '@shared/errors'
 
 const CLAUDE = '/home/agent/.claude'
@@ -32,6 +32,12 @@ let base: string
 beforeEach(() => { base = mkdtempSync(join(tmpdir(), 'sbxmgr-tar-')) })
 afterEach(() => { rmSync(base, { recursive: true, force: true }) })
 
+/** The path `tar czf <path>` staged to, as recorded from the scripts actually run. */
+function stagedPathFrom(scripts: string[]): string {
+  const tar = scripts.find((s) => s.includes('tar czf')) as string
+  return /mkdir -p (\S+)/.exec(tar)?.[1] as string
+}
+
 const capture = (adapter: ReturnType<typeof fakeAdapter>) =>
   captureSessions({ adapter }, { sbxName: 'xray-old', definitionId: 'def-1', baseDir: base })
 
@@ -60,8 +66,8 @@ describe('captureSessions archives the whole .claude folder', () => {
     await capture(adapter)
 
     const tar = adapter.scripts.find((s) => s.includes('tar czf')) as string
-    expect(tar).toContain('--exclude=./sessions')
-    expect(tar).toContain('--exclude=./daemon.*')
+    expect(tar).toContain('./sessions')
+    expect(tar).toContain('./daemon.*')
   })
 
   it('keeps going when an individual file cannot be read', async () => {
@@ -77,7 +83,34 @@ describe('captureSessions archives the whole .claude folder', () => {
 
     await capture(adapter)
 
-    expect(adapter.scripts.some((s) => s.includes('rm -f') && s.includes(SANDBOX_TMP_ARCHIVE))).toBe(true)
+    const staged = stagedPathFrom(adapter.scripts)
+    expect(adapter.scripts.some((s) => s.includes(`rm -rf ${staged}`))).toBe(true)
+  })
+
+  it('stages to a path unique per capture, never a fixed one', async () => {
+    // Regression (#92): restore copies its tarball in AS ROOT and used to share this exact
+    // path, so a root-owned leftover made every SECOND rebuild fail with
+    // "/tmp/claude-backup.tgz: Cannot open: Permission denied" — capture runs as `agent`.
+    const one = fakeAdapter(); const two = fakeAdapter()
+
+    await captureSessions({ adapter: one }, { sbxName: 'a', definitionId: 'def-1', baseDir: base, now: () => new Date('2026-08-28T01:00:00Z') })
+    await captureSessions({ adapter: two }, { sbxName: 'a', definitionId: 'def-1', baseDir: base, now: () => new Date('2026-08-28T02:00:00Z') })
+
+    const p1 = stagedPathFrom(one.scripts); const p2 = stagedPathFrom(two.scripts)
+    expect(p1).not.toBe('/tmp/claude-backup.tgz')
+    expect(p1).not.toBe(p2)
+  })
+
+  it('passes exclude patterns to tar literally, not for the shell to expand', async () => {
+    // Regression (#92): the script runs through `bash -lc`, so an unquoted ./daemon.* was
+    // glob-expanded against the CWD instead of reaching tar.
+    const adapter = fakeAdapter()
+
+    await capture(adapter)
+
+    const tar = adapter.scripts.find((s) => s.includes('tar czf')) as string
+    expect(tar).toContain(`--exclude='./daemon.*'`)
+    expect(tar).toContain(`--exclude='./sessions'`)
   })
 
   it('returns null when the sandbox has no transcripts', async () => {

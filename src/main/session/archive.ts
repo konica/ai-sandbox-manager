@@ -10,8 +10,21 @@ export { SANDBOX_CLAUDE_DIR }
 /** The archive file written into each archive directory. */
 export const ARCHIVE_FILE = 'claude-backup.tgz'
 
-/** Where the archive is staged inside the sandbox before being copied out. */
-export const SANDBOX_TMP_ARCHIVE = `/tmp/${ARCHIVE_FILE}`
+/**
+ * Where a capture stages its archive inside the sandbox: a directory unique per capture,
+ * holding the canonically-named archive file.
+ *
+ * The DIRECTORY carries the uniqueness so the file keeps its canonical name — `sbx cp` copies
+ * the file out under its own basename, and the archive dir must contain ARCHIVE_FILE for
+ * restore to find it.
+ *
+ * Deliberately not a fixed path. Restore copies its tarball in via `sbx cp`, which writes AS
+ * ROOT; capture runs as `agent`. When both shared one hard-coded path, the root-owned leftover
+ * from a restore made every SECOND rebuild die with "Cannot open: Permission denied" (#92).
+ */
+export function stagedArchiveDir(stamped: string): string {
+  return `/tmp/sbx-session-backup-${stamped}`
+}
 
 /**
  * Build the whole of ~/.claude into one compressed archive, inside the sandbox.
@@ -25,8 +38,10 @@ export const SANDBOX_TMP_ARCHIVE = `/tmp/${ARCHIVE_FILE}`
  * about to be deleted. `--ignore-failed-read` is the skip-and-continue behaviour — one
  * unreadable file warns instead of costing the user everything else.
  */
-export function archiveScript(): string {
-  return `tar czf ${SANDBOX_TMP_ARCHIVE} -C ${SANDBOX_CLAUDE_DIR} --exclude=./sessions --exclude=./daemon.* --ignore-failed-read .`
+export function archiveScript(tmpDir: string): string {
+  // The patterns are single-quoted because this whole string runs through `bash -lc`: an
+  // unquoted ./daemon.* is glob-expanded by the shell against the CWD and never reaches tar.
+  return `mkdir -p ${tmpDir} && tar czf ${tmpDir}/${ARCHIVE_FILE} -C ${SANDBOX_CLAUDE_DIR} --exclude='./sessions' --exclude='./daemon.*' --ignore-failed-read .`
 }
 
 export interface ArchiveDeps {
@@ -150,11 +165,12 @@ export async function captureSessions(deps: ArchiveDeps, opts: CaptureOptions): 
 
   // Deliberately NOT caught: instance:rebuild destroys the sandbox next, so a failure here
   // must abort the rebuild rather than let it proceed and lose the conversations.
-  await deps.adapter.execScript(opts.sbxName, archiveScript())
-  await deps.adapter.copyFromSandbox(opts.sbxName, SANDBOX_TMP_ARCHIVE, dir)
+  const stagedDir = stagedArchiveDir(stamp(at))
+  await deps.adapter.execScript(opts.sbxName, archiveScript(stagedDir))
+  await deps.adapter.copyFromSandbox(opts.sbxName, `${stagedDir}/${ARCHIVE_FILE}`, dir)
   // Best-effort tidy-up: the sandbox is usually about to be deleted anyway.
   try {
-    await deps.adapter.execScript(opts.sbxName, `rm -f ${SANDBOX_TMP_ARCHIVE}`)
+    await deps.adapter.execScript(opts.sbxName, `rm -rf ${stagedDir}`)
   } catch (e) {
     opts.log?.info(`Could not remove the staged archive in "${opts.sbxName}": ${(e as Error).message}`)
   }

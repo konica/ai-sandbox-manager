@@ -35,9 +35,16 @@ export function sessionRestoreSteps(name: string, restore: SessionRestore): stri
   const tmp = '/tmp/claude-backup.tgz'
   const cp = shellCommand(['sbx', 'cp', restore.archivePath, `${name}:${tmp}`])
   const untar = shellCommand(['sbx', 'exec', name, 'tar', 'xzf', tmp, '-C', SANDBOX_CLAUDE_DIR])
+  // `sbx cp` writes into the sandbox AS ROOT, so this tarball is root-owned. Leaving it
+  // behind (a) blocked the next capture, which runs as `agent` and could not overwrite it
+  // (#92), and (b) stranded a world-readable copy of the whole ~/.claude — .credentials.json
+  // included — in /tmp. Its own step, AFTER the untar rather than chained onto its success,
+  // so a failed unpack still cleans up.
+  const rm = shellCommand(['sbx', 'exec', name, 'rm', '-f', tmp])
   return [
     `{ ${cp} || ${shellCommand(['echo', '⚠️ could not copy the session backup in'])} ; }`,
-    `{ ${untar} || ${shellCommand(['echo', '⚠️ could not restore the session backup'])} ; }`
+    `{ ${untar} || ${shellCommand(['echo', '⚠️ could not restore the session backup'])} ; }`,
+    `{ ${rm} || true ; }`
   ]
 }
 
