@@ -20,9 +20,30 @@ describe('sessionRestoreSteps', () => {
   it('copies the archive in and unpacks it over the Claude dir', () => {
     const steps = sessionRestoreSteps('my-project', ARCHIVE)
 
-    expect(steps).toHaveLength(2)
+    expect(steps).toHaveLength(3)
     expect(steps[0]).toContain('sbx cp /home/u/archives/xray-2026/claude-backup.tgz my-project:/tmp/claude-backup.tgz')
     expect(steps[1]).toContain('tar xzf /tmp/claude-backup.tgz -C /home/agent/.claude')
+  })
+
+  it('deletes the copied-in tarball after unpacking', () => {
+    // Regression (#92): `sbx cp` writes into the sandbox AS ROOT, so a leftover tarball at a
+    // shared path made the next capture (which runs as `agent`) fail with Permission denied.
+    // It also holds the whole ~/.claude including .credentials.json, so leaving it
+    // world-readable in /tmp exposes an auth token to anything in the sandbox.
+    const steps = sessionRestoreSteps('my-project', ARCHIVE)
+
+    expect(steps.some((s) => s.includes('rm -f') && s.includes('claude-backup'))).toBe(true)
+  })
+
+  it('deletes the tarball even when unpacking fails', () => {
+    // The cleanup must not hang off the untar's success, or a failed restore strands a
+    // credential-bearing file in /tmp.
+    const steps = sessionRestoreSteps('my-project', ARCHIVE)
+    const rm = steps.findIndex((s) => s.includes('rm -f'))
+    const untar = steps.findIndex((s) => s.includes('tar xzf'))
+
+    expect(rm).toBeGreaterThan(untar)
+    expect(steps[rm].startsWith('{ ')).toBe(true) // wrapped, so it runs regardless
   })
 
   it('unpacks only after the archive has been copied in', () => {
