@@ -73,15 +73,16 @@ export function BurpSettings(): JSX.Element {
       <h3 className="section-title" style={{ fontSize: 15, marginBottom: 'var(--space-1)' }}>{t('capture.settingsTitle')}</h3>
       <p className="section-desc" style={{ marginTop: 0 }}>{t('capture.settingsHint')}</p>
 
-      <label htmlFor="burp-ca" style={{ display: 'block', fontSize: 13, fontWeight: 510 }}>{t('capture.caLabel')}</label>
+      <label htmlFor="burp-ca">{t('capture.caLabel')}</label>
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
         <input
           id="burp-ca"
           type="text"
+          className="input"
           value={settings.caPath}
           onChange={(e) => setSettings((s) => ({ ...s, caPath: e.target.value }))}
           onBlur={(e) => { void save({ caPath: e.target.value }).then(() => inspect(e.target.value)) }}
-          style={{ flex: 1 }}
+          style={{ flex: 1, minWidth: 0 }}
         />
         <button type="button" className="btn btn-secondary btn-sm" onClick={() => void onBrowse()}>{t('capture.caBrowse')}</button>
       </div>
@@ -89,10 +90,11 @@ export function BurpSettings(): JSX.Element {
       {ca?.ok === true && <p style={{ fontSize: 12, color: 'var(--success, var(--accent))' }}>{t('capture.caValid', { name: ca.name, expires: ca.expires })}</p>}
       {ca?.ok === false && <p style={{ fontSize: 12, color: 'var(--danger)' }}>{ca.message}</p>}
 
-      <label htmlFor="burp-port" style={{ display: 'block', fontSize: 13, fontWeight: 510, marginTop: 'var(--space-3)' }}>{t('capture.proxyPort')}</label>
+      <label htmlFor="burp-port" style={{ marginTop: 'var(--space-3)' }}>{t('capture.proxyPort')}</label>
       <input
         id="burp-port"
         type="number"
+        className="input"
         defaultValue={settings.proxyPort}
         key={`p-${settings.proxyPort}`}
         onBlur={(e) => onPortBlur('proxyPort', e.target.value)}
@@ -105,10 +107,11 @@ export function BurpSettings(): JSX.Element {
         </button>
         {advanced && (
           <div style={{ marginTop: 'var(--space-2)' }}>
-            <label htmlFor="burp-upstream" style={{ display: 'block', fontSize: 13, fontWeight: 510 }}>{t('capture.upstreamPort')}</label>
+            <label htmlFor="burp-upstream">{t('capture.upstreamPort')}</label>
             <input
               id="burp-upstream"
               type="number"
+              className="input"
               defaultValue={settings.upstreamPort}
               key={`u-${settings.upstreamPort}`}
               onBlur={(e) => onPortBlur('upstreamPort', e.target.value)}
