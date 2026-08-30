@@ -27,6 +27,16 @@ describe('BurpSettings', () => {
     expect(screen.getByLabelText(/burp proxy port/i)).toBeInTheDocument()
   })
 
+  // The theme styles fields only via the `.input` class — a bare <input> keeps the browser
+  // default border and looks nothing like the rest of the app.
+  it('styles every field with the app input class', async () => {
+    render(<BurpSettings />)
+    expect(await screen.findByLabelText(/burp ca certificate/i)).toHaveClass('input')
+    expect(screen.getByLabelText(/burp proxy port/i)).toHaveClass('input')
+    fireEvent.click(screen.getByRole('button', { name: /advanced/i }))
+    expect(screen.getByLabelText(/upstream port/i)).toHaveClass('input')
+  })
+
   it('picks a CA file, saves it, and confirms with the parsed subject and expiry', async () => {
     render(<BurpSettings />)
     fireEvent.click(await screen.findByRole('button', { name: /choose file/i }))
