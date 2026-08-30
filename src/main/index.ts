@@ -15,6 +15,7 @@ import { buildCodeWorkspace, openInVSCode } from './vscode'
 import { writeKit } from './kit/write'
 import { runSmoke } from './smoke'
 import { mergePaths } from './env-path'
+import { prepareDevSessionData } from './dev-session'
 import { createCaptureSession } from './capture/session'
 import { createBeforeQuitHandler } from './capture/quit'
 import { spawnSshChild } from './capture/spawn'
@@ -22,6 +23,12 @@ import { readBurpSettings } from './capture/settings'
 import { readCaFile } from './capture/ca'
 import { tcpProbe } from './capture/verify'
 import type { DefinitionSpec } from '@shared/types'
+
+const devSessionFs = {
+  readFile: (p: string) => (nodeFs.existsSync(p) ? nodeFs.readFileSync(p, 'utf8') : null),
+  writeFile: (p: string, data: string) => nodeFs.writeFileSync(p, data, 'utf8'),
+  mkdir: (p: string) => { nodeFs.mkdirSync(p, { recursive: true }) }
+}
 
 const kitFs = {
   mkdir: (p: string) => nodeFs.mkdirSync(p, { recursive: true }),
@@ -142,6 +149,17 @@ function createWindow(): void {
   } else {
     win.loadFile(join(__dirname, '../renderer/index.html'))
   }
+}
+
+// Give the unpackaged build its own Chromium sessionData dir so `npm run dev` and the installed
+// app stop fighting over one profile's cache dirs ("Unable to move the cache: Access is denied").
+// userData is deliberately left shared, so dev keeps reading the same sandbox-manager.db, vault/
+// and sandbox-manager.log — which is why prepareDevSessionData has to seed the dev `Local State`
+// with the canonical OSCrypt key: that key encrypts the shared vault, and it lives under
+// sessionData. It returns null when there is no key to pair with yet; then we stay shared.
+if (!app.isPackaged) {
+  const devSessionData = prepareDevSessionData(app.getPath('userData'), devSessionFs)
+  if (devSessionData) app.setPath('sessionData', devSessionData)
 }
 
 app.whenReady().then(() => {
