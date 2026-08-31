@@ -99,6 +99,7 @@ export const de: Dict = {
     cancel: 'Abbrechen',
     launched: '„{name}“ gestartet — ein Terminal wird geöffnet.',
     applyLiveDone: 'Anmeldedaten mit der laufenden Sandbox abgeglichen ({applied} gesetzt, {removed} entfernt). Der Agent verwendet sie beim nächsten Öffnen.',
+    applyLiveFailed: '{failed} Anmeldedaten konnten nicht auf die laufende Sandbox angewendet werden ({applied} gesetzt, {removed} entfernt). Die Sandbox zeigt weiterhin eine Änderung an, damit Sie es erneut versuchen oder neu erstellen können — den Grund finden Sie im Protokoll.',
     actionFailed: 'Aktion fehlgeschlagen: {message}'
   },
   mcp: {
@@ -268,7 +269,9 @@ export const de: Dict = {
     addedCustom: 'Hinzugefügte benutzerdefinierte Geheimnisse',
     customHint: 'Für Anmeldedaten, die nicht zum Dienstmodell passen — der Proxy prüft die Domäne(n) und fügt sie in einen Anfrage-Header ein. Der Agent sieht einen Platzhalterwert.',
     host: 'Host / Domäne',
+    hostInvalid: 'Geben Sie einen reinen Host, eine IP oder einen Platzhalter an — zum Beispiel api.example.com oder *.example.com (ohne https://, Port oder Pfad).',
     envVar: 'Umgebungsvariable',
+    envVarTaken: 'Diese Umgebungsvariable wird bereits von einem anderen benutzerdefinierten Geheimnis in dieser Definition verwendet. Jedes benötigt eine eigene — zwei Geheimnisse können sich einen Host teilen, aber keinen Namen.',
     wildcardHint: 'Unterstützt Platzhalter (*.example.com, **.example.com). Der Proxy ersetzt Ihren Wert überall dort, wo die Umgebungsvariable in Anfragen an den Host erscheint — der Agent sieht das echte Geheimnis nie.',
     none: 'Keine Anmeldedaten hinzugefügt.',
     fromEnv: 'aus Umgebung ↩',

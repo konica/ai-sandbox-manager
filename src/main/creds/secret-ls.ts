@@ -62,12 +62,14 @@ export function customPlaceholdersForScope(stdout: string, scope: string): Map<s
  *  column equals `scope` are included, so global (`(global)`) secrets are never touched. */
 export interface InstanceSecrets {
   services: string[]
-  customs: { env: string; hosts: string[] }[]
+  /** `placeholder` is the only handle sbx offers for removing ONE custom secret — removing by
+   *  host would take down every secret sharing that host. */
+  customs: { env: string; hosts: string[]; placeholder: string }[]
 }
 
 export function parseInstanceSecrets(stdout: string, scope: string): InstanceSecrets {
   const services: string[] = []
-  const customs: { env: string; hosts: string[] }[] = []
+  const customs: { env: string; hosts: string[]; placeholder: string }[] = []
   let inCustom = false
   for (const raw of stdout.split('\n')) {
     const line = raw.trim()
@@ -85,7 +87,7 @@ export function parseInstanceSecrets(stdout: string, scope: string): InstanceSec
     const idx = tokens.findIndex((t) => PLACEHOLDER_RE.test(t))
     if (idx < 2 || tokens[0] !== scope) continue
     const hosts = tokens.slice(1, idx - 1).flatMap((t) => t.split(',')).filter(Boolean)
-    customs.push({ env: tokens[idx - 1], hosts })
+    customs.push({ env: tokens[idx - 1], hosts, placeholder: tokens[idx] })
   }
   return { services, customs }
 }

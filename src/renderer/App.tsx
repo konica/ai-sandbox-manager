@@ -188,7 +188,14 @@ export default function App(): JSX.Element {
   function onShell(name: string): void { void runAction(api.instanceShell(name)) }
   async function onApplyCredentials(name: string): Promise<void> {
     const r = await api.instanceApplyCredentials(name)
-    if (r.ok) setNotice({ kind: 'info', text: t('instances.applyLiveDone', { applied: String(r.data.applied), removed: String(r.data.removed) }) })
+    // A partial apply is NOT a success: some credentials are missing on the sandbox and drift is
+    // deliberately left set, so say so rather than showing the green "synced" notice.
+    if (r.ok) {
+      const v = { applied: String(r.data.applied), removed: String(r.data.removed), failed: String(r.data.failed) }
+      setNotice(r.data.failed > 0
+        ? { kind: 'error', text: t('instances.applyLiveFailed', v) }
+        : { kind: 'info', text: t('instances.applyLiveDone', v) })
+    }
     else if (r.error) setNotice({ kind: 'error', text: t('instances.actionFailed', { message: r.error.message }) })
     await loadInstances()
   }

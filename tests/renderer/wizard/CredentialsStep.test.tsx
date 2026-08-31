@@ -28,6 +28,57 @@ describe('CredentialsStep', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(p.onAddCustom).toHaveBeenCalledWith(expect.objectContaining({ kind: 'custom', envVar: 'ACME_KEY', domains: ['api.acme.com'] }))
   })
+  // sbx rejects a target with a scheme or port outright, and the failure used to surface only in
+  // the app log — long after launch — so catch it where the value is entered.
+  it('refuses a pasted API base URL and asks for the bare host instead of storing it', () => {
+    const p = setup()
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'https://api.mem0.ai/v1/' } })
+    fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'MEM0_API_KEY' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(p.onAddCustom).not.toHaveBeenCalled()
+    expect(screen.getByText(/bare host/i)).toBeInTheDocument()
+  })
+  it('accepts the host once the scheme is removed, storing exactly what was typed', () => {
+    const p = setup()
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'api.mem0.ai' } })
+    fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'MEM0_API_KEY' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(p.onAddCustom).toHaveBeenCalledWith(expect.objectContaining({ envVar: 'MEM0_API_KEY', domains: ['api.mem0.ai'], label: 'api.mem0.ai' }))
+  })
+  // The staged value is keyed off the credential id, so two credentials on one host must not
+  // derive the same id — that is what made one Google key overwrite the other.
+  it('derives the id from the env var so two secrets on one host stay distinct', () => {
+    const p = setup()
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'accounts.google.com' } })
+    fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'GOOGLE_CLIENT_ID' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(p.onAddCustom).toHaveBeenCalledWith(expect.objectContaining({ id: 'google-client-id', envVar: 'GOOGLE_CLIENT_ID', domains: ['accounts.google.com'] }))
+  })
+  it('refuses a second credential reusing an env var already taken (sbx requires it unique per scope)', () => {
+    const p = setup({ credentials: [{ kind: 'custom', id: 'google-client-id', label: 'accounts.google.com', envVar: 'GOOGLE_CLIENT_ID', domains: ['accounts.google.com'], value: 'v' }] })
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'accounts.google.com' } })
+    fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'GOOGLE_CLIENT_ID' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(p.onAddCustom).not.toHaveBeenCalled()
+    expect(screen.getByText(/already used/i)).toBeInTheDocument()
+  })
+  it('allows a second credential on the SAME host under a different env var', () => {
+    const p = setup({ credentials: [{ kind: 'custom', id: 'google-client-id', label: 'accounts.google.com', envVar: 'GOOGLE_CLIENT_ID', domains: ['accounts.google.com'], value: 'v' }] })
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'accounts.google.com' } })
+    fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'GOOGLE_CLIENT_SECRET' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(p.onAddCustom).toHaveBeenCalledWith(expect.objectContaining({ id: 'google-client-secret', envVar: 'GOOGLE_CLIENT_SECRET', domains: ['accounts.google.com'] }))
+  })
   it('renders added credentials and removes one', () => {
     const p = setup({ credentials: [{ kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', value: '' }] })
     const removeBtn = screen.getByRole('button', { name: /remove/i })

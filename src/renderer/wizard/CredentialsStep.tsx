@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { KNOWN_SERVICES, serviceById } from '@shared/services'
 import { toSbxName } from '@shared/names'
+import { isValidCredHost } from '@shared/host'
 import type { RegistryScope } from '@shared/types'
 import { useT } from '../i18n'
 import type { DraftCred, DraftCustomCred, DraftRegistryCred, DraftServiceCred } from './draft'
@@ -106,6 +107,8 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
   const [serviceId, setServiceId] = useState(KNOWN_SERVICES[0].id)
   const [svcValue, setSvcValue] = useState('')
   const [host, setHost] = useState('')
+  const [hostError, setHostError] = useState(false)
+  const [envError, setEnvError] = useState(false)
   const [envVar, setEnvVar] = useState('')
   const [customValue, setCustomValue] = useState('')
   const [regHost, setRegHost] = useState('')
@@ -136,7 +139,19 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
   }
   function addCustom(): void {
     if (!host.trim() || !envVar.trim()) return
-    onAddCustom({ kind: 'custom', id: toSbxName(host.trim()), label: host.trim(), envVar: envVar.trim(), domains: [host.trim()], value: customValue })
+    // sbx takes a bare host for --host and rejects anything else ("expected host or IP without
+    // scheme/port"). An API base URL is what people paste out of provider docs, so say so here —
+    // storing it unchanged is what let the credential fail silently at launch.
+    const target = host.trim()
+    if (!isValidCredHost(target)) { setHostError(true); setEnvError(false); return }
+    // sbx keys a custom secret by env var within a scope ("custom secret env X already exists"),
+    // so a duplicate could never both register. Say so here rather than half-applying later.
+    const env = envVar.trim()
+    if (customs.some((x) => x.c.envVar === env)) { setEnvError(true); setHostError(false); return }
+    setHostError(false); setEnvError(false)
+    // The id keys the staged value in the vault, so derive it from the ENV VAR: two credentials
+    // that share a host would otherwise collide and one value would overwrite the other.
+    onAddCustom({ kind: 'custom', id: toSbxName(env), label: target, envVar: env, domains: [target], value: customValue })
     setHost(''); setEnvVar(''); setCustomValue('')
   }
   function editCustom(c: DraftCustomCred, i: number): void {
@@ -258,11 +273,13 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
           <div style={rowStyle}>
             <div style={{ ...field, flex: '1 1 180px' }}>
               <span style={lbl}>{t('credentials.host')}</span>
-              <input aria-label="Host / Domain" className="input" placeholder="api.example.com" value={host} onChange={(e) => setHost(e.target.value)} />
+              <input aria-label="Host / Domain" className="input" placeholder="api.example.com" value={host} onChange={(e) => { setHost(e.target.value); setHostError(false) }} />
+              {hostError && <span style={{ ...hint, color: 'var(--danger)' }}>{t('credentials.hostInvalid')}</span>}
             </div>
             <div style={{ ...field, flex: '1 1 160px' }}>
               <span style={lbl}>{t('credentials.envVar')}</span>
-              <input aria-label="Environment Variable" className="input" placeholder="API_KEY" value={envVar} onChange={(e) => setEnvVar(e.target.value)} />
+              <input aria-label="Environment Variable" className="input" placeholder="API_KEY" value={envVar} onChange={(e) => { setEnvVar(e.target.value); setEnvError(false) }} />
+              {envError && <span style={{ ...hint, color: 'var(--danger)' }}>{t('credentials.envVarTaken')}</span>}
             </div>
             <div style={{ ...field, flex: '1 1 140px' }}>
               <span style={lbl}>{t('credentials.value')}</span>

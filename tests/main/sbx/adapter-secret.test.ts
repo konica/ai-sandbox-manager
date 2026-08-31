@@ -46,3 +46,39 @@ describe('adapter.setCustomSecret / removeCustomSecret', () => {
     expect(calls[0].args).toEqual(['secret', 'rm', 'box-1', '--host', 'api.acme.com', '-f'])
   })
 })
+
+// sbx refuses a target carrying a scheme or port, so reject it here with a message that says what
+// to use instead — and reject it BEFORE spawning, so a bad host can't half-apply a credential.
+describe('adapter custom-secret host validation', () => {
+  it('refuses a URL-shaped host rather than passing it to sbx', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    await expect(a.setCustomSecret(['https://api.mem0.ai/v1/'], 'MEM0_API_KEY', 'k', { sandbox: 'box-1' }))
+      .rejects.toThrow(/no scheme, port, or path/)
+    expect(calls).toHaveLength(0)
+  })
+  it('refuses it on removal too', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    await expect(a.removeCustomSecret(['https://api.smith.langchain.com'], { sandbox: 'box-1' }))
+      .rejects.toThrow(/not a usable target host/)
+    expect(calls).toHaveLength(0)
+  })
+  it('passes a valid host through verbatim', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    await a.setCustomSecret(['api.mem0.ai'], 'MEM0_API_KEY', 'k', { sandbox: 'box-1' })
+    expect(calls[0].args).toEqual(['secret', 'set-custom', 'box-1', '--host', 'api.mem0.ai', '--env', 'MEM0_API_KEY', '--value', 'k'])
+  })
+})
+
+// Removing by host deletes every custom secret sharing that host. The placeholder is the only
+// handle sbx offers for deleting exactly one.
+describe('adapter.removeCustomSecretByPlaceholder', () => {
+  it('removes a single custom secret by its placeholder token', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    await a.removeCustomSecretByPlaceholder('sbx-cs-IDtoken01', { sandbox: 'box-1' })
+    expect(calls[0].args).toEqual(['secret', 'rm', 'box-1', '--placeholder', 'sbx-cs-IDtoken01', '-f'])
+  })
+})
