@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { createSbxAdapter, type SpawnFn } from '../../../src/main/sbx/adapter'
+import { createLogger } from '../../../src/main/log'
 
 function fakeSpawn() {
   const calls: { args: string[]; stdin?: string }[] = []
@@ -80,5 +81,18 @@ describe('adapter.removeCustomSecretByPlaceholder', () => {
     const a = createSbxAdapter(spawn)
     await a.removeCustomSecretByPlaceholder('sbx-cs-IDtoken01', { sandbox: 'box-1' })
     expect(calls[0].args).toEqual(['secret', 'rm', 'box-1', '--placeholder', 'sbx-cs-IDtoken01', '-f'])
+  })
+})
+
+// End-to-end guard on the wiring, not just the logger: the value the adapter is forced to put on
+// argv must not reach the log file that users paste into bug reports.
+describe('adapter secret logging', () => {
+  it('never logs a custom secret value', async () => {
+    const { spawn } = fakeSpawn()
+    const lines: string[] = []
+    const a = createSbxAdapter(spawn, createLogger({ sink: (l) => lines.push(l), clock: () => 'T' }))
+    await a.setCustomSecret(['api.acme.com'], 'ACME_KEY', 'sk-live-do-not-log', { sandbox: 'box-1' })
+    expect(lines.join('\n')).not.toContain('sk-live-do-not-log')
+    expect(lines.join('\n')).toContain('--env ACME_KEY --value ••••')
   })
 })
