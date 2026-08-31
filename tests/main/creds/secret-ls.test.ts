@@ -54,7 +54,7 @@ describe('parseInstanceSecrets', () => {
     const s = parseInstanceSecrets(OUTPUT, 'test-embedding-openai-11a2d936')
     expect(s.services).toEqual(['openai']) // (global) github/anthropic excluded
     expect(s.customs).toEqual([
-      { env: 'AZURE_OPENAI_API_KEY', hosts: ['mgm-datascience-openai-sweden.openai.azure.com'] }
+      { env: 'AZURE_OPENAI_API_KEY', hosts: ['mgm-datascience-openai-sweden.openai.azure.com'], placeholder: 'sbx-cs-p8kRYpQbR2bGtkyO' }
     ])
   })
   it('splits comma-joined TARGETS into separate hosts', () => {
@@ -62,12 +62,30 @@ describe('parseInstanceSecrets', () => {
 SCOPE   TARGETS         ENV       PLACEHOLDER          SECRET
 sbx-1   a.com,b.com     MY_KEY    sbx-cs-multi01       GIx*`
     expect(parseInstanceSecrets(out, 'sbx-1').customs).toEqual([
-      { env: 'MY_KEY', hosts: ['a.com', 'b.com'] }
+      { env: 'MY_KEY', hosts: ['a.com', 'b.com'], placeholder: 'sbx-cs-multi01' }
     ])
   })
   it('returns nothing for a scope that owns no secrets', () => {
     const s = parseInstanceSecrets(OUTPUT, 'unrelated-sandbox')
     expect(s.services).toEqual([])
     expect(s.customs).toEqual([])
+  })
+})
+
+// Removal has to be scoped to ONE custom secret (`sbx secret rm --placeholder`), otherwise
+// removing by host takes down every secret sharing that host. So the placeholder travels with
+// each parsed row.
+describe('parseInstanceSecrets placeholders', () => {
+  const TWO_ON_ONE_HOST = `CUSTOM SECRETS
+SCOPE   TARGETS               ENV                    PLACEHOLDER          SECRET
+sbx-1   accounts.google.com   GOOGLE_CLIENT_ID       sbx-cs-IDtoken01     GIx*
+sbx-1   accounts.google.com   GOOGLE_CLIENT_SECRET   sbx-cs-SECRETtok02   GIx*
+`
+  it('keeps both rows that share a host, each with its own placeholder', () => {
+    const r = parseInstanceSecrets(TWO_ON_ONE_HOST, 'sbx-1')
+    expect(r.customs).toEqual([
+      { env: 'GOOGLE_CLIENT_ID', hosts: ['accounts.google.com'], placeholder: 'sbx-cs-IDtoken01' },
+      { env: 'GOOGLE_CLIENT_SECRET', hosts: ['accounts.google.com'], placeholder: 'sbx-cs-SECRETtok02' }
+    ])
   })
 })

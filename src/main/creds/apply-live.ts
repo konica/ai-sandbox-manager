@@ -11,7 +11,7 @@ import { customPlaceholdersForScope, parseInstanceSecrets } from './secret-ls'
 export interface ApplyLiveDeps {
   adapter: Pick<SbxAdapter,
     | 'listSandboxes' | 'setSecret' | 'setCustomSecret' | 'removeSecret' | 'removeCustomSecret'
-    | 'execScript' | 'listInstanceSecretsRaw'>
+    | 'removeCustomSecretByPlaceholder' | 'execScript' | 'listInstanceSecretsRaw'>
   store: Pick<Store, 'updateInstanceFingerprint'>
   creds: Pick<CredentialManager, 'getStaged'>
   log?: Logger
@@ -23,7 +23,9 @@ export interface ApplyLiveDeps {
  *  1. guard the sandbox is running (we exec into it),
  *  2. remove sandbox-scoped secrets that are no longer in the definition (deleted creds),
  *  3. upsert each desired cred with a stored value via remove-then-set, so a CHANGED value actually
- *     overwrites (sbx `set-custom`/`set` don't reliably overwrite in place; `rm -f` + set does),
+ *     overwrites (`set` doesn't overwrite in place, and `set-custom` errors outright on an env var
+ *     that already exists). Custom secrets are cleared by PLACEHOLDER, not by host — several may
+ *     share one host and `secret rm --host` would delete all of them,
  *  4. read back each custom secret's dynamic `sbx-cs-…` placeholder from `sbx secret ls <name>` and
  *     inject the env vars into /etc/sandbox-persistent.sh (picked up by the next `sbx run`),
  *  5. clear credential drift by updating the stored fingerprint — but ONLY when nothing failed to
@@ -59,15 +61,19 @@ export async function applyCredentialsLive(
     catch (e) { deps.log?.error(`  ✗ could not remove service secret "${svc}": ${(e as Error).message}`) }
   }
   for (const cu of current.customs) {
-    if (cu.hosts.length === 0) continue // no host to remove it by — leave it
     // Stale when the env var isn't wanted at all, OR it is wanted but at a DIFFERENT host set (a
     // domain-only edit would otherwise leave the old host grant live indefinitely). The upsert
     // loop below then (re-)registers it at the current hosts.
     const wantHosts = desiredCustomHosts.get(cu.env)
     if (wantHosts !== undefined && wantHosts === [...cu.hosts].sort().join(',')) continue
-    try { await deps.adapter.removeCustomSecret(cu.hosts, { sandbox: name }); removed++; deps.log?.info(`  removed stale custom secret "${cu.env}" (${cu.hosts.join(', ')}) from "${name}"`) }
+    // By PLACEHOLDER, never by host: two custom secrets may share one host (sbx allows it), and
+    // `secret rm --host` deletes every one of them.
+    try { await deps.adapter.removeCustomSecretByPlaceholder(cu.placeholder, { sandbox: name }); removed++; deps.log?.info(`  removed stale custom secret "${cu.env}" (${cu.hosts.join(', ')}) from "${name}"`) }
     catch (e) { deps.log?.error(`  ✗ could not remove custom secret "${cu.env}": ${(e as Error).message}`) }
   }
+  // env → its CURRENT placeholder, so the upsert below can clear one secret without disturbing a
+  // sibling on the same host. Rebuilt from the same listing, minus whatever was just removed.
+  const registered = new Map(current.customs.map((cu) => [cu.env, cu.placeholder]))
 
   // (3) Upsert desired creds. remove-then-set so a CHANGED value overwrites (sbx set/set-custom
   // don't reliably overwrite in place; rm -f + set does). A cred with no stored value is left as-is
@@ -88,11 +94,14 @@ export async function applyCredentialsLive(
     // The remove is best-effort — it exists only so a CHANGED value overwrites. A failure here
     // means nothing was cleared, so the set still has to run; bundling the two in one try turned
     // a failing remove into a credential that never got registered at all.
+    // `set-custom` REFUSES an env var that already exists in the scope, so a registered custom
+    // secret must be cleared first — by its placeholder, so a sibling sharing the host survives.
+    // Nothing registered under that env yet means there is nothing to clear.
+    const placeholder = c.kind === 'custom' ? registered.get(c.envVar) : undefined
     let cleared = false
     try {
-      if (c.kind === 'service') await deps.adapter.removeSecret(c.serviceId, { sandbox: name })
-      else await deps.adapter.removeCustomSecret(c.domains, { sandbox: name })
-      cleared = true
+      if (c.kind === 'service') { await deps.adapter.removeSecret(c.serviceId, { sandbox: name }); cleared = true }
+      else if (placeholder) { await deps.adapter.removeCustomSecretByPlaceholder(placeholder, { sandbox: name }); cleared = true }
     } catch (e) {
       deps.log?.info(`  ⚠ could not clear the previous ${c.kind} credential "${label}" before re-setting it (continuing): ${(e as Error).message}`)
     }

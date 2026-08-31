@@ -44,6 +44,9 @@ export interface SbxAdapter {
   policyLog(name: string): Promise<PolicySummary>
   setCustomSecret(hosts: string[], env: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   removeCustomSecret(hosts: string[], opts: { global?: boolean; sandbox?: string }): Promise<void>
+  /** Remove ONE custom secret by its `sbx-cs-…` placeholder. Removing by host deletes every
+   *  custom secret sharing that host, so this is what callers reconciling a single env var use. */
+  removeCustomSecretByPlaceholder(placeholder: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   setRegistrySecret(host: string, username: string | undefined, token: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   removeRegistrySecret(host: string, opts: { global?: boolean; sandbox?: string }): Promise<void>
   /** Docker sign-in / governance registration state (via `sbx diagnose`). 'unknown' never blocks. */
@@ -190,6 +193,10 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
   async function removeCustomSecret(hosts: string[], opts: { global?: boolean; sandbox?: string }): Promise<void> {
     const hostArgs = hostArgsFor(hosts)
     await runSbx(['secret', 'rm', ...scopeArgs(opts), ...hostArgs, '-f'])
+  }
+  // Deletes exactly one custom secret; `--host` would delete every secret on that host.
+  async function removeCustomSecretByPlaceholder(placeholder: string, opts: { global?: boolean; sandbox?: string }): Promise<void> {
+    await runSbx(['secret', 'rm', ...scopeArgs(opts), '--placeholder', placeholder, '-f'])
   }
 
   // Registry pull credential (Phase 0 spike). Token via --password-stdin (never on argv);
@@ -373,5 +380,5 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
     }
   }
 
-  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, listInstanceSecretsRaw, setCustomSecret, removeCustomSecret, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, execScript, execCapture, validateKit, listSandboxDir, probeSandboxPath, sandboxTargetsExist, copyToSandbox, copyFromSandbox, listMcpServers, inspectMcpServer, addMcpServer, removeMcpServer, mcpAuthStatus, setMcpClientSecret, removeMcpAuth, loadMcpServer, mcpSupported }
+  return { runSbx, listSandboxes, createSandbox, applyPolicy, publishPorts, stopSandbox, removeSandbox, setSecret, removeSecret, listGlobalSecretsRaw, listInstanceSecretsRaw, setCustomSecret, removeCustomSecret, removeCustomSecretByPlaceholder, setRegistrySecret, removeRegistrySecret, listPorts, publishPort, unpublishPort, allowNetwork, removeNetwork, policyLog, checkDockerAuth, execScript, execCapture, validateKit, listSandboxDir, probeSandboxPath, sandboxTargetsExist, copyToSandbox, copyFromSandbox, listMcpServers, inspectMcpServer, addMcpServer, removeMcpServer, mcpAuthStatus, setMcpClientSecret, removeMcpAuth, loadMcpServer, mcpSupported }
 }

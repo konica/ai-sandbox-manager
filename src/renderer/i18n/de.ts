@@ -271,6 +271,7 @@ export const de: Dict = {
     host: 'Host / Domäne',
     hostInvalid: 'Geben Sie einen reinen Host, eine IP oder einen Platzhalter an — zum Beispiel api.example.com oder *.example.com (ohne https://, Port oder Pfad).',
     envVar: 'Umgebungsvariable',
+    envVarTaken: 'Diese Umgebungsvariable wird bereits von einem anderen benutzerdefinierten Geheimnis in dieser Definition verwendet. Jedes benötigt eine eigene — zwei Geheimnisse können sich einen Host teilen, aber keinen Namen.',
     wildcardHint: 'Unterstützt Platzhalter (*.example.com, **.example.com). Der Proxy ersetzt Ihren Wert überall dort, wo die Umgebungsvariable in Anfragen an den Host erscheint — der Agent sieht das echte Geheimnis nie.',
     none: 'Keine Anmeldedaten hinzugefügt.',
     fromEnv: 'aus Umgebung ↩',

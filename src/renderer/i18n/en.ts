@@ -269,6 +269,7 @@ export const en = {
     host: 'Host / Domain',
     hostInvalid: 'Enter a bare host, IP, or wildcard — for example api.example.com or *.example.com (no https://, port, or path).',
     envVar: 'Environment Variable',
+    envVarTaken: 'That environment variable is already used by another custom secret in this definition. Each one needs its own — two secrets can share a host, but not a name.',
     wildcardHint: 'Supports wildcards (*.example.com, **.example.com). The proxy substitutes your value wherever the environment variable appears in requests to the host — the agent never sees the real secret.',
     none: 'No credentials added.',
     fromEnv: 'from environment ↩',

@@ -71,3 +71,14 @@ describe('adapter custom-secret host validation', () => {
     expect(calls[0].args).toEqual(['secret', 'set-custom', 'box-1', '--host', 'api.mem0.ai', '--env', 'MEM0_API_KEY', '--value', 'k'])
   })
 })
+
+// Removing by host deletes every custom secret sharing that host. The placeholder is the only
+// handle sbx offers for deleting exactly one.
+describe('adapter.removeCustomSecretByPlaceholder', () => {
+  it('removes a single custom secret by its placeholder token', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    await a.removeCustomSecretByPlaceholder('sbx-cs-IDtoken01', { sandbox: 'box-1' })
+    expect(calls[0].args).toEqual(['secret', 'rm', 'box-1', '--placeholder', 'sbx-cs-IDtoken01', '-f'])
+  })
+})

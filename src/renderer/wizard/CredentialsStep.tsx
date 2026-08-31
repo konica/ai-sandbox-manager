@@ -108,6 +108,7 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
   const [svcValue, setSvcValue] = useState('')
   const [host, setHost] = useState('')
   const [hostError, setHostError] = useState(false)
+  const [envError, setEnvError] = useState(false)
   const [envVar, setEnvVar] = useState('')
   const [customValue, setCustomValue] = useState('')
   const [regHost, setRegHost] = useState('')
@@ -142,9 +143,15 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
     // scheme/port"). An API base URL is what people paste out of provider docs, so say so here —
     // storing it unchanged is what let the credential fail silently at launch.
     const target = host.trim()
-    if (!isValidCredHost(target)) { setHostError(true); return }
-    setHostError(false)
-    onAddCustom({ kind: 'custom', id: toSbxName(target), label: target, envVar: envVar.trim(), domains: [target], value: customValue })
+    if (!isValidCredHost(target)) { setHostError(true); setEnvError(false); return }
+    // sbx keys a custom secret by env var within a scope ("custom secret env X already exists"),
+    // so a duplicate could never both register. Say so here rather than half-applying later.
+    const env = envVar.trim()
+    if (customs.some((x) => x.c.envVar === env)) { setEnvError(true); setHostError(false); return }
+    setHostError(false); setEnvError(false)
+    // The id keys the staged value in the vault, so derive it from the ENV VAR: two credentials
+    // that share a host would otherwise collide and one value would overwrite the other.
+    onAddCustom({ kind: 'custom', id: toSbxName(env), label: target, envVar: env, domains: [target], value: customValue })
     setHost(''); setEnvVar(''); setCustomValue('')
   }
   function editCustom(c: DraftCustomCred, i: number): void {
@@ -271,7 +278,8 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
             </div>
             <div style={{ ...field, flex: '1 1 160px' }}>
               <span style={lbl}>{t('credentials.envVar')}</span>
-              <input aria-label="Environment Variable" className="input" placeholder="API_KEY" value={envVar} onChange={(e) => setEnvVar(e.target.value)} />
+              <input aria-label="Environment Variable" className="input" placeholder="API_KEY" value={envVar} onChange={(e) => { setEnvVar(e.target.value); setEnvError(false) }} />
+              {envError && <span style={{ ...hint, color: 'var(--danger)' }}>{t('credentials.envVarTaken')}</span>}
             </div>
             <div style={{ ...field, flex: '1 1 140px' }}>
               <span style={lbl}>{t('credentials.value')}</span>
