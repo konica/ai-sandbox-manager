@@ -97,6 +97,7 @@ export const en = {
     cancel: 'Cancel',
     launched: 'Launched “{name}” — a terminal is opening.',
     applyLiveDone: 'Credentials synced to the running sandbox ({applied} set, {removed} removed). The agent picks them up the next time you open it.',
+    applyLiveFailed: '{failed} credential(s) could not be applied to the running sandbox ({applied} set, {removed} removed). The sandbox still shows a credential change so you can retry or rebuild — see the log for the reason.',
     actionFailed: 'Action failed: {message}'
   },
   mcp: {
@@ -266,6 +267,7 @@ export const en = {
     addedCustom: 'Added custom secrets',
     customHint: "For credentials that don't fit the service model — the proxy matches on domain(s) and injects into a request header. The agent sees a placeholder value.",
     host: 'Host / Domain',
+    hostInvalid: 'Enter a bare host, IP, or wildcard — for example api.example.com or *.example.com (no https://, port, or path).',
     envVar: 'Environment Variable',
     wildcardHint: 'Supports wildcards (*.example.com, **.example.com). The proxy substitutes your value wherever the environment variable appears in requests to the host — the agent never sees the real secret.',
     none: 'No credentials added.',

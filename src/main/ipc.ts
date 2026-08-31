@@ -170,7 +170,7 @@ export function buildHandlers(deps: Deps): {
   'instance:rebuild': (name: string, opener?: 'terminal' | 'vscode', preserveSessions?: boolean) => Promise<Result<{ name: string }>>
   'session:listArchives': (name: string) => Promise<Result<ArchiveEntry[]>>
   'session:exportArchive': (dir: string) => Promise<Result<{ canceled?: boolean; path?: string }>>
-  'instance:applyCredentials': (name: string) => Promise<Result<{ applied: number; removed: number; skipped: number }>>
+  'instance:applyCredentials': (name: string) => Promise<Result<{ applied: number; removed: number; skipped: number; failed: number }>>
   'instance:commands': (name: string) => Promise<Result<{ agent: string; shell: string }>>
   'instance:shell': (name: string) => Promise<Result<null>>
   'instance:stop': (name: string) => Promise<Result<null>>

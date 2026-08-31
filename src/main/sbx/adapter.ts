@@ -2,6 +2,7 @@ import { spawn } from 'child_process'
 import type { SbxInstance, DefinitionSpec, PortIntent, Tier, LivePort, PolicySummary } from '@shared/types'
 import type { McpServer, McpServerDetail, McpAuthState, McpAddInput } from '@shared/mcp'
 import { SbxError, classifySbxError } from '@shared/errors'
+import { normalizeCredHost } from '@shared/host'
 import { parseSbxLsJson, parseSbxLsText, parsePortsJson } from './parse'
 import { parsePolicyLog } from './policy-log'
 import { parseDiagnoseAuth, type AuthCheck } from './diagnose'
@@ -172,12 +173,22 @@ export function createSbxAdapter(spawnFn: SpawnFn = defaultSpawn, logger?: Logge
   function scopeArgs(opts: { global?: boolean; sandbox?: string }): string[] {
     return opts.global ? ['-g'] : opts.sandbox ? [opts.sandbox] : []
   }
+  // sbx refuses a target carrying a scheme or port ("expected host or IP without scheme/port"),
+  // so reduce each one here as well as in the wizard: definitions saved before that validation
+  // existed still hold URL-shaped targets, and this repairs them on the next launch or Apply live.
+  function hostArgsFor(hosts: string[]): string[] {
+    return hosts.flatMap((h) => {
+      const host = normalizeCredHost(h)
+      if (!host) throw new SbxError('generic', `"${h}" is not a usable target host. Use a bare host, IP, or wildcard such as api.example.com or *.example.com.`)
+      return ['--host', host]
+    })
+  }
   async function setCustomSecret(hosts: string[], env: string, value: string, opts: { global?: boolean; sandbox?: string }): Promise<void> {
-    const hostArgs = hosts.flatMap((h) => ['--host', h])
+    const hostArgs = hostArgsFor(hosts)
     await runSbx(['secret', 'set-custom', ...scopeArgs(opts), ...hostArgs, '--env', env, '--value', value])
   }
   async function removeCustomSecret(hosts: string[], opts: { global?: boolean; sandbox?: string }): Promise<void> {
-    const hostArgs = hosts.flatMap((h) => ['--host', h])
+    const hostArgs = hostArgsFor(hosts)
     await runSbx(['secret', 'rm', ...scopeArgs(opts), ...hostArgs, '-f'])
   }
 

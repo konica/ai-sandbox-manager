@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { KNOWN_SERVICES, serviceById } from '@shared/services'
 import { toSbxName } from '@shared/names'
+import { normalizeCredHost } from '@shared/host'
 import type { RegistryScope } from '@shared/types'
 import { useT } from '../i18n'
 import type { DraftCred, DraftCustomCred, DraftRegistryCred, DraftServiceCred } from './draft'
@@ -106,6 +107,7 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
   const [serviceId, setServiceId] = useState(KNOWN_SERVICES[0].id)
   const [svcValue, setSvcValue] = useState('')
   const [host, setHost] = useState('')
+  const [hostError, setHostError] = useState(false)
   const [envVar, setEnvVar] = useState('')
   const [customValue, setCustomValue] = useState('')
   const [regHost, setRegHost] = useState('')
@@ -136,7 +138,13 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
   }
   function addCustom(): void {
     if (!host.trim() || !envVar.trim()) return
-    onAddCustom({ kind: 'custom', id: toSbxName(host.trim()), label: host.trim(), envVar: envVar.trim(), domains: [host.trim()], value: customValue })
+    // sbx takes a bare host for --host and rejects anything else ("expected host or IP without
+    // scheme/port"). An API base URL is what people paste out of provider docs, so reduce that
+    // shape here rather than storing a target that fails silently at launch.
+    const target = normalizeCredHost(host)
+    if (!target) { setHostError(true); return }
+    setHostError(false)
+    onAddCustom({ kind: 'custom', id: toSbxName(target), label: target, envVar: envVar.trim(), domains: [target], value: customValue })
     setHost(''); setEnvVar(''); setCustomValue('')
   }
   function editCustom(c: DraftCustomCred, i: number): void {
@@ -258,7 +266,8 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
           <div style={rowStyle}>
             <div style={{ ...field, flex: '1 1 180px' }}>
               <span style={lbl}>{t('credentials.host')}</span>
-              <input aria-label="Host / Domain" className="input" placeholder="api.example.com" value={host} onChange={(e) => setHost(e.target.value)} />
+              <input aria-label="Host / Domain" className="input" placeholder="api.example.com" value={host} onChange={(e) => { setHost(e.target.value); setHostError(false) }} />
+              {hostError && <span style={{ ...hint, color: 'var(--danger)' }}>{t('credentials.hostInvalid')}</span>}
             </div>
             <div style={{ ...field, flex: '1 1 160px' }}>
               <span style={lbl}>{t('credentials.envVar')}</span>

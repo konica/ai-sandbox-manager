@@ -28,6 +28,27 @@ describe('CredentialsStep', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(p.onAddCustom).toHaveBeenCalledWith(expect.objectContaining({ kind: 'custom', envVar: 'ACME_KEY', domains: ['api.acme.com'] }))
   })
+  // sbx rejects a target with a scheme or port outright, and the failure used to surface only in
+  // the app log — long after launch — so catch it where the value is entered.
+  it('normalises a pasted API base URL to the bare host sbx accepts', () => {
+    const p = setup()
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'https://api.mem0.ai/v1/' } })
+    fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'MEM0_API_KEY' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(p.onAddCustom).toHaveBeenCalledWith(expect.objectContaining({ envVar: 'MEM0_API_KEY', domains: ['api.mem0.ai'], label: 'api.mem0.ai' }))
+  })
+  it('refuses a host it cannot normalise and says so instead of storing an unusable target', () => {
+    const p = setup()
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'not a host' } })
+    fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'K' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(p.onAddCustom).not.toHaveBeenCalled()
+    expect(screen.getByText(/bare host/i)).toBeInTheDocument()
+  })
   it('renders added credentials and removes one', () => {
     const p = setup({ credentials: [{ kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', value: '' }] })
     const removeBtn = screen.getByRole('button', { name: /remove/i })

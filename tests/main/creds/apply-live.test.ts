@@ -51,7 +51,7 @@ describe('applyCredentialsLive', () => {
     const script = d.adapter.execScript.mock.calls[0][1] as string
     expect(script).toContain("export ACME_KEY='sbx-cs-ACMEplaceholder01'")
     expect(d.store.updateInstanceFingerprint).toHaveBeenCalledWith('sbx-1', credFingerprint(base.credentials))
-    expect(r).toEqual({ applied: 1, removed: 0, skipped: 0 })
+    expect(r).toEqual({ applied: 1, removed: 0, skipped: 0, failed: 0 })
   })
 
   it('removes sandbox secrets that are no longer in the definition (deleted custom + service)', async () => {
@@ -62,7 +62,7 @@ describe('applyCredentialsLive', () => {
     expect(d.adapter.removeSecret).toHaveBeenCalledWith('openai', { sandbox: 'sbx-1' })
     // ACME_KEY stays and is upserted (not removed as stale).
     expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['api.acme.com'], 'ACME_KEY', 'secret-val', { sandbox: 'sbx-1' })
-    expect(r).toEqual({ applied: 1, removed: 2, skipped: 0 })
+    expect(r).toEqual({ applied: 1, removed: 2, skipped: 0, failed: 0 })
   })
 
   it('removes the old host grant when a custom secret keeps its env var but its domains change', async () => {
@@ -73,7 +73,7 @@ sbx-1   old.example.com   ACME_KEY   sbx-cs-OLDhost01   GIx*`)
     const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: 'stale' })
     expect(d.adapter.removeCustomSecret).toHaveBeenCalledWith(['old.example.com'], { sandbox: 'sbx-1' }) // stale old host removed
     expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['api.acme.com'], 'ACME_KEY', 'secret-val', { sandbox: 'sbx-1' }) // re-set at new host
-    expect(r).toEqual({ applied: 1, removed: 1, skipped: 0 })
+    expect(r).toEqual({ applied: 1, removed: 1, skipped: 0, failed: 0 })
   })
 
   it('upserts a SERVICE credential via remove-then-set', async () => {
@@ -83,7 +83,7 @@ sbx-1   old.example.com   ACME_KEY   sbx-cs-OLDhost01   GIx*`)
     expect(d.adapter.removeSecret).toHaveBeenCalledWith('openai', { sandbox: 'sbx-1' })
     expect(d.adapter.setSecret).toHaveBeenCalledWith('openai', 'secret-val', { sandbox: 'sbx-1' })
     expect(d.adapter.removeSecret.mock.invocationCallOrder[0]).toBeLessThan(d.adapter.setSecret.mock.invocationCallOrder[0])
-    expect(r).toEqual({ applied: 1, removed: 0, skipped: 0 })
+    expect(r).toEqual({ applied: 1, removed: 0, skipped: 0, failed: 0 })
   })
 
   it('leaves a desired credential untouched (does not wipe it) when it has no stored value', async () => {
@@ -92,7 +92,7 @@ sbx-1   old.example.com   ACME_KEY   sbx-cs-OLDhost01   GIx*`)
     const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: 'stale' })
     expect(d.adapter.setCustomSecret).not.toHaveBeenCalled()
     expect(d.adapter.removeCustomSecret).not.toHaveBeenCalled() // ACME_KEY is desired → not stale; no value → not re-set
-    expect(r).toEqual({ applied: 0, removed: 0, skipped: 1 })
+    expect(r).toEqual({ applied: 0, removed: 0, skipped: 1, failed: 0 })
   })
 
   it('throws when the sandbox is not running and writes nothing', async () => {
@@ -124,5 +124,36 @@ sbx-1   old.example.com   ACME_KEY   sbx-cs-OLDhost01   GIx*`)
     const script = d.adapter.execScript.mock.calls[0][1] as string
     expect(script).not.toContain('ghcr')
     expect(d.store.updateInstanceFingerprint).not.toHaveBeenCalled()
+  })
+
+  // The upsert's `rm` is best-effort: it exists so a CHANGED value overwrites. When it fails there
+  // is nothing to overwrite, so the `set` must still run — bundling them in one try turned a
+  // failing rm into a credential that was never registered at all.
+  it('still sets the custom secret when the preceding remove fails', async () => {
+    const d = deps()
+    d.adapter.removeCustomSecret.mockRejectedValueOnce(new Error('invalid target'))
+    const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: 'stale' })
+    expect(d.adapter.setCustomSecret).toHaveBeenCalledWith(['api.acme.com'], 'ACME_KEY', 'secret-val', { sandbox: 'sbx-1' })
+    expect(r).toEqual({ applied: 1, removed: 0, skipped: 0, failed: 0 })
+  })
+
+  it('reports a failed credential and leaves drift set, so the apply is not reported as a success', async () => {
+    const d = deps()
+    d.adapter.setCustomSecret.mockRejectedValueOnce(new Error('invalid target'))
+    const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec: base, storedFingerprint: 'stale' })
+    expect(r).toEqual({ applied: 0, removed: 0, skipped: 0, failed: 1 })
+    expect(d.store.updateInstanceFingerprint).not.toHaveBeenCalled()
+  })
+
+  it('matches a URL-shaped definition host against the registered bare host instead of churning it', async () => {
+    // Same secret, written into the definition as a pasted API base URL.
+    const spec: DefinitionSpec = {
+      ...base,
+      credentials: [{ kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['https://api.acme.com/v1/'], store: 'encrypted' }]
+    }
+    const d = deps()
+    const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec, storedFingerprint: 'stale' })
+    expect(r.removed).toBe(0) // not seen as a host change → no stale-removal churn
+    expect(r.failed).toBe(0)
   })
 })
