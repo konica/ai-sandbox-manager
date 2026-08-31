@@ -65,6 +65,16 @@ sbx-1   a.com,b.com     MY_KEY    sbx-cs-multi01       GIx*`
       { env: 'MY_KEY', hosts: ['a.com', 'b.com'], placeholder: 'sbx-cs-multi01' }
     ])
   })
+  // sbx actually prints multiple targets as "a.com, b.com" — comma AND space — so the hosts
+  // arrive as separate whitespace tokens with a trailing comma on all but the last.
+  it('splits TARGETS printed with a space after the comma, as sbx emits them', () => {
+    const out = `CUSTOM SECRETS
+SCOPE   TARGETS                              ENV           PLACEHOLDER      SECRET
+sbx-1   sbxmgr-a.invalid, sbxmgr-b.invalid   PROBE_MULTI   sbx-cs-multi02   GIx*`
+    expect(parseInstanceSecrets(out, 'sbx-1').customs).toEqual([
+      { env: 'PROBE_MULTI', hosts: ['sbxmgr-a.invalid', 'sbxmgr-b.invalid'], placeholder: 'sbx-cs-multi02' }
+    ])
+  })
   it('returns nothing for a scope that owns no secrets', () => {
     const s = parseInstanceSecrets(OUTPUT, 'unrelated-sandbox')
     expect(s.services).toEqual([])
