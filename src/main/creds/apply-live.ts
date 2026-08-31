@@ -7,7 +7,6 @@ import { SbxError } from '@shared/errors'
 import { credFingerprint, stageKey } from './register'
 import { persistentEnvScript, registrySubset } from './persistent'
 import { customPlaceholdersForScope, parseInstanceSecrets } from './secret-ls'
-import { normalizeCredHost } from '@shared/host'
 
 export interface ApplyLiveDeps {
   adapter: Pick<SbxAdapter,
@@ -48,10 +47,7 @@ export async function applyCredentialsLive(
   const desiredServiceIds = new Set(desired.flatMap((c) => (c.kind === 'service' ? [c.serviceId] : [])))
   // env var → its desired target hosts (sorted, comma-joined) so we can detect a domain-only edit.
   const desiredCustomHosts = new Map<string, string>()
-  // Compare on the NORMALISED host: sbx reports the bare host it registered, so a definition
-  // holding a URL-shaped target would otherwise never match and would churn every apply.
-  const normHosts = (hosts: string[]): string => [...hosts].map((h) => normalizeCredHost(h) ?? h).sort().join(',')
-  for (const c of desired) if (c.kind === 'custom') desiredCustomHosts.set(c.envVar, normHosts(c.domains))
+  for (const c of desired) if (c.kind === 'custom') desiredCustomHosts.set(c.envVar, [...c.domains].sort().join(','))
 
   // (2) Remove sandbox-scoped secrets that are no longer in the definition. Parsed straight from
   // `sbx secret ls <name>` so we catch anything actually registered, deleted-from-definition or not.
@@ -68,7 +64,7 @@ export async function applyCredentialsLive(
     // domain-only edit would otherwise leave the old host grant live indefinitely). The upsert
     // loop below then (re-)registers it at the current hosts.
     const wantHosts = desiredCustomHosts.get(cu.env)
-    if (wantHosts !== undefined && wantHosts === normHosts(cu.hosts)) continue
+    if (wantHosts !== undefined && wantHosts === [...cu.hosts].sort().join(',')) continue
     try { await deps.adapter.removeCustomSecret(cu.hosts, { sandbox: name }); removed++; deps.log?.info(`  removed stale custom secret "${cu.env}" (${cu.hosts.join(', ')}) from "${name}"`) }
     catch (e) { deps.log?.error(`  ✗ could not remove custom secret "${cu.env}": ${(e as Error).message}`) }
   }

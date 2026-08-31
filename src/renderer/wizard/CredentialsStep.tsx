@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { KNOWN_SERVICES, serviceById } from '@shared/services'
 import { toSbxName } from '@shared/names'
-import { normalizeCredHost } from '@shared/host'
+import { isValidCredHost } from '@shared/host'
 import type { RegistryScope } from '@shared/types'
 import { useT } from '../i18n'
 import type { DraftCred, DraftCustomCred, DraftRegistryCred, DraftServiceCred } from './draft'
@@ -139,10 +139,10 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
   function addCustom(): void {
     if (!host.trim() || !envVar.trim()) return
     // sbx takes a bare host for --host and rejects anything else ("expected host or IP without
-    // scheme/port"). An API base URL is what people paste out of provider docs, so reduce that
-    // shape here rather than storing a target that fails silently at launch.
-    const target = normalizeCredHost(host)
-    if (!target) { setHostError(true); return }
+    // scheme/port"). An API base URL is what people paste out of provider docs, so say so here —
+    // storing it unchanged is what let the credential fail silently at launch.
+    const target = host.trim()
+    if (!isValidCredHost(target)) { setHostError(true); return }
     setHostError(false)
     onAddCustom({ kind: 'custom', id: toSbxName(target), label: target, envVar: envVar.trim(), domains: [target], value: customValue })
     setHost(''); setEnvVar(''); setCustomValue('')

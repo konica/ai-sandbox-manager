@@ -1,50 +1,45 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeCredHost } from '../../src/shared/host'
+import { isValidCredHost } from '../../src/shared/host'
 
-describe('normalizeCredHost', () => {
-  it('strips a scheme (the shape people paste from API docs)', () => {
-    expect(normalizeCredHost('https://api.mem0.ai')).toBe('api.mem0.ai')
-    expect(normalizeCredHost('http://api.smith.langchain.com')).toBe('api.smith.langchain.com')
+describe('isValidCredHost', () => {
+  it('accepts a bare host', () => {
+    expect(isValidCredHost('api.acme.com')).toBe(true)
+    expect(isValidCredHost('  API.Acme.com  ')).toBe(true)
+    expect(isValidCredHost('localhost')).toBe(true)
   })
 
-  it('strips path, query, fragment, trailing slash and port', () => {
-    expect(normalizeCredHost('https://api.mem0.ai/v1/memories')).toBe('api.mem0.ai')
-    expect(normalizeCredHost('https://api.mem0.ai/')).toBe('api.mem0.ai')
-    expect(normalizeCredHost('api.mem0.ai:443')).toBe('api.mem0.ai')
-    expect(normalizeCredHost('https://api.mem0.ai:8443/v1?k=1#frag')).toBe('api.mem0.ai')
+  it('accepts the wildcard patterns sbx documents', () => {
+    expect(isValidCredHost('*.coderabbit.ai')).toBe(true)
+    expect(isValidCredHost('**.example.com')).toBe(true)
+    expect(isValidCredHost('*')).toBe(true)
   })
 
-  it('strips userinfo and lowercases, and drops a trailing root dot', () => {
-    expect(normalizeCredHost('https://user:pw@API.Mem0.AI/')).toBe('api.mem0.ai')
-    expect(normalizeCredHost('API.MEM0.AI.')).toBe('api.mem0.ai')
+  it('accepts IPv4 and bracketed IPv6 literals', () => {
+    expect(isValidCredHost('10.0.0.5')).toBe(true)
+    expect(isValidCredHost('[::1]')).toBe(true)
   })
 
-  it('passes an already-bare host through unchanged', () => {
-    expect(normalizeCredHost('api.acme.com')).toBe('api.acme.com')
+  it('rejects a pasted API base URL — sbx refuses a scheme outright', () => {
+    expect(isValidCredHost('https://api.mem0.ai')).toBe(false)
+    expect(isValidCredHost('http://api.smith.langchain.com')).toBe(false)
+    expect(isValidCredHost('https://api.mem0.ai/v1/memories')).toBe(false)
   })
 
-  it('keeps wildcard patterns, which sbx accepts as targets', () => {
-    expect(normalizeCredHost('*.coderabbit.ai')).toBe('*.coderabbit.ai')
-    expect(normalizeCredHost('**.example.com')).toBe('**.example.com')
-    expect(normalizeCredHost('*')).toBe('*')
+  it('rejects a port, path, query, fragment, or userinfo', () => {
+    expect(isValidCredHost('api.mem0.ai:443')).toBe(false)
+    expect(isValidCredHost('[::1]:8080')).toBe(false)
+    expect(isValidCredHost('api.mem0.ai/v1')).toBe(false)
+    expect(isValidCredHost('api.mem0.ai?k=1')).toBe(false)
+    expect(isValidCredHost('api.mem0.ai#frag')).toBe(false)
+    expect(isValidCredHost('user:pw@api.mem0.ai')).toBe(false)
   })
 
-  it('keeps IPv4 and bracketed IPv6 literals (port stripped, brackets kept)', () => {
-    expect(normalizeCredHost('10.0.0.5')).toBe('10.0.0.5')
-    expect(normalizeCredHost('http://10.0.0.5:8080/x')).toBe('10.0.0.5')
-    expect(normalizeCredHost('[::1]:8080')).toBe('[::1]')
-  })
-
-  it('returns null for input with no usable host', () => {
-    expect(normalizeCredHost('')).toBeNull()
-    expect(normalizeCredHost('   ')).toBeNull()
-    expect(normalizeCredHost('https://')).toBeNull()
-    expect(normalizeCredHost('/just/a/path')).toBeNull()
-  })
-
-  it('returns null for a host with characters sbx would reject', () => {
-    expect(normalizeCredHost('api mem0 ai')).toBeNull()
-    expect(normalizeCredHost('api_mem0!.ai')).toBeNull()
-    expect(normalizeCredHost('..')).toBeNull()
+  it('rejects empty input and characters sbx would refuse', () => {
+    expect(isValidCredHost('')).toBe(false)
+    expect(isValidCredHost('   ')).toBe(false)
+    expect(isValidCredHost('api mem0 ai')).toBe(false)
+    expect(isValidCredHost('api_mem0!.ai')).toBe(false)
+    expect(isValidCredHost('api.mem0.ai.')).toBe(false)
+    expect(isValidCredHost('..')).toBe(false)
   })
 })

@@ -145,15 +145,4 @@ sbx-1   old.example.com   ACME_KEY   sbx-cs-OLDhost01   GIx*`)
     expect(d.store.updateInstanceFingerprint).not.toHaveBeenCalled()
   })
 
-  it('matches a URL-shaped definition host against the registered bare host instead of churning it', async () => {
-    // Same secret, written into the definition as a pasted API base URL.
-    const spec: DefinitionSpec = {
-      ...base,
-      credentials: [{ kind: 'custom', id: 'acme', label: 'Acme', envVar: 'ACME_KEY', domains: ['https://api.acme.com/v1/'], store: 'encrypted' }]
-    }
-    const d = deps()
-    const r = await applyCredentialsLive(d as never, { name: 'sbx-1', definitionId: 'd1', spec, storedFingerprint: 'stale' })
-    expect(r.removed).toBe(0) // not seen as a host change → no stale-removal churn
-    expect(r.failed).toBe(0)
-  })
 })

@@ -47,26 +47,27 @@ describe('adapter.setCustomSecret / removeCustomSecret', () => {
   })
 })
 
-// Definitions saved before host normalisation existed still hold URL-shaped targets, and sbx
-// refuses those outright. Repair them at the boundary so an existing definition works again on
-// its next launch or Apply live, without the user having to re-enter the credential.
-describe('adapter custom-secret host normalisation', () => {
-  it('reduces a URL-shaped host to the bare host sbx accepts', async () => {
+// sbx refuses a target carrying a scheme or port, so reject it here with a message that says what
+// to use instead — and reject it BEFORE spawning, so a bad host can't half-apply a credential.
+describe('adapter custom-secret host validation', () => {
+  it('refuses a URL-shaped host rather than passing it to sbx', async () => {
     const { spawn, calls } = fakeSpawn()
     const a = createSbxAdapter(spawn)
-    await a.setCustomSecret(['https://api.mem0.ai/v1/'], 'MEM0_API_KEY', 'k', { sandbox: 'box-1' })
-    expect(calls[0].args).toEqual(['secret', 'set-custom', 'box-1', '--host', 'api.mem0.ai', '--env', 'MEM0_API_KEY', '--value', 'k'])
-  })
-  it('normalises on removal too, so the rm matches what was registered', async () => {
-    const { spawn, calls } = fakeSpawn()
-    const a = createSbxAdapter(spawn)
-    await a.removeCustomSecret(['https://api.smith.langchain.com'], { sandbox: 'box-1' })
-    expect(calls[0].args).toEqual(['secret', 'rm', 'box-1', '--host', 'api.smith.langchain.com', '-f'])
-  })
-  it('rejects a target with no usable host instead of letting sbx fail on it', async () => {
-    const { spawn, calls } = fakeSpawn()
-    const a = createSbxAdapter(spawn)
-    await expect(a.setCustomSecret(['not a host'], 'K', 'v', { sandbox: 'box-1' })).rejects.toThrow(/not a host/)
+    await expect(a.setCustomSecret(['https://api.mem0.ai/v1/'], 'MEM0_API_KEY', 'k', { sandbox: 'box-1' }))
+      .rejects.toThrow(/no scheme, port, or path/)
     expect(calls).toHaveLength(0)
+  })
+  it('refuses it on removal too', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    await expect(a.removeCustomSecret(['https://api.smith.langchain.com'], { sandbox: 'box-1' }))
+      .rejects.toThrow(/not a usable target host/)
+    expect(calls).toHaveLength(0)
+  })
+  it('passes a valid host through verbatim', async () => {
+    const { spawn, calls } = fakeSpawn()
+    const a = createSbxAdapter(spawn)
+    await a.setCustomSecret(['api.mem0.ai'], 'MEM0_API_KEY', 'k', { sandbox: 'box-1' })
+    expect(calls[0].args).toEqual(['secret', 'set-custom', 'box-1', '--host', 'api.mem0.ai', '--env', 'MEM0_API_KEY', '--value', 'k'])
   })
 })
