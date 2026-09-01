@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { KNOWN_SERVICES, serviceById } from '@shared/services'
 import { toSbxName } from '@shared/names'
-import { isValidCredHost } from '@shared/host'
+import { isValidCredHost, parseCredHosts } from '@shared/host'
 import type { RegistryScope } from '@shared/types'
 import { useT } from '../i18n'
 import type { DraftCred, DraftCustomCred, DraftRegistryCred, DraftServiceCred } from './draft'
@@ -107,7 +107,9 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
   const [serviceId, setServiceId] = useState(KNOWN_SERVICES[0].id)
   const [svcValue, setSvcValue] = useState('')
   const [host, setHost] = useState('')
-  const [hostError, setHostError] = useState(false)
+  // The offending token, not just a flag: with several hosts in the field, the message has to
+  // say WHICH one sbx would refuse.
+  const [hostError, setHostError] = useState<string | null>(null)
   const [envError, setEnvError] = useState(false)
   const [envVar, setEnvVar] = useState('')
   const [customValue, setCustomValue] = useState('')
@@ -139,23 +141,32 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
   }
   function addCustom(): void {
     if (!host.trim() || !envVar.trim()) return
-    // sbx takes a bare host for --host and rejects anything else ("expected host or IP without
+    // One secret may need to reach several hosts (Google OAuth wants GOOGLE_CLIENT_SECRET on both
+    // accounts.google.com and oauth2.googleapis.com), and sbx keys a custom secret by env var
+    // within a scope — so the domains ride on ONE credential, entered as a comma/space list.
+    const targets = parseCredHosts(host)
+    if (targets.length === 0) return
+    // sbx takes a bare host per --host and rejects anything else ("expected host or IP without
     // scheme/port"). An API base URL is what people paste out of provider docs, so say so here —
-    // storing it unchanged is what let the credential fail silently at launch.
-    const target = host.trim()
-    if (!isValidCredHost(target)) { setHostError(true); setEnvError(false); return }
+    // storing it unchanged is what let the credential fail silently at launch. One bad token
+    // blocks the whole add: registering only the good hosts would leave the secret silently
+    // unreachable on the rest.
+    const bad = targets.find((t) => !isValidCredHost(t))
+    if (bad !== undefined) { setHostError(bad); setEnvError(false); return }
     // sbx keys a custom secret by env var within a scope ("custom secret env X already exists"),
     // so a duplicate could never both register. Say so here rather than half-applying later.
     const env = envVar.trim()
-    if (customs.some((x) => x.c.envVar === env)) { setEnvError(true); setHostError(false); return }
-    setHostError(false); setEnvError(false)
+    if (customs.some((x) => x.c.envVar === env)) { setEnvError(true); setHostError(null); return }
+    setHostError(null); setEnvError(false)
     // The id keys the staged value in the vault, so derive it from the ENV VAR: two credentials
     // that share a host would otherwise collide and one value would overwrite the other.
-    onAddCustom({ kind: 'custom', id: toSbxName(env), label: target, envVar: env, domains: [target], value: customValue })
+    onAddCustom({ kind: 'custom', id: toSbxName(env), label: targets.join(', '), envVar: env, domains: targets, value: customValue })
     setHost(''); setEnvVar(''); setCustomValue('')
   }
   function editCustom(c: DraftCustomCred, i: number): void {
-    setTab('custom'); setHost(c.domains[0] ?? ''); setEnvVar(c.envVar); setCustomValue(c.value); onRemove(i)
+    // Every domain, not just the first — edit is remove-then-refill, so dropping the rest here
+    // silently shrank the secret's reach the moment anyone touched an existing entry.
+    setTab('custom'); setHost(c.domains.join(', ')); setEnvVar(c.envVar); setCustomValue(c.value); onRemove(i)
   }
   function addRegistry(): void {
     const h = regHost.trim()
@@ -273,8 +284,8 @@ export function CredentialsStep({ credentials, onAddService, onAddCustom, onAddR
           <div style={rowStyle}>
             <div style={{ ...field, flex: '1 1 180px' }}>
               <span style={lbl}>{t('credentials.host')}</span>
-              <input aria-label="Host / Domain" className="input" placeholder="api.example.com" value={host} onChange={(e) => { setHost(e.target.value); setHostError(false) }} />
-              {hostError && <span style={{ ...hint, color: 'var(--danger)' }}>{t('credentials.hostInvalid')}</span>}
+              <input aria-label="Host / Domain" className="input" placeholder="api.example.com, *.example.com" value={host} onChange={(e) => { setHost(e.target.value); setHostError(null) }} />
+              {hostError !== null && <span style={{ ...hint, color: 'var(--danger)' }}>{t('credentials.hostInvalid', { host: hostError })}</span>}
             </div>
             <div style={{ ...field, flex: '1 1 160px' }}>
               <span style={lbl}>{t('credentials.envVar')}</span>
