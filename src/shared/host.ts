@@ -20,3 +20,27 @@ export function isValidCredHost(raw: string): boolean {
   if (IPV6_RE.test(host)) return true
   return host.split('.').every((label) => LABEL_RE.test(label))
 }
+
+/**
+ * Split a Host / Domain entry into the hosts it names. One custom secret often has to reach
+ * several hosts (Google OAuth needs GOOGLE_CLIENT_SECRET on both accounts.google.com and
+ * oauth2.googleapis.com), and sbx keys a custom secret by env var within a scope — so the
+ * domains have to travel on ONE credential rather than one entry each.
+ *
+ * Commas and whitespace both separate, empties are dropped, and a repeat is dropped
+ * case-insensitively (hosts are case-insensitive, and sbx should not be handed the same
+ * `--host` twice) keeping the first spelling the user typed — we never rewrite their input.
+ */
+export function parseCredHosts(raw: string): string[] {
+  const seen = new Set<string>()
+  const hosts: string[] = []
+  for (const token of raw.split(/[\s,]+/)) {
+    const host = token.trim()
+    if (!host) continue
+    const key = host.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    hosts.push(host)
+  }
+  return hosts
+}

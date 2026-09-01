@@ -79,6 +79,66 @@ describe('CredentialsStep', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(p.onAddCustom).toHaveBeenCalledWith(expect.objectContaining({ id: 'google-client-secret', envVar: 'GOOGLE_CLIENT_SECRET', domains: ['accounts.google.com'] }))
   })
+  // One secret often has to authenticate against several hosts — Google OAuth needs
+  // GOOGLE_CLIENT_SECRET on both accounts.google.com and oauth2.googleapis.com. sbx keys a custom
+  // secret by env var within a scope, so two entries can never carry the same name; the domains
+  // have to travel on ONE entry instead.
+  it('adds one custom secret spanning several comma-separated domains', () => {
+    const p = setup()
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'accounts.google.com, oauth2.googleapis.com' } })
+    fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'GOOGLE_CLIENT_SECRET' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(p.onAddCustom).toHaveBeenCalledTimes(1)
+    expect(p.onAddCustom).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'custom',
+      id: 'google-client-secret',
+      envVar: 'GOOGLE_CLIENT_SECRET',
+      domains: ['accounts.google.com', 'oauth2.googleapis.com'],
+      label: 'accounts.google.com, oauth2.googleapis.com'
+    }))
+  })
+  it('separates domains on whitespace as well as commas', () => {
+    const p = setup()
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'accounts.google.com  oauth2.googleapis.com,,*.googleapis.com ' } })
+    fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'GOOGLE_CLIENT_SECRET' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(p.onAddCustom).toHaveBeenCalledWith(expect.objectContaining({ domains: ['accounts.google.com', 'oauth2.googleapis.com', '*.googleapis.com'] }))
+  })
+  it('drops a repeated domain so sbx is not handed the same --host twice', () => {
+    const p = setup()
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'Accounts.Google.com, accounts.google.com' } })
+    fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'GOOGLE_CLIENT_SECRET' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    // deduped case-insensitively, keeping the first spelling the user typed
+    expect(p.onAddCustom).toHaveBeenCalledWith(expect.objectContaining({ domains: ['Accounts.Google.com'] }))
+  })
+  // A bad token anywhere in the list must block the whole add — half-registering the good hosts
+  // would leave the secret silently unreachable on the rest.
+  it('rejects the whole list when one domain is not a bare host, naming the offender', () => {
+    const p = setup()
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.change(screen.getByLabelText('Host / Domain'), { target: { value: 'accounts.google.com, https://oauth2.googleapis.com/token' } })
+    fireEvent.change(screen.getByLabelText('Environment Variable'), { target: { value: 'GOOGLE_CLIENT_SECRET' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'v' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(p.onAddCustom).not.toHaveBeenCalled()
+    expect(screen.getByText(/https:\/\/oauth2\.googleapis\.com\/token/)).toBeInTheDocument()
+    expect(screen.getByText(/bare host/i)).toBeInTheDocument()
+  })
+  // Edit is remove-then-refill: dropping every domain past the first silently shrank the secret's
+  // reach the moment anyone touched an existing entry.
+  it('round-trips every domain back into the field when editing a multi-domain secret', () => {
+    setup({ credentials: [{ kind: 'custom', id: 'google-client-secret', label: 'accounts.google.com, oauth2.googleapis.com', envVar: 'GOOGLE_CLIENT_SECRET', domains: ['accounts.google.com', 'oauth2.googleapis.com'], value: 'v' }] })
+    fireEvent.click(screen.getByRole('tab', { name: 'Custom Secret' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByLabelText('Host / Domain')).toHaveValue('accounts.google.com, oauth2.googleapis.com')
+  })
   it('renders added credentials and removes one', () => {
     const p = setup({ credentials: [{ kind: 'service', serviceId: 'openai', envVar: 'OPENAI_API_KEY', value: '' }] })
     const removeBtn = screen.getByRole('button', { name: /remove/i })
